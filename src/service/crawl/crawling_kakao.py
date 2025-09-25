@@ -104,6 +104,3 @@ async def scrape_restaurants():
         json.dump(restaurants, f, ensure_ascii=False, indent=4)
         
     print(f"데이터가 '{file_path}' 파일에 성공적으로 저장되었습니다.")
-
-if __name__ == "__main__":
-    asyncio.run(scrape_restaurants())
