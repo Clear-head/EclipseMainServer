@@ -1,10 +1,12 @@
 import logging
 import logging.config
 import json
+import os
 from pathlib import Path
 import datetime
 
 logger_cache = {}
+logger_abs_path = os.path.abspath(os.path.dirname(__file__))
 
 def get_logger(name):
     """
@@ -14,7 +16,7 @@ def get_logger(name):
         로거 객체
     """
 
-    log_path = f"./logs/{__name__}"
+    log_path = Path(logger_abs_path).parent.parent.joinpath('logs').joinpath(name)
 
     cache_key = (name, log_path)
     if cache_key in logger_cache:
