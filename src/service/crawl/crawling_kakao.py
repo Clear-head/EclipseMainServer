@@ -141,6 +141,7 @@ async def click_more_button(page):
         except (TimeoutError, Error) as e:
             logger.error(f"더보기 버튼 클릭 실패: {e}")
             await asyncio.sleep(2) # 잠시 대기 후 재시도
+        logger.error("더보기 버튼 클릭 재시도")
     
     logger.error("더보기 버튼 클릭에 최종 실패했습니다.")
     return False
@@ -202,6 +203,7 @@ async def navigate_to_page(page, page_number):
         await asyncio.sleep(2) # 페이지 로딩 대기
         return True
     except TimeoutError:
+        logger.error(f"페이지 {page_number} 이동 실패")
         return False
     except Exception as e:
         logger.error(f"페이지 {page_number} 이동 중 오류: {e}")
@@ -229,6 +231,7 @@ async def navigate_to_next_page_group(page):
         await asyncio.sleep(2) # 새 페이지 그룹 로딩 대기
         return True
     except TimeoutError:
+        logger.error(f"다음 페이지 그룹 이동 실패")
         return False
     except Exception as e:
         logger.error(f"다음 페이지 그룹 이동 중 오류: {e}")

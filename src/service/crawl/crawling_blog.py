@@ -213,7 +213,7 @@ class NaverBlogReviewScraper:
         content_text = await self._try_dynamic_selector(blog_page, content_frame)
         
         # 동적 선택자가 실패했을 경우, 일반 선택자로 재시도
-        if not content_text or len(content_text.strip()) < 50:
+        if not content_text:
             content_text = await self._try_general_selectors(content_frame)
         
         return content_text
@@ -249,6 +249,7 @@ class NaverBlogReviewScraper:
             return content_text
             
         except TimeoutError:
+            logger.info(f"블로그 글의 동적 선택자를 찾지 못하여 일반 선택자로 재시도합니다.")
             return ""
         except Exception as e:
             logger.error(f"동적 선택자 처리 중 오류: {e}")
@@ -277,6 +278,7 @@ class NaverBlogReviewScraper:
             return await self._try_alternative_selectors(content_frame)
             
         except TimeoutError:
+            logger.info(f"블로그 글의 일반 선택자를 찾지 못하여 대안 선택자들로 재시도합니다.")
             return ""
         except Exception as e:
             logger.error(f"콘텐츠 추출 중 오류: {e}")
@@ -304,11 +306,12 @@ class NaverBlogReviewScraper:
                 element = content_frame.locator(selector).first
                 if await element.count() > 0:
                     content_text = await element.inner_text(timeout=5000)
-                    if content_text and len(content_text.strip()) > 50:
+                    if content_text:
                         return content_text
             except:
+                logger.info(f'{selector} 선택자 실패')
                 continue
-        
+        logger.error(f"콘텐츠 추출 실패")
         return ""
 
     async def _extract_creation_date(self, blog_page: Page, content_frame) -> datetime:
@@ -364,7 +367,7 @@ class NaverBlogReviewScraper:
                     return created_at_str
             except:
                 continue
-        
+        logger.error("블로그 글 작성 날짜 추출 실패")
         return None
 
     def _parse_date_string(self, date_str: str) -> datetime:

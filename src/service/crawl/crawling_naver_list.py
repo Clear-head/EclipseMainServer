@@ -145,7 +145,6 @@ class NaverMapCrawler:
                 name = await self._get_store_name(store_list_item)
                 
                 # 크롤링 시작 로그
-                now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 logger.info(f"'{name}' 크롤링 시작")
                 
                 # 상점 클릭
@@ -164,7 +163,6 @@ class NaverMapCrawler:
                     success_count += 1
                     
                     # 크롤링 완료 로그
-                    now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                     logger.info(f"'{name}' 크롤링 완료 및 저장됨")
                 
                 # 딜레이
@@ -182,6 +180,7 @@ class NaverMapCrawler:
             name_locator = store_list_item.locator('.bSoi3 a')
             return await name_locator.inner_text(timeout=5000)
         except TimeoutError:
+            logger.error(f"리스트에서 상점명 가져오기 실패")
             return ""
     
     async def _click_store(self, store_list_item):
@@ -197,6 +196,7 @@ class NaverMapCrawler:
             await asyncio.sleep(3)
             return entry_frame
         except TimeoutError:
+            logger.error(f"상세 정보 iframe 가져오기 실패")
             return ""
     
     async def _delay_between_stores(self, store_name: str, delay: int = 5):
@@ -319,6 +319,7 @@ class StoreDetailExtractor:
             name_locator = self.frame.locator('span.GHAhO')
             return await name_locator.inner_text(timeout=5000)
         except TimeoutError:
+            logger.error(f"매장명 추출 Timeout")
             return original_name
         except Exception as e:
             logger.error(f"매장명 추출 오류: {e}")
@@ -330,6 +331,7 @@ class StoreDetailExtractor:
             address_locator = self.frame.locator('#app-root > div > div > div:nth-child(6) > div > div:nth-child(2) > div.place_section_content > div > div.O8qbU.tQY7D > div > a > span.LDgIH')
             return await address_locator.inner_text(timeout=5000)
         except TimeoutError:
+            logger.error(f"주소 추출 Timeout")
             return ""
         except Exception as e:
             logger.error(f"주소 추출 오류: {e}")
@@ -341,13 +343,14 @@ class StoreDetailExtractor:
             phone_locator = self.frame.locator('div.O8qbU.nbXkr > div > span.xlx7Q')
             return await phone_locator.inner_text(timeout=5000)
         except TimeoutError:
+            logger.error(f"전화번호 추출 Timeout")
             return ""
         except Exception as e:
             logger.error(f"전화번호 추출 오류: {e}")
             return ""
     
     async def _extract_business_hours(self) -> str:
-        """영업시간 추출 - 실패 시 빈 문자열 반환"""
+        """영업시간 추출"""
         try:
             business_hours_button = self.frame.locator('div.O8qbU.pSavy a').first
             
@@ -359,10 +362,10 @@ class StoreDetailExtractor:
                 hours_list = await business_hours_locators.all_inner_texts()
                 return ", ".join(hours_list) if hours_list else ""
             else:
-                logger.warning("영업시간 정보를 찾을 수 없습니다.")
+                logger.error(f"영업시간 추출 실패")
                 return ""
         except Exception as e:
-            logger.warning(f"영업시간 정보 추출 중 오류 발생 - 빈 문자열로 처리: {e}")
+            logger.error(f"영업시간 추출 오류: {e}")
             return ""
     
     async def _extract_image(self) -> Optional[str]:
@@ -389,6 +392,7 @@ class StoreDetailExtractor:
             return ""
             
         except TimeoutError:
+            logger.error(f"이미지 추출 Timeout")
             return ""
         except Exception as e:
             logger.error(f"이미지 추출 중 오류: {e}")
@@ -421,24 +425,20 @@ class StoreDetailExtractor:
     async def _click_review_show_more_buttons(self):
         """리뷰 더보기 버튼들 클릭"""
         # 첫 번째 더보기 버튼
-        click_count = 0
-        while click_count < 10:
+        while True:
             try:
                 show_more_button = self.frame.locator('div.mrSZf > div > a > span.YqDZw')
                 await show_more_button.click(timeout=3000)
                 await asyncio.sleep(1)
-                click_count += 1
             except TimeoutError:
                 break
         
         # 두 번째 더보기 버튼
-        click_count = 0
-        while click_count < 10:
+        while True:
             try:
                 show_more_button = self.frame.locator('div.NSTUp > div > a')
                 await show_more_button.click(timeout=3000)
                 await asyncio.sleep(1)
-                click_count += 1
             except TimeoutError:
                 break
     
@@ -484,6 +484,7 @@ class StoreDetailExtractor:
                         content_data.append(full_review_text)
                     
                 except TimeoutError:
+                    logger.error(f"개별 리뷰 추출 중 Timeout")
                     continue
                 except Exception as e:
                     logger.error(f"개별 리뷰 추출 중 오류: {e}")
