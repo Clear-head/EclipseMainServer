@@ -13,4 +13,4 @@ class StoreInfo(BaseModel):
     opinion: List[Tuple[str, int]]  #   이런점이 좋았어요 밑에 있는거
     content: List[str]              #   더 밑에 리뷰 내용
     blog_review: List[BlogReview]   #   블로그 리뷰 내용 리스트
-    last_crawl: datetime
+    last_crawl: datetime            #   마지막 크롤링 시간
