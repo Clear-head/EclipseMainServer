@@ -1,6 +1,6 @@
 from typing import List, Tuple
 from pydantic import BaseModel
-from models.blog_review import BlogReview
+from blog_review import BlogReview
 from datetime import datetime
 
 
