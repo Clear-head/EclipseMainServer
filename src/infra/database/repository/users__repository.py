@@ -1,6 +1,4 @@
 from sqlalchemy import insert, select, update, delete
-from sqlalchemy.sql.functions import user
-
 from src.domain.entities.user_entity import UserEntity
 from mysql_engine import get_engine
 from ..tables.table_users import users_table
@@ -66,7 +64,7 @@ class UserRepository:
             async with engine.begin() as conn:
                 stmt = select(users_table.c).where(users_table.c.id == user_id)
                 result = await conn.execute(stmt)
-                user_entity = user.UserEntity(**result.one())
+                user_entity = UserEntity(**result.one())
 
         except Exception as e:
             self.logger.error(e)
