@@ -13,5 +13,5 @@ users_table = Table(
     Column('phone', String(11)),
     Column('email', String(255)),
     Column('sex', Boolean),
-    Column('address', String(255)),
+    Column('address', String(255))
 )
