@@ -8,7 +8,7 @@ original_data_table = Table(
     Column('id', String(255), primary_key=True),
     Column('name', String(255)),
     Column('address', String(255)),
-    Column('phone', String(11)),
+    Column('phone', String(12)),
     Column('type', String(1)),
     Column('image', String(255)),
     Column('longitude', String(10)),
