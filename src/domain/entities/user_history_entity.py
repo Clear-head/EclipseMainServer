@@ -1,15 +1,12 @@
 from datetime import datetime
+from pydantic import field_validator, ValidationError
+from src.domain.entities.base_entity import BaseEntity
 
-from pydantic import BaseModel, field_validator, ValidationError
 
-
-class UserHistoryEntity(BaseModel):
+class UserHistoryEntity(BaseEntity):
     user_id: str
     visited_at: datetime
     category_id: str
-
-    class Config:
-        from_attributes = True
 
     @field_validator("user_id", "category_id")
     @classmethod

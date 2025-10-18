@@ -1,12 +1,10 @@
-from pydantic import BaseModel, field_validator
+from pydantic import field_validator
+from src.domain.entities.base_entity import BaseEntity
 
 
-class UserLikeEntity(BaseModel):
+class UserLikeEntity(BaseEntity):
     user_id: str
     category_id: str
-
-    class Config:
-        from_attributes = True
 
     @field_validator('user_id', 'category_id')
     @classmethod

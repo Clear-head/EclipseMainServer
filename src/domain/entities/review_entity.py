@@ -8,10 +8,6 @@ class ReviewEntity(BaseModel):
     stars: int
     tag: str
 
-    class Config:
-        from_attributes = True
-
-
     @field_validator('id', 'user_id', 'category_id')
     @classmethod
     def validate_null(cls, v):

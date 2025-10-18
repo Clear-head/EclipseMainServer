@@ -1,12 +1,10 @@
-from pydantic import BaseModel, field_validator, ValidationError
+from pydantic import field_validator, ValidationError
+from src.domain.entities.base_entity import BaseEntity
 
 
-class CategoryEntity(BaseModel):
+class CategoryEntity(BaseEntity):
     id: str
     tags: str
-
-    class Config:
-        from_attributes = True
 
     @field_validator('id')
     @classmethod

@@ -10,10 +10,13 @@ class CategoryRepository(base_repository.BaseRepository):
         self.entity = category_entity
 
     async def insert(self, item):
-        pass
+        await super().insert(item)
+
     async def select(self, item):
-        pass
+        await super().select(item)
+        
     async def update(self, item_id, item):
-        pass
+        await super().update(item_id, item)
+        
     async def delete(self, item):
-        pass
+        await super().delete(item)

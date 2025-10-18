@@ -1,8 +1,11 @@
 from datetime import datetime
 
-from pydantic import BaseModel, field_validator, ValidationError
+from pydantic import field_validator, ValidationError
 
-class OriginalDataEntity(BaseModel):
+from src.domain.entities.base_entity import BaseEntity
+
+
+class OriginalDataEntity(BaseEntity):
     id: str
     name: str
     address: str
@@ -14,9 +17,6 @@ class OriginalDataEntity(BaseModel):
     business_hour: str
     original_data: str
     last_crawl: datetime
-
-    class Config:
-        from_attributes = True
 
     @field_validator('id')
     @classmethod
