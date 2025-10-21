@@ -9,5 +9,5 @@ class TagsEntity(BaseEntity):
 
     @field_validator("id")
     def validate_id(self, value):
-        if not str(value).startswith(("10", "20", "30")):
+        if not str(value).startswith(("1", "2", "3")):
             raise ValidationError("tag id error")

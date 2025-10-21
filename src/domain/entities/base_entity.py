@@ -11,3 +11,8 @@ class BaseEntity(BaseModel):
 
         if self.__pydantic_extra__:
             yield from self.__pydantic_extra__.keys()
+
+
+    @classmethod
+    def from_dto(cls, dto):
+        pass

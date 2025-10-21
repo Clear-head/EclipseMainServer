@@ -1,11 +1,12 @@
-from pydantic import ValidationError, field_validator
-from sqlalchemy import Column
+from typing import Optional
 
+from pydantic import ValidationError, field_validator
+from src.domain.dto.insert_category_tags_dto import InsertCategoryTagsDTO
 from src.domain.entities.base_entity import BaseEntity
 
 
 class CategoryTagsEntity(BaseEntity):
-    id: int
+    id: Optional[int] = None
     tag_id: int
     category_id: str
     count: int
@@ -14,5 +15,12 @@ class CategoryTagsEntity(BaseEntity):
     @classmethod
     def validate_null(cls, v):
         if v is None:
-            raise ValidationError('[ReviewEntity] any id is null')
+            raise ValidationError('[CategoryTagsEntity] any id is null')
         return v
+
+
+    @classmethod
+    def from_dto(cls, dto: InsertCategoryTagsDTO):
+        return CategoryTagsEntity(
+            **dto.model_dump()
+        )

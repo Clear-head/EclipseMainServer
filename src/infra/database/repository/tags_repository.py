@@ -26,3 +26,20 @@ class TagsRepository(base_repository.BaseRepository):
 
     async def select_by(self, **filters):
         await super().select_by(**filters)
+
+    async def select_last_id(self, category_type):
+        try:
+            engine = await get_engine()
+            async with engine.begin() as conn:
+                tmp = 1 if category_type == 0 else 2 if category_type == 2 else 3
+
+                stmt = select(self.table).where(self.table.c.id.startswith(tmp)).order_by(self.table.c.id.desc()).limit(1)
+                result = await conn.execute(stmt)
+                entity = self.entity(**result.scalar())
+
+        except Exception as e:
+            self.logger.error(e)
+            # raise Exception(f"{__name__} select error")
+            return 0
+
+        return entity.id if entity else 0

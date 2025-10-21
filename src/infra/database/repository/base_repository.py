@@ -20,13 +20,13 @@ class BaseRepository:
                 await conn.execute(stmt)
 
         except IntegrityError as e:
-            self.logger.error(e)
-            raise Exception(f"{__name__} uuid duplicate error") from e
+            self.logger.error(f"{__name__} uuid duplicate error: {e}")
+            return False
 
         except Exception as e:
-            self.logger.error(e)
-            raise Exception(f"{__name__} insert error")
-            # return False
+            self.logger.error(f" insert error: {e}")
+            # raise Exception(f"{__name__} insert error: {e}")
+            return False
 
         return True
 
@@ -34,7 +34,7 @@ class BaseRepository:
         try:
             engine = await get_engine()
             async with engine.begin() as conn:
-                stmt = select(self.table).where(self.table.c.id == item_id)
+                stmt = self.table.select(self.table.c.id == item_id)
                 result = await conn.execute(stmt)
                 ans = []
                 for row in result.mappings():
@@ -60,7 +60,7 @@ class BaseRepository:
         try:
             engine = await get_engine()
             async with engine.begin() as conn:
-                stmt = select(self.table)
+                stmt = self.table.select()
 
                 for column, value in filters.items():
                     if hasattr(self.table.c, column):
@@ -81,7 +81,7 @@ class BaseRepository:
         try:
             engine = await get_engine()
             async with engine.begin() as conn:
-                stmt = update(self.table).values(**item).where(self.table.c.id == item_id)
+                stmt = self.table.update().values(**item).where(self.table.c.id == item_id)
                 await conn.execute(stmt)
         except Exception as e:
             self.logger.error(e)
@@ -94,7 +94,7 @@ class BaseRepository:
         try:
             engine = await get_engine()
             async with engine.begin() as conn:
-                stmt = delete(self.table).where(self.table.c.id == item_id)
+                stmt = self.table.delete().where(self.table.c.id == item_id)
                 result = await conn.execute(stmt)
 
                 if result.rowcount == 0:
