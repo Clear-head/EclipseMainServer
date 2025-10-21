@@ -1,13 +1,13 @@
-from src.domain.entities import user_like_entity
+from src.domain.entities import tags_entity
 from src.infra.database.repository import base_repository
-from src.infra.database.tables.table_user_like import user_like_table
+from src.infra.database.tables.table_tags import tags_table
 
 
-class UserLikeRepository(base_repository.BaseRepository):
+class TagsRepository(base_repository.BaseRepository):
     def __init__(self):
         super().__init__()
-        self.table = user_like_table
-        self.entity = user_like_entity
+        self.table = tags_table
+        self.entity = tags_entity
 
     async def insert(self, item):
         await super().insert(item)

@@ -11,6 +11,18 @@ class UserRepository(base_repository.BaseRepository):
         self.table = users_table
         self.entity = UserEntity
 
+    async def insert(self, item):
+        await super().insert(item)
+
+    async def select(self, item):
+        await super().select(item)
+
+    async def update(self, item_id, item):
+        await super().update(item_id, item)
+
+    async def delete(self, item):
+        await super().delete(item)
+
 
     # do: 이거 서비스 레이어로 옮기기
     # async def duplicate_check_id(self, user_id: str):

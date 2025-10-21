@@ -1,4 +1,5 @@
 from sqlalchemy import insert, select, update, delete
+from sqlalchemy.exc import IntegrityError
 
 from src.infra.database.repository.maria_engine import get_engine
 from src.logger.logger_handler import get_logger
@@ -17,6 +18,10 @@ class BaseRepository:
 
                 stmt = insert(self.table).values(**item)
                 await conn.execute(stmt)
+
+        except IntegrityError as e:
+            self.logger.error(e)
+            raise Exception(f"{__name__} uuid duplicate error") from e
 
         except Exception as e:
             self.logger.error(e)
@@ -49,7 +54,7 @@ class BaseRepository:
             조건 조회
 
             select_by(user_id=5, status='active')
-            -> SELECT * FROM table WHERE user_id = 5 AND status = 'active'
+            -> SELECT * FROM table WHERE user_id = 5 AND phone = '01012341234'
 
         """
         try:
