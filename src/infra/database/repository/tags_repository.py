@@ -35,6 +35,8 @@ class TagsRepository(base_repository.BaseRepository):
 
                 stmt = select(self.table).where(self.table.c.id.startswith(tmp)).order_by(self.table.c.id.desc()).limit(1)
                 result = await conn.execute(stmt)
+                if result.scalar() is None:
+                    return 0
                 entity = self.entity(**result.scalar())
 
         except Exception as e:
