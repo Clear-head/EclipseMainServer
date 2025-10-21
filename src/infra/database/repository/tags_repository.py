@@ -24,20 +24,5 @@ class TagsRepository(base_repository.BaseRepository):
     async def delete(self, item):
         await super().delete(item)
 
-    async def select_by(self, name):
-        try:
-            engine = await get_engine()
-            async with engine.begin() as conn:
-                stmt = select(self.table).where(
-                    self.table.c.name == name
-                )
-
-                result = await conn.execute(stmt)
-                ans = []
-                for row in result.mappings():
-                    ans.append(self.entity(**row))
-        except Exception as e:
-            self.logger.error(e)
-            return []
-
-        return ans
+    async def select_by(self, **filters):
+        await super().select_by(**filters)
