@@ -16,7 +16,7 @@ class BaseRepository:
             engine = await get_engine()
             async with engine.begin() as conn:
 
-                stmt = insert(self.table).values(**item)
+                stmt = self.table.insert().values(**item.model_dump())
                 await conn.execute(stmt)
 
         except IntegrityError as e:

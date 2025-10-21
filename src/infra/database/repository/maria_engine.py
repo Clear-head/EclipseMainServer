@@ -1,3 +1,4 @@
+
 from json import load
 from pathlib import Path
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine
@@ -13,20 +14,18 @@ async def get_engine() -> AsyncEngine:
 
     try:
 
-        config_path = Path(__file__).parent.parent / 'resources' / 'config' / 'database_config.json'
+        config_path = Path(__file__).parent.parent.parent.parent.joinpath('resources').joinpath('config').joinpath('database_config.json')
 
         with open(config_path) as f:
-            config = load(f)
+            config = load(f)["maria"]
 
-        _ENGINE = create_async_engine(
-            f"mysql+aiomysql://{config['user']}:{config['password']}"
-            f"@{config['host']}:{config['port']}/{config['database']}",
-            pool_size=config.get('pool_size', 5),
-            pool_pre_ping=config.get('pool_pre_ping', True),
-            max_overflow=config.get('max_overflow', 10)
-        )
+            _ENGINE = create_async_engine(
+                f'mysql+asyncmy://{config["user"]}:{config["password"]}'
+                f'@{config["host"]}:{config["port"]}/{config["database"]}'
+            )
 
         return _ENGINE
 
     except Exception as e:
-        raise e
+        print(e)
+        raise Exception(e)
