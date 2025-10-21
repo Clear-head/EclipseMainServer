@@ -8,9 +8,9 @@ class UserHistoryEntity(BaseEntity):
     visited_at: datetime
     category_id: str
 
-    @field_validator("user_id", "category_id")
+    @field_validator("user_id", "category_id", "visited_at")
     @classmethod
     def validate_null(cls, value):
         if value is None:
-            raise ValidationError('[UserHistoryEntity] id is null')
+            raise ValidationError('[UserHistoryEntity] null exception')
         return value

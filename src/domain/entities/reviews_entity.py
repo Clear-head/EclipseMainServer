@@ -1,18 +1,17 @@
 from pydantic import BaseModel, field_validator, ValidationError
 
 
-class ReviewEntity(BaseModel):
+class ReviewsEntity(BaseModel):
     id: str
     user_id: str
     category_id: str
     stars: int
-    tag: str
 
     @field_validator('id', 'user_id', 'category_id')
     @classmethod
     def validate_null(cls, v):
         if v is None:
-            raise ValidationError('[ReviewEntity] any id is null')
+            raise ValidationError('[ReviewEntity] null exception')
         return v
 
     @field_validator("stars")

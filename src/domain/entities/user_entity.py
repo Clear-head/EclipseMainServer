@@ -20,16 +20,16 @@ class UserEntity(BaseEntity):
     sex: bool
     address: str
 
-    @field_validator('id')
+    @field_validator('id', "password", "username", "nickname", "email")
     @classmethod
     def validate_id(cls, v):
         if v is None:
-            raise ValueError('[UserEntity] id is null')
+            raise ValueError('[UserEntity] null exception')
         return v
 
     @field_validator('phone')
     @classmethod
     def check_password(cls, value):
-        if len(value) > 11:
+        if len(value) > 12 or len(value) < 9:
             return ValueError('[UserEntity] 휴대폰 번호 검증 에러')
         return value
