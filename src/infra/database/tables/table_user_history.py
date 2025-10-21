@@ -5,7 +5,7 @@ meta = MetaData()
 user_history_table = Table(
     'user_history_table',
     meta,
-    Column('user_id', String(10), ForeignKey('users.id')),
-    Column('visited_at', DateTime),
-    Column('category_id', ForeignKey('category.id'))
+    Column('user_id', String(255), ForeignKey('users.id'), notnull=True),
+    Column('visited_at', DateTime, notnull=True),
+    Column('category_id', String(255), ForeignKey('category.id'), notnull=True)
 )
