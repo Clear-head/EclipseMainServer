@@ -1,4 +1,4 @@
-from src.domain.entities import user_history_entity
+from src.domain.entities.user_history_entity import UserHistoryEntity
 from src.infra.database.repository import base_repository
 from src.infra.database.tables.table_user_history import user_history_table
 
@@ -8,13 +8,19 @@ class UserHistoryRepository(base_repository.BaseRepository):
     def __init__(self):
         super().__init__()
         self.table = user_history_table
-        self.entity = user_history_entity
+        self.entity = UserHistoryEntity
 
     async def insert(self, item):
-        pass
+        await super().insert(item)
+
     async def select(self, item):
-        pass
+        await super().select(item)
+
     async def update(self, item_id, item):
-        pass
+        await super().update(item_id, item)
+
     async def delete(self, item):
-        pass
+        await super().delete(item)
+
+    async def select_by(self, **filters):
+        await super().select_by(**filters)

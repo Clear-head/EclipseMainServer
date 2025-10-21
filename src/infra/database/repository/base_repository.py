@@ -1,4 +1,5 @@
 from sqlalchemy import insert, select, update, delete
+from sqlalchemy.exc import IntegrityError
 
 from src.infra.database.repository.maria_engine import get_engine
 from src.logger.logger_handler import get_logger
@@ -18,10 +19,14 @@ class BaseRepository:
                 stmt = insert(self.table).values(**item)
                 await conn.execute(stmt)
 
+        except IntegrityError as e:
+            self.logger.error(f"{__name__} uuid duplicate error: {e}")
+            return False
+
         except Exception as e:
-            self.logger.error(e)
-            raise Exception(f"{__name__} insert error")
-            # return False
+            self.logger.error(f" insert error: {e}")
+            # raise Exception(f"{__name__} insert error: {e}")
+            return False
 
         return True
 
@@ -29,7 +34,7 @@ class BaseRepository:
         try:
             engine = await get_engine()
             async with engine.begin() as conn:
-                stmt = select(self.table).where(self.table.c.id == item_id)
+                stmt = self.table.select(self.table.c.id == item_id)
                 result = await conn.execute(stmt)
                 ans = []
                 for row in result.mappings():
@@ -49,13 +54,13 @@ class BaseRepository:
             조건 조회
 
             select_by(user_id=5, status='active')
-            -> SELECT * FROM table WHERE user_id = 5 AND status = 'active'
+            -> SELECT * FROM table WHERE user_id = 5 AND phone = '01012341234'
 
         """
         try:
             engine = await get_engine()
             async with engine.begin() as conn:
-                stmt = select(self.table)
+                stmt = self.table.select()
 
                 for column, value in filters.items():
                     if hasattr(self.table.c, column):
@@ -76,7 +81,7 @@ class BaseRepository:
         try:
             engine = await get_engine()
             async with engine.begin() as conn:
-                stmt = update(self.table).values(**item).where(self.table.c.id == item_id)
+                stmt = self.table.update().values(**item).where(self.table.c.id == item_id)
                 await conn.execute(stmt)
         except Exception as e:
             self.logger.error(e)
@@ -89,7 +94,7 @@ class BaseRepository:
         try:
             engine = await get_engine()
             async with engine.begin() as conn:
-                stmt = delete(self.table).where(self.table.c.id == item_id)
+                stmt = self.table.delete().where(self.table.c.id == item_id)
                 result = await conn.execute(stmt)
 
                 if result.rowcount == 0:

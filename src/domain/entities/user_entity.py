@@ -1,5 +1,6 @@
-from pydantic import BaseModel, field_validator, EmailStr
+from pydantic import field_validator, EmailStr
 import datetime
+from src.domain.entities.base_entity import BaseEntity
 
 """
 
@@ -8,7 +9,7 @@ import datetime
 """
 
 
-class UserEntity(BaseModel):
+class UserEntity(BaseEntity):
     id: str
     username: str
     password: str
@@ -19,19 +20,16 @@ class UserEntity(BaseModel):
     sex: bool
     address: str
 
-    class Config:
-        from_attributes = True
-
-    @field_validator('id')
+    @field_validator('id', "password", "username", "nickname", "email")
     @classmethod
     def validate_id(cls, v):
         if v is None:
-            raise ValueError('[UserEntity] id is null')
+            raise ValueError('[UserEntity] null exception')
         return v
 
     @field_validator('phone')
     @classmethod
     def check_password(cls, value):
-        if len(value) > 11:
+        if len(value) > 12 or len(value) < 9:
             return ValueError('[UserEntity] 휴대폰 번호 검증 에러')
         return value
