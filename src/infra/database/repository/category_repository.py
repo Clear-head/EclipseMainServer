@@ -1,4 +1,4 @@
-from src.domain.entities import category_entity
+from src.domain.entities.category_entity import CategoryEntity
 from src.infra.database.repository import base_repository
 from src.infra.database.tables.table_category import category_table
 
@@ -7,7 +7,7 @@ class CategoryRepository(base_repository.BaseRepository):
     def __init__(self):
         super().__init__()
         self.table = category_table
-        self.entity = category_entity
+        self.entity = CategoryEntity
 
     async def insert(self, item):
         await super().insert(item)
@@ -20,3 +20,6 @@ class CategoryRepository(base_repository.BaseRepository):
         
     async def delete(self, item):
         await super().delete(item)
+
+    async def select_by(self, **filters):
+        await super().select_by(**filters)

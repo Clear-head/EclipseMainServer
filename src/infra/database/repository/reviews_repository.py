@@ -21,3 +21,6 @@ class ReviewsRepository(base_repository.BaseRepository):
 
     async def delete(self, item):
         await super().delete(item)
+
+    async def select_by(self, **filters):
+        await super().select_by(**filters)
