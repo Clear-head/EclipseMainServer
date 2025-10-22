@@ -53,20 +53,10 @@ async def insert_tags(name: str, category_type: int):
 
         if len(result) == 0:
             last_id = await repository.select_last_id(category_type) + 1
-<<<<<<< HEAD
-            entity = TagsEntity(id=last_id, name=name)
-            await repository.insert(entity)
-            logger.info(f"Inserting tags successes: {name} (new id={last_id})")
-            return last_id
-        else:
-            logger.info(f"Tag already exists: {name} (id={result[0].id})")
-            return result[0].id
-=======
             await repository.insert(TagsEntity(id=last_id, name=name))
         else:
             last_id = result[0].id
 
->>>>>>> f2b1c6a81f43a9307aef505afdf98b61bae2eca0
 
     except Exception as e:
         logger.error(f"error insert tags: {e}")
