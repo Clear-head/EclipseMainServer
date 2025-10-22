@@ -230,7 +230,7 @@ class CategoryTypeClassifier:
                     logger.error(f"✗ 최대 재시도 횟수({max_retries}회) 초과 - 기본값 3 반환")
                     return 3
         
-        return 0
+        return 3
 
 
 class GeocodingService:
@@ -425,7 +425,7 @@ class NaverMapGangnamCrawler:
         self.geocoding_service = GeocodingService()
         self.category_classifier = CategoryTypeClassifier()
     
-    async def _save_store_data(self, idx: int, total: int, store_data: Tuple, store_name: str, store_id: int, sub_category: str):
+    async def _save_store_data(self, idx: int, total: int, store_data: Tuple, store_name: str, store_id: int, api_sub_category: str):
         """
         크롤링한 데이터를 DB에 저장하는 비동기 함수
         
@@ -435,21 +435,29 @@ class NaverMapGangnamCrawler:
             store_data: 크롤링한 상점 데이터
             store_name: 상점명
             store_id: 상점 ID
-            sub_category: API에서 가져온 서브 카테고리
+            api_sub_category: API에서 가져온 서브 카테고리 (보조용)
             
         Returns:
             Tuple[bool, str]: (성공 여부, 로그 메시지)
         """
         try:
-            name, full_address, phone, business_hours, image, extracted_sub_category, tag_reviews = store_data
+            name, full_address, phone, business_hours, image, naver_sub_category, tag_reviews = store_data
             
             # 주소 파싱
             do, si, gu, detail_address = AddressParser.parse_address(full_address)
             
-            # 서브 카테고리는 API에서 가져온 것 사용
-            final_sub_category = sub_category or extracted_sub_category
+            # ⭐ 서브 카테고리 결정: 네이버 지도 우선
+            # 1순위: 네이버 지도 서브 카테고리
+            # 2순위: API 서브 카테고리
+            final_sub_category = naver_sub_category or api_sub_category
+            
+            logger.info(f"[저장 {idx+1}/{total}] 서브 카테고리 결정:")
+            logger.info(f"  - 네이버 서브 카테고리: {naver_sub_category}")
+            logger.info(f"  - API 서브 카테고리: {api_sub_category}")
+            logger.info(f"  - 최종 선택 (저장 & 타입 분류): {final_sub_category}")
             
             # 좌표 변환과 카테고리 분류를 병렬로 실행
+            # ⭐ 네이버 지도의 서브 카테고리로 타입 분류
             (longitude, latitude), category_type = await asyncio.gather(
                 self.geocoding_service.get_coordinates(full_address),
                 self.category_classifier.classify_category_type(final_sub_category)
@@ -462,10 +470,10 @@ class NaverMapGangnamCrawler:
                 si=si,
                 gu=gu,
                 detail_address=detail_address,
-                sub_category=final_sub_category,
+                sub_category=final_sub_category,  # 네이버 우선
                 business_hour=business_hours or "",
                 phone=phone.replace('-', '') if phone else "",
-                type=category_type,
+                type=category_type,  # 네이버 서브 카테고리로 분류된 타입
                 image=image or "",
                 latitude=latitude or "",
                 longitude=longitude or ""
@@ -536,7 +544,7 @@ class NaverMapGangnamCrawler:
                 type_names = {0: '음식점', 1: '카페', 2: '콘텐츠', 3: '기타'}
                 success_msg = (
                     f"✓ [저장 {idx+1}/{total}] ID {store_id} '{name}' 완료\n"
-                    f"  - 서브 카테고리: {final_sub_category}\n"
+                    f"  - 저장된 서브 카테고리: {final_sub_category}\n"
                     f"  - 타입: {type_names.get(category_type, '기타')} ({category_type})\n"
                     f"  - 태그 리뷰: {tag_success_count}/{len(tag_reviews)}개 저장"
                 )
@@ -600,20 +608,24 @@ class NaverMapGangnamCrawler:
                     store_id = store['id']
                     store_name = store['name']
                     store_address = store['address']  # 지번 주소
-                    sub_category = store['sub_category']
+                    api_sub_category = store['sub_category']  # API 서브 카테고리
                     admdng_nm = store['admdng_nm']
                     
                     logger.info(f"[크롤링 {idx}/{total}] ID {store_id}: '{store_name}' (행정동: {admdng_nm}) 크롤링 진행 중...")
+                    logger.info(f"  - API 서브 카테고리: {api_sub_category}")
                     
                     # 네이버 지도에서 검색
                     store_data = await self._search_and_extract(page, store_name, store_address)
                     
                     if store_data:
+                        # store_data에서 네이버 서브 카테고리 추출
+                        naver_sub_category = store_data[5]  # (name, address, phone, hours, image, sub_category, tags)
+                        logger.info(f"  - 네이버 서브 카테고리: {naver_sub_category}")
                         logger.info(f"✓ [크롤링 {idx}/{total}] ID {store_id} '{store_name}' 크롤링 완료")
                         
                         # 저장 태스크 생성 (백그라운드에서 실행)
                         save_task = asyncio.create_task(
-                            self._save_store_data(idx, total, store_data, store_name, store_id, sub_category)
+                            self._save_store_data(idx, total, store_data, store_name, store_id, api_sub_category)
                         )
                         save_tasks.append(save_task)
                         
