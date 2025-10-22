@@ -10,16 +10,16 @@ class CategoryTagsRepository(base_repository.BaseRepository):
         self.entity = CategoryTagsEntity
 
     async def insert(self, item):
-        await super().insert(item)
+        return await super().insert(item)
 
     async def select(self, item):
-        await super().select(item)
+        return await super().select(item)
 
     async def update(self, item_id, item):
-        await super().update(item_id, item)
+        return await super().update(item_id, item)
 
     async def delete(self, item):
-        await super().delete(item)
+        return await super().delete(item)
 
     async def select_by(self, **filters):
-        await super().select_by(**filters)
+        return await super().select_by(**filters)
