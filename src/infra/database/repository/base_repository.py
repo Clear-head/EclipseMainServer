@@ -86,7 +86,7 @@ class BaseRepository:
         try:
             engine = await get_engine()
             async with engine.begin() as conn:
-                stmt = self.table.update().values(**item).where(self.table.c.id == item_id)
+                stmt = self.table.update().values(**item.model_dump()).where(self.table.c.id == item_id)
                 await conn.execute(stmt)
         except Exception as e:
             self.logger.error(e)

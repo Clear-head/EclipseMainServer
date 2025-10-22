@@ -20,7 +20,8 @@ class CategoryTagsEntity(BaseEntity):
 
 
     @classmethod
-    def from_dto(cls, dto: InsertCategoryTagsDTO):
+    def from_dto(cls, dto: InsertCategoryTagsDTO, id: int =None):
         return CategoryTagsEntity(
+            id=id,
             **dto.model_dump()
         )
