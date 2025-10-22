@@ -20,7 +20,7 @@ class BaseRepository:
                 await conn.execute(stmt)
 
         except IntegrityError as e:
-            self.logger.error(f"{__name__} uuid duplicate error: {e}")
+            self.logger.error(f" uuid duplicate error: {e}")
             return False
 
         except Exception as e:
@@ -40,15 +40,17 @@ class BaseRepository:
                 for row in result.mappings():
                     ans.append(self.entity(**row))
 
+                return ans
+
+
         except Exception as e:
             self.logger.error(e)
             raise Exception(f"{__name__} select error")
             # return []
 
-        return ans
 
 
-    async def select_by(self, **filters):
+    async def select_by(self, **filters) -> list:
         """
 
             조건 조회
@@ -57,6 +59,7 @@ class BaseRepository:
             -> SELECT * FROM table WHERE user_id = 5 AND phone = '01012341234'
 
         """
+        ans = []
         try:
             engine = await get_engine()
             async with engine.begin() as conn:
@@ -67,15 +70,17 @@ class BaseRepository:
                         stmt = stmt.where(getattr(self.table.c, column) == value)
 
                 result = await conn.execute(stmt)
-                ans = []
+
                 for row in result.mappings():
-                    ans.append(self.entity(**row))
+                    tmp = self.entity(**row)
+                    ans.append(tmp)
+                    print(f"ans: {ans}")
+
+            return ans
+
         except Exception as e:
             self.logger.error(e)
             return []
-
-        return ans
-
 
     async def update(self, item_id, item):
         try:
@@ -96,6 +101,7 @@ class BaseRepository:
             async with engine.begin() as conn:
                 stmt = self.table.delete().where(self.table.c.id == item_id)
                 result = await conn.execute(stmt)
+                result = result.fetchall()
 
                 if result.rowcount == 0:
                     self.logger.warning(f"No record found with id: {item_id}")
