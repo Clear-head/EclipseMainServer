@@ -61,3 +61,6 @@ async def insert_tags(name: str, category_type: int):
     except Exception as e:
         logger.error(f"error insert tags: {e}")
         raise Exception(e)
+    
+    logger.info(f"Inserting tags successes: {name}")
+    return last_id

@@ -33,7 +33,7 @@ class CategoryEntity(BaseEntity):
     @classmethod
     def validate_phone(cls, v):
         if len(v) > 12 or len(v) < 9:
-            return ValueError('[CategoryEntity] 휴대폰 번호 검증 에러')
+            return None
         return v
 
 

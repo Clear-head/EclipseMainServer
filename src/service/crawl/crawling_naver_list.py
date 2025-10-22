@@ -571,14 +571,15 @@ class NaverMapFavoriteCrawler:
                             try:
                                 category_id = await insert_category(category_dto)  # ✅ await 추가
                                 
-                                if category_id:
-                                    # 태그 리뷰 저장
+                                if category_id:                                    # 태그 리뷰 저장
                                     tag_success_count = 0
                                     for tag_name, tag_count in tag_reviews:
                                         try:
+                                            
                                             # tags 테이블에 저장 또는 가져오기
                                             tag_id = await insert_tags(tag_name, category_type)
                                             
+                                            logger.info(f"{tag_id}")
                                             if tag_id:
                                                 # category_tags DTO 생성 및 저장
                                                 category_tags_dto = InsertCategoryTagsDTO(
