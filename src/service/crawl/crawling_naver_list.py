@@ -1088,7 +1088,7 @@ async def main():
     # 즐겨찾기 목록 크롤링
     await crawler.crawl_favorite_list(
         favorite_url=favorite_url,
-        delay=20,
+        delay=30,
         output_file=None
     )
 
