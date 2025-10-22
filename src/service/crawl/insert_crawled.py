@@ -30,7 +30,7 @@ async def insert_category(dto: InsertCategoryDto):
 
 async def insert_category_tags(dto: InsertCategoryTagsDTO):
     logger = get_logger(__name__)
-    logger.info(f"Inserting category tags: {dto.name}")
+    logger.info(f"Inserting category tags: {dto}")
 
     try:
         repository = CategoryTagsRepository()
@@ -41,7 +41,7 @@ async def insert_category_tags(dto: InsertCategoryTagsDTO):
         logger.error(f"error insert category tags {e}")
         raise Exception(e)
 
-    logger.info(f"Inserting category tags successes: {dto.name}")
+    logger.info(f"Inserting category tags successes: {dto}")
     return True
 
 
