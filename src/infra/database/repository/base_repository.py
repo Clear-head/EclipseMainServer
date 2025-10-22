@@ -31,22 +31,29 @@ class BaseRepository:
         return True
 
     async def select(self, item_id):
+        ans = []
         try:
             engine = await get_engine()
             async with engine.begin() as conn:
-                stmt = self.table.select(self.table.c.id == item_id)
+                stmt = self.table.select().where(self.table.c.id == item_id)
                 result = await conn.execute(stmt)
-                ans = []
-                for row in result.mappings():
-                    ans.append(self.entity(**row))
+
+                result = [i for i in result.mappings()]
+
+                if not result:
+                    self.logger.info(f"no item in {self.table} id: {item_id}")
+                    return []
+
+                for row in result:
+                    tmp = self.entity(**row)
+                    ans.append(tmp)
 
                 return ans
 
 
         except Exception as e:
-            self.logger.error(e)
-            raise Exception(f"{__name__} select error")
-            # return []
+            self.logger.error(f" select from {self.table} : error: {e}")
+            return []
 
 
 
@@ -70,8 +77,12 @@ class BaseRepository:
                         stmt = stmt.where(getattr(self.table.c, column) == value)
 
                 result = await conn.execute(stmt)
+                result = [i for i in result.mappings()]
+                if len(result) == 0:
+                    self.logger.info(f"no item in {self.table} {value}")
+                    return []
 
-                for row in result.mappings():
+                for row in result:
                     tmp = self.entity(**row)
                     ans.append(tmp)
                     print(f"ans: {ans}")
@@ -79,7 +90,7 @@ class BaseRepository:
             return ans
 
         except Exception as e:
-            self.logger.error(e)
+            self.logger.error(f"select_by {self.table} error {e}")
             return []
 
     async def update(self, item_id, item):
@@ -101,15 +112,11 @@ class BaseRepository:
             async with engine.begin() as conn:
                 stmt = self.table.delete().where(self.table.c.id == item_id)
                 result = await conn.execute(stmt)
-                result = result.fetchall()
 
-                if result.rowcount == 0:
-                    self.logger.warning(f"No record found with id: {item_id}")
-                    return False
 
         except Exception as e:
-            self.logger.error(e)
-            raise Exception(f"{__name__} delete error")
+            self.logger.error(f"delete error: {e}")
+            raise Exception(f"delete error")
 
         return True
 
