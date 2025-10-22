@@ -471,8 +471,16 @@ class NaverMapFavoriteCrawler:
             output_file: 결과 저장 파일 (선택)
         """
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=self.headless)
-            page = await browser.new_page()
+            browser = await p.chromium.launch(
+                headless=self.headless,
+                args=['--enable-features=ClipboardAPI']  # 클립보드 API 활성화
+            )
+            
+            # 컨텍스트 생성 시 클립보드 권한 부여
+            context = await browser.new_context(
+                permissions=['clipboard-read', 'clipboard-write']
+            )
+            page = await context.new_page()
             
             try:
                 # 즐겨찾기 페이지로 이동
@@ -734,6 +742,7 @@ class NaverMapFavoriteCrawler:
                 import traceback
                 logger.error(traceback.format_exc())
             finally:
+                await context.close()
                 await browser.close()
     
     async def _scroll_to_load_all_places(self, frame_locator, place_selector: str):
@@ -965,14 +974,60 @@ class StoreDetailExtractor:
     async def _extract_phone(self) -> Optional[str]:
         """전화번호 추출"""
         try:
+            # 1차 시도: 기본 전화번호 추출
             phone_locator = self.frame.locator('div.O8qbU.nbXkr > div > span.xlx7Q')
-            return await phone_locator.inner_text(timeout=5000)
+            phone = await phone_locator.inner_text(timeout=5000)
+            if phone and phone.strip():
+                logger.info(f"전화번호 추출 성공: {phone}")
+                return phone
         except TimeoutError:
-            logger.error(f"전화번호 추출 Timeout")
-            return ""
+            logger.warning(f"기본 전화번호 추출 실패 - 대체 방법 시도")
         except Exception as e:
-            logger.error(f"전화번호 추출 오류: {e}")
-            return ""
+            logger.warning(f"기본 전화번호 추출 오류: {e} - 대체 방법 시도")
+        
+        # 2차 시도: a.BfF3H 클릭 후 a.place_bluelink에서 클립보드 복사
+        try:
+            logger.info("a.BfF3H 버튼 찾는 중...")
+            bf_button = self.frame.locator('a.BfF3H')
+            
+            if await bf_button.count() > 0:
+                logger.info("a.BfF3H 버튼 클릭 중...")
+                await bf_button.first.click(timeout=3000)
+                await asyncio.sleep(1)
+                
+                # a.place_bluelink 클릭하여 클립보드에 복사
+                logger.info("a.place_bluelink 버튼 찾는 중...")
+                bluelink_button = self.frame.locator('a.place_bluelink')
+                
+                if await bluelink_button.count() > 0:
+                    logger.info("a.place_bluelink 버튼 클릭 중 (클립보드 복사)...")
+                    
+                    # 클립보드 권한 허용 및 클릭
+                    await bluelink_button.first.click(timeout=3000)
+                    await asyncio.sleep(0.5)
+                    
+                    # 클립보드에서 전화번호 가져오기
+                    try:
+                        # Playwright의 page 객체를 통해 클립보드 접근
+                        clipboard_text = await self.page.evaluate('navigator.clipboard.readText()')
+                        
+                        if clipboard_text and clipboard_text.strip():
+                            logger.info(f"클립보드에서 전화번호 추출 성공: {clipboard_text}")
+                            return clipboard_text.strip()
+                        else:
+                            logger.warning("클립보드가 비어있습니다")
+                    except Exception as clipboard_error:
+                        logger.error(f"클립보드 읽기 실패: {clipboard_error}")
+                else:
+                    logger.warning("a.place_bluelink 버튼을 찾을 수 없습니다")
+            else:
+                logger.warning("a.BfF3H 버튼을 찾을 수 없습니다")
+                
+        except Exception as e:
+            logger.error(f"대체 전화번호 추출 중 오류: {e}")
+        
+        logger.warning("전화번호를 추출할 수 없습니다 - 빈 값 반환")
+        return ""
     
     async def _extract_sub_category(self) -> str:
         """서브 카테고리 추출"""
