@@ -5,7 +5,7 @@ from src.domain.entities.base_entity import BaseEntity
 from src.utils.uuid_maker import generate_uuid
 
 class CategoryEntity(BaseEntity):
-    id: str
+    id: str = generate_uuid()
     name: str
     do: str
     si: str
@@ -38,9 +38,9 @@ class CategoryEntity(BaseEntity):
 
 
     @classmethod
-    def from_dto(cls, dto: InsertCategoryDto):
+    def from_dto(cls, dto: InsertCategoryDto, id: str = None):
         return cls(
-            id = generate_uuid(),
+            id = id if id is not None else generate_uuid(),
             **dto.model_dump(),
             last_crawl=datetime.now()
         )

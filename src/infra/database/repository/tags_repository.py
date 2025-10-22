@@ -13,35 +13,36 @@ class TagsRepository(base_repository.BaseRepository):
         self.entity = TagsEntity
 
     async def insert(self, item):
-        await super().insert(item)
+        return await super().insert(item)
 
     async def select(self, item):
-        await super().select(item)
+        return await super().select(item)
 
     async def update(self, item_id, item):
-        await super().update(item_id, item)
+        return await super().update(item_id, item)
 
     async def delete(self, item):
-        await super().delete(item)
+        return await super().delete(item)
 
     async def select_by(self, **filters):
-        await super().select_by(**filters)
+        return await super().select_by(**filters)
 
     async def select_last_id(self, category_type):
         try:
             engine = await get_engine()
             async with engine.begin() as conn:
-                tmp = 1 if category_type == 0 else 2 if category_type == 2 else 3
+                tmp = 1 if category_type == 0 else 2 if category_type == 1 else 3
 
                 stmt = select(self.table).where(self.table.c.id.startswith(tmp)).order_by(self.table.c.id.desc()).limit(1)
                 result = await conn.execute(stmt)
-                if result.scalar() is None:
+                result = [i for i in result.mappings()]
+                if result is None:
                     return 0
-                entity = self.entity(**result.scalar())
+                entity = self.entity(**result[0])
+                return entity.id
 
         except Exception as e:
             self.logger.error(e)
             # raise Exception(f"{__name__} select error")
             return 0
 
-        return entity.id if entity else 0

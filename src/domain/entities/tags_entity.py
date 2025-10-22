@@ -12,5 +12,5 @@ class TagsEntity(BaseEntity):
     def validate_id(cls, value):
         if not str(value).startswith(("1", "2", "3")):
             raise ValidationError("tag id error")
-
-        return value
+        else:
+            return value
