@@ -16,6 +16,9 @@ from src.logger.logger_handler import get_logger
 from src.domain.dto.insert_category_dto import InsertCategoryDto
 from src.domain.dto.insert_category_tags_dto import InsertCategoryTagsDTO
 from src.service.crawl.insert_crawled import insert_category, insert_category_tags, insert_tags
+from src.service.crawl.update_crawled import update_category, update_category_tags
+from src.infra.database.repository.category_repository import CategoryRepository
+from src.infra.database.repository.category_tags_repository import CategoryTagsRepository
 
 # 로거 초기화
 logger = get_logger('crawling_naver_gangnam')
@@ -305,13 +308,13 @@ class AddressParser:
             Tuple[str, str, str, str]: (do, si, gu, detail_address)
         """
         if not full_address:
-            return None, None, None, None
+            return "", "", "", ""
         
         try:
-            do = None
-            si = None
-            gu = None
-            detail_address = None
+            do = ""
+            si = ""
+            gu = ""
+            detail_address = ""
             
             logger.info(f"원본 주소: {full_address}")
             
@@ -381,7 +384,7 @@ class AddressParser:
             
         except Exception as e:
             logger.error(f"주소 파싱 중 오류: {e}")
-            return None, None, None, full_address
+            return "", "", "", full_address
 
 
 class NaverMapGangnamCrawler:
@@ -465,12 +468,34 @@ class NaverMapGangnamCrawler:
                             longitude=longitude or ""
                         )
                         
-                        # category 저장
+                        # category 저장 (중복 체크 포함)
                         try:
-                            category_id = await insert_category(category_dto)
+                            # 1. 먼저 DB에서 중복 체크 (name, type, detail_address로 조회)
+                            category_repository = CategoryRepository()
+                            existing_categories = await category_repository.select_by(
+                                name=name,
+                                type=category_type,
+                                detail_address=detail_address
+                            )
+                            
+                            category_id = None
+                            
+                            # 2. 중복 데이터가 있으면 update, 없으면 insert
+                            if len(existing_categories) == 1:
+                                # 기존 데이터 업데이트
+                                logger.info(f"기존 카테고리 발견 - 업데이트 모드: {name}")
+                                category_id = await update_category(category_dto)
+                            elif len(existing_categories) == 0:
+                                # 새로운 데이터 삽입
+                                logger.info(f"신규 카테고리 - 삽입 모드: {name}")
+                                category_id = await insert_category(category_dto)
+                            else:
+                                # 중복이 2개 이상인 경우 (데이터 무결성 문제)
+                                logger.error(f"중복 카테고리가 {len(existing_categories)}개 발견됨: {name}")
+                                raise Exception(f"중복 카테고리 데이터 무결성 오류: {name}")
                             
                             if category_id:
-                                # 태그 리뷰 저장
+                                # 태그 리뷰 저장 (중복 체크 포함)
                                 tag_success_count = 0
                                 for tag_name, tag_count in tag_reviews:
                                     try:
@@ -478,15 +503,32 @@ class NaverMapGangnamCrawler:
                                         tag_id = await insert_tags(tag_name, category_type)
                                         
                                         if tag_id:
-                                            # category_tags DTO 생성 및 저장
+                                            # category_tags DTO 생성
                                             category_tags_dto = InsertCategoryTagsDTO(
                                                 tag_id=tag_id,
                                                 category_id=category_id,
                                                 count=tag_count
                                             )
                                             
-                                            if await insert_category_tags(category_tags_dto):
-                                                tag_success_count += 1
+                                            # 3. category_tags도 중복 체크
+                                            category_tags_repository = CategoryTagsRepository()
+                                            existing_tags = await category_tags_repository.select_by(
+                                                tag_id=tag_id,
+                                                category_id=category_id
+                                            )
+                                            
+                                            # 중복이면 update, 아니면 insert
+                                            if len(existing_tags) == 1:
+                                                logger.info(f"기존 태그 발견 - 업데이트: {tag_name}")
+                                                if await update_category_tags(category_tags_dto):
+                                                    tag_success_count += 1
+                                            elif len(existing_tags) == 0:
+                                                logger.info(f"신규 태그 - 삽입: {tag_name}")
+                                                if await insert_category_tags(category_tags_dto):
+                                                    tag_success_count += 1
+                                            else:
+                                                logger.error(f"중복 태그가 {len(existing_tags)}개 발견됨")
+                                                
                                     except Exception as tag_error:
                                         logger.error(f"태그 저장 중 오류: {tag_name} - {tag_error}")
                                         continue
@@ -633,6 +675,14 @@ class StoreDetailExtractor:
             }
         else:
             logger.warning("GitHub API 토큰이 없습니다. 영업시간 정리 기능이 비활성화됩니다.")
+    
+    def _clean_utf8_string(self, text: str) -> str:
+        """4바이트 UTF-8 문자 제거 (이모지 등)"""
+        if not text:
+            return text
+        cleaned = text.encode('utf-8', 'ignore').decode('utf-8', 'ignore')
+        cleaned = cleaned.replace('\n', ' ')
+        return cleaned
     
     async def extract_all_details(self) -> Optional[Tuple]:
         """
