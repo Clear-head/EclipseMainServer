@@ -5,7 +5,7 @@ import re
 from typing import Optional, List, Tuple
 import sys, os
 import datetime
-import requests
+import aiohttp
 from dotenv import load_dotenv
 
 # 환경 변수 로드
@@ -89,37 +89,37 @@ class CategoryTypeClassifier:
         
         for attempt in range(1, max_retries + 1):
             try:
-                response = requests.post(
-                    self.api_endpoint,
-                    headers=self.headers,
-                    json=payload,
-                    timeout=30
-                )
+                timeout = aiohttp.ClientTimeout(total=30)
+                async with aiohttp.ClientSession(timeout=timeout) as session:
+                    async with session.post(
+                        self.api_endpoint,
+                        headers=self.headers,
+                        json=payload
+                    ) as response:
+                        if response.status == 200:
+                            result = await response.json()
+                            category_type_str = result['choices'][0]['message']['content'].strip()
+                            
+                            # 숫자만 추출
+                            category_type_str = re.sub(r'[^0-3]', '', category_type_str)
+                            
+                            if category_type_str in ['0', '1', '2', '3']:
+                                category_type = int(category_type_str)
+                                logger.info(f"카테고리 분류 완료: '{sub_category}' → 타입 {category_type}")
+                                return category_type
+                            else:
+                                logger.warning(f"유효하지 않은 응답: {category_type_str}, 기본값 3 반환")
+                                return 3
+                        else:
+                            logger.warning(f"✗ 카테고리 분류 API 호출 실패 ({attempt}번째 시도) - 상태 코드: {response.status}")
+                            
+                            if attempt < max_retries:
+                                await asyncio.sleep(2)
+                            else:
+                                logger.error(f"✗ 최대 재시도 횟수({max_retries}회) 초과 - 기본값 3 반환")
+                                return 3
                 
-                if response.status_code == 200:
-                    result = response.json()
-                    category_type_str = result['choices'][0]['message']['content'].strip()
-                    
-                    # 숫자만 추출
-                    category_type_str = re.sub(r'[^0-3]', '', category_type_str)
-                    
-                    if category_type_str in ['0', '1', '2', '3']:
-                        category_type = int(category_type_str)
-                        logger.info(f"카테고리 분류 완료: '{sub_category}' → 타입 {category_type}")
-                        return category_type
-                    else:
-                        logger.warning(f"유효하지 않은 응답: {category_type_str}, 기본값 3 반환")
-                        return 3
-                else:
-                    logger.warning(f"✗ 카테고리 분류 API 호출 실패 ({attempt}번째 시도) - 상태 코드: {response.status_code}")
-                    
-                    if attempt < max_retries:
-                        await asyncio.sleep(2)
-                    else:
-                        logger.error(f"✗ 최대 재시도 횟수({max_retries}회) 초과 - 기본값 3 반환")
-                        return 3
-                
-            except requests.exceptions.Timeout:
+            except asyncio.TimeoutError:
                 logger.warning(f"✗ 카테고리 분류 API 시간 초과 ({attempt}번째 시도)")
                 
                 if attempt < max_retries:
@@ -158,9 +158,9 @@ class GeocodingService:
             "Authorization": f"KakaoAK {self.api_key}"
         }
     
-    def get_coordinates(self, address: str, max_retries: int = 5) -> Tuple[Optional[str], Optional[str]]:
+    async def get_coordinates(self, address: str, max_retries: int = 5) -> Tuple[Optional[str], Optional[str]]:
         """
-        주소를 좌표(경도, 위도)로 변환
+        주소를 좌표(경도, 위도)로 변환 (비동기)
         
         Args:
             address: 변환할 주소
@@ -183,42 +183,42 @@ class GeocodingService:
         
         for attempt in range(1, max_retries + 1):
             try:
-                response = requests.get(
-                    self.base_url,
-                    headers=self.headers,
-                    params=params,
-                    timeout=10
-                )
-                
-                if response.status_code == 200:
-                    result = response.json()
-                    
-                    if result.get('documents') and len(result['documents']) > 0:
-                        doc = result['documents'][0]
-                        longitude = str(doc['x'])  # 경도 (문자열로 변환)
-                        latitude = str(doc['y'])   # 위도 (문자열로 변환)
+                timeout = aiohttp.ClientTimeout(total=10)
+                async with aiohttp.ClientSession(timeout=timeout) as session:
+                    async with session.get(
+                        self.base_url,
+                        headers=self.headers,
+                        params=params
+                    ) as response:
+                        if response.status == 200:
+                            result = await response.json()
+                            
+                            if result.get('documents') and len(result['documents']) > 0:
+                                doc = result['documents'][0]
+                                longitude = str(doc['x'])  # 경도 (문자열로 변환)
+                                latitude = str(doc['y'])   # 위도 (문자열로 변환)
+                                
+                                return longitude, latitude
+                            else:
+                                logger.warning(f"주소에 대한 좌표를 찾을 수 없습니다: {address}")
+                                return None, None
+                                
+                        elif response.status == 401:
+                            logger.error("카카오 API 인증 실패. API 키를 확인하세요.")
+                            return None, None
+                            
+                        else:
+                            logger.warning(f"✗ 좌표 변환 실패 ({attempt}번째 시도) - 상태 코드: {response.status}")
+                            
+                            if attempt < max_retries:
+                                await asyncio.sleep(3)
+                            else:
+                                logger.error(f"✗ 최대 재시도 횟수 초과")
+                                return None, None
                         
-                        return longitude, latitude
-                    else:
-                        logger.warning(f"주소에 대한 좌표를 찾을 수 없습니다: {address}")
-                        return None, None
-                        
-                elif response.status_code == 401:
-                    logger.error("카카오 API 인증 실패. API 키를 확인하세요.")
-                    return None, None
-                    
-                else:
-                    logger.warning(f"✗ 좌표 변환 실패 ({attempt}번째 시도) - 상태 코드: {response.status_code}")
-                    
-                    if attempt < max_retries:
-                        asyncio.sleep(3)
-                    else:
-                        logger.error(f"✗ 최대 재시도 횟수 초과")
-                        return None, None
-                        
-            except requests.exceptions.Timeout:
+            except asyncio.TimeoutError:
                 if attempt < max_retries:
-                    asyncio.sleep(1)
+                    await asyncio.sleep(1)
                 else:
                     logger.error(f"✗ 최대 재시도 횟수 초과")
                     return None, None
@@ -227,7 +227,7 @@ class GeocodingService:
                 logger.error(f"✗ 좌표 변환 중 오류 ({attempt}번째 시도): {e}")
                 
                 if attempt < max_retries:
-                    asyncio.sleep(1)
+                    await asyncio.sleep(1)
                 else:
                     return None, None
         
@@ -336,9 +336,134 @@ class NaverMapFavoriteCrawler:
         self.geocoding_service = GeocodingService()
         self.category_classifier = CategoryTypeClassifier()
         
+    async def _save_store_data(self, idx: int, total: int, store_data: Tuple, place_name: str):
+        """
+        크롤링한 데이터를 DB에 저장하는 비동기 함수
+        
+        Args:
+            idx: 현재 인덱스
+            total: 전체 개수
+            store_data: 크롤링한 상점 데이터
+            place_name: 장소명
+            
+        Returns:
+            Tuple[bool, str]: (성공 여부, 로그 메시지)
+        """
+        try:
+            name, full_address, phone, business_hours, image, sub_category, tag_reviews = store_data
+            
+            # 주소 파싱
+            do, si, gu, detail_address = AddressParser.parse_address(full_address)
+            
+            # 좌표 변환과 카테고리 분류를 병렬로 실행
+            (longitude, latitude), category_type = await asyncio.gather(
+                self.geocoding_service.get_coordinates(full_address),
+                self.category_classifier.classify_category_type(sub_category)
+            )
+            
+            # DTO 생성
+            category_dto = InsertCategoryDto(
+                name=name,
+                do=do,
+                si=si,
+                gu=gu,
+                detail_address=detail_address,
+                sub_category=sub_category,
+                business_hour=business_hours or "",
+                phone=phone.replace('-', '') if phone else "",
+                type=category_type,
+                image=image or "",
+                latitude=latitude or "",
+                longitude=longitude or ""
+            )
+            
+            # category 저장
+            # 1. 먼저 DB에서 중복 체크 (name, type, detail_address로 조회)
+            category_repository = CategoryRepository()
+            existing_categories = await category_repository.select_by(
+                name=name,
+                type=category_type,
+                detail_address=detail_address
+            )
+            
+            category_id = None
+            
+            # 2. 중복 데이터가 있으면 update, 없으면 insert
+            if len(existing_categories) == 1:
+                # 기존 데이터 업데이트
+                logger.info(f"[저장 {idx+1}/{total}] 기존 카테고리 발견 - 업데이트 모드: {name}")
+                category_id = await update_category(category_dto)
+            elif len(existing_categories) == 0:
+                # 새로운 데이터 삽입
+                logger.info(f"[저장 {idx+1}/{total}] 신규 카테고리 - 삽입 모드: {name}")
+                category_id = await insert_category(category_dto)
+            else:
+                # 중복이 2개 이상인 경우 (데이터 무결성 문제)
+                logger.error(f"[저장 {idx+1}/{total}] 중복 카테고리가 {len(existing_categories)}개 발견됨: {name}")
+                raise Exception(f"중복 카테고리 데이터 무결성 오류: {name}")
+            
+            if category_id:
+                # 태그 리뷰 저장
+                tag_success_count = 0
+                for tag_name, tag_count in tag_reviews:
+                    try:
+                        # tags 테이블에 저장 또는 가져오기
+                        tag_id = await insert_tags(tag_name, category_type)
+                        
+                        if tag_id:
+                            # category_tags DTO 생성
+                            category_tags_dto = InsertCategoryTagsDTO(
+                                tag_id=tag_id,
+                                category_id=category_id,
+                                count=tag_count
+                            )
+                            
+                            # 3. category_tags도 중복 체크
+                            category_tags_repository = CategoryTagsRepository()
+                            existing_tags = await category_tags_repository.select_by(
+                                tag_id=tag_id,
+                                category_id=category_id
+                            )
+                            
+                            # 중복이면 update, 아니면 insert
+                            if len(existing_tags) == 1:
+                                if await update_category_tags(category_tags_dto):
+                                    tag_success_count += 1
+                            elif len(existing_tags) == 0:
+                                if await insert_category_tags(category_tags_dto):
+                                    tag_success_count += 1
+                            else:
+                                logger.error(f"중복 태그가 {len(existing_tags)}개 발견됨")
+                                
+                    except Exception as tag_error:
+                        logger.error(f"태그 저장 중 오류: {tag_name} - {tag_error}")
+                        continue
+                
+                type_names = {0: '음식점', 1: '카페', 2: '콘텐츠', 3: '기타'}
+                success_msg = (
+                    f"✓ [저장 {idx+1}/{total}] '{name}' 완료\n"
+                    f"  - 서브 카테고리: {sub_category}\n"
+                    f"  - 타입: {type_names.get(category_type, '기타')} ({category_type})\n"
+                    f"  - 태그 리뷰: {tag_success_count}/{len(tag_reviews)}개 저장"
+                )
+                logger.info(success_msg)
+                return True, success_msg
+            else:
+                error_msg = f"✗ [저장 {idx+1}/{total}] '{name}' DB 저장 실패"
+                logger.error(error_msg)
+                return False, error_msg
+                
+        except Exception as db_error:
+            error_msg = f"✗ [저장 {idx+1}/{total}] '{place_name}' DB 저장 중 오류: {db_error}"
+            logger.error(error_msg)
+            import traceback
+            logger.error(traceback.format_exc())
+            return False, error_msg
+        
     async def crawl_favorite_list(self, favorite_url: str, delay: int = 20, output_file: str = None):
         """
         네이버 지도 즐겨찾기 목록에서 장소들을 크롤링
+        크롤링과 저장을 분리하여 병렬 처리
         
         Args:
             favorite_url: 즐겨찾기 URL
@@ -422,9 +547,13 @@ class NaverMapFavoriteCrawler:
                     return
                 
                 logger.info(f"총 {total}개 장소 크롤링 시작")
+                logger.info("=" * 60)
                 
                 success_count = 0
                 fail_count = 0
+                
+                # 저장 태스크를 담을 리스트
+                save_tasks = []
                 
                 # 각 장소 크롤링
                 for idx in range(total):
@@ -433,7 +562,7 @@ class NaverMapFavoriteCrawler:
                         places = await list_frame_locator.locator(place_selector).all()
                         
                         if idx >= len(places):
-                            logger.error(f"[{idx+1}/{total}] 장소 인덱스가 범위를 벗어났습니다.")
+                            logger.error(f"[크롤링 {idx+1}/{total}] 장소 인덱스가 범위를 벗어났습니다.")
                             fail_count += 1
                             continue
                         
@@ -458,7 +587,7 @@ class NaverMapFavoriteCrawler:
                             place_name = f"장소 {idx+1}"
                         
                         # 장소 클릭
-                        logger.info(f"[{idx+1}/{total}] '{place_name}' 클릭 중...")
+                        logger.info(f"[크롤링 {idx+1}/{total}] '{place_name}' 클릭 중...")
 
                         # 클릭 가능한 요소 찾기
                         try:
@@ -470,7 +599,7 @@ class NaverMapFavoriteCrawler:
                         await asyncio.sleep(3)
 
                         # 폐업 팝업 체크
-                        logger.info(f"[{idx+1}/{total}] 폐업 팝업 체크 시작...")
+                        logger.info(f"[크롤링 {idx+1}/{total}] 폐업 팝업 체크 중...")
 
                         popup_selectors = [
                             'body > div:nth-child(4) > div._show_62e0u_8',
@@ -489,7 +618,7 @@ class NaverMapFavoriteCrawler:
                                 is_visible = await popup_element.is_visible(timeout=1000)
                                 
                                 if is_visible:
-                                    logger.warning(f"⚠ [{idx+1}/{total}] '{place_name}' 폐업 팝업 감지! (셀렉터: {popup_selector})")
+                                    logger.warning(f"⚠ [크롤링 {idx+1}/{total}] '{place_name}' 폐업 팝업 감지! (셀렉터: {popup_selector})")
                                     is_popup_found = True
                                     break
                             except Exception as e:
@@ -523,18 +652,18 @@ class NaverMapFavoriteCrawler:
                             
                             # 마지막 장소가 아니면 딜레이
                             if idx < total - 1:
-                                logger.info(f"{delay}초 대기 중...")
+                                logger.info(f"[대기] {delay}초 대기 중...")
                                 await asyncio.sleep(delay)
                             
                             continue  # 다음 장소로 건너뛰기
 
-                        logger.info(f"[{idx+1}/{total}] 팝업 없음 - 정상 크롤링 진행")
+                        logger.info(f"[크롤링 {idx+1}/{total}] 팝업 없음 - 정상 크롤링 진행")
 
                         # entry iframe 가져오기 (메인 페이지에서)
                         entry_frame = await self._get_entry_frame(page)
 
                         if not entry_frame:
-                            logger.error(f"[{idx+1}/{total}] entry iframe을 찾을 수 없습니다.")
+                            logger.error(f"[크롤링 {idx+1}/{total}] entry iframe을 찾을 수 없습니다.")
                             fail_count += 1
                             continue
 
@@ -543,131 +672,62 @@ class NaverMapFavoriteCrawler:
                         store_data = await extractor.extract_all_details()
                         
                         if store_data:
-                            name, full_address, phone, business_hours, image, sub_category, tag_reviews = store_data
+                            logger.info(f"✓ [크롤링 {idx+1}/{total}] '{place_name}' 크롤링 완료")
                             
-                            # 주소 파싱
-                            do, si, gu, detail_address = AddressParser.parse_address(full_address)
-                            
-                            # LLM으로 카테고리 타입 결정
-                            category_type = await self.category_classifier.classify_category_type(sub_category)
-                            
-                            # 좌표 변환
-                            longitude, latitude = self.geocoding_service.get_coordinates(full_address)
-                            
-                            # DTO 생성
-                            category_dto = InsertCategoryDto(
-                                name=name,
-                                do=do,
-                                si=si,
-                                gu=gu,
-                                detail_address=detail_address,
-                                sub_category=sub_category,
-                                business_hour=business_hours or "",
-                                phone=phone.replace('-', '') if phone else "",
-                                type=category_type,
-                                image=image or "",
-                                latitude=latitude or "",
-                                longitude=longitude or ""
+                            # 저장 태스크 생성 (백그라운드에서 실행)
+                            save_task = asyncio.create_task(
+                                self._save_store_data(idx, total, store_data, place_name)
                             )
+                            save_tasks.append(save_task)
                             
-                            # category 저장
-                            try:
-                                # 1. 먼저 DB에서 중복 체크 (name, type, detail_address로 조회)
-                                category_repository = CategoryRepository()
-                                existing_categories = await category_repository.select_by(
-                                    name=name,
-                                    type=category_type,
-                                    detail_address=detail_address
-                                )
-                                
-                                category_id = None
-                                
-                                # 2. 중복 데이터가 있으면 update, 없으면 insert
-                                if len(existing_categories) == 1:
-                                    # 기존 데이터 업데이트
-                                    logger.info(f"기존 카테고리 발견 - 업데이트 모드: {name}")
-                                    category_id = await update_category(category_dto)
-                                elif len(existing_categories) == 0:
-                                    # 새로운 데이터 삽입
-                                    logger.info(f"신규 카테고리 - 삽입 모드: {name}")
-                                    category_id = await insert_category(category_dto)
-                                else:
-                                    # 중복이 2개 이상인 경우 (데이터 무결성 문제)
-                                    logger.error(f"중복 카테고리가 {len(existing_categories)}개 발견됨: {name}")
-                                    raise Exception(f"중복 카테고리 데이터 무결성 오류: {name}")
-                                
-                                if category_id:
-                                    # 태그 리뷰 저장
-                                    tag_success_count = 0
-                                    for tag_name, tag_count in tag_reviews:
-                                        try:
-                                            # tags 테이블에 저장 또는 가져오기
-                                            tag_id = await insert_tags(tag_name, category_type)
-                                            
-                                            logger.info(f"{tag_id}")
-                                            if tag_id:
-                                                # category_tags DTO 생성
-                                                category_tags_dto = InsertCategoryTagsDTO(
-                                                    tag_id=tag_id,
-                                                    category_id=category_id,
-                                                    count=tag_count
-                                                )
-                                                
-                                                # 3. category_tags도 중복 체크
-                                                category_tags_repository = CategoryTagsRepository()
-                                                existing_tags = await category_tags_repository.select_by(
-                                                    tag_id=tag_id,
-                                                    category_id=category_id
-                                                )
-                                                
-                                                # 중복이면 update, 아니면 insert
-                                                if len(existing_tags) == 1:
-                                                    logger.info(f"기존 태그 발견 - 업데이트: {tag_name}")
-                                                    if await update_category_tags(category_tags_dto):
-                                                        tag_success_count += 1
-                                                elif len(existing_tags) == 0:
-                                                    logger.info(f"신규 태그 - 삽입: {tag_name}")
-                                                    if await insert_category_tags(category_tags_dto):
-                                                        tag_success_count += 1
-                                                else:
-                                                    logger.error(f"중복 태그가 {len(existing_tags)}개 발견됨")
-                                                    
-                                        except Exception as tag_error:
-                                            logger.error(f"태그 저장 중 오류: {tag_name} - {tag_error}")
-                                            continue
-                                    
-                                    success_count += 1
-                                    type_names = {0: '음식점', 1: '카페', 2: '콘텐츠', 3: '기타'}
-                                    logger.info(f"✓ [{idx+1}/{total}] '{name}' 완료")
-                                    logger.info(f"  - 서브 카테고리: {sub_category}")
-                                    logger.info(f"  - 타입: {type_names.get(category_type, '기타')} ({category_type})")
-                                    logger.info(f"  - 태그 리뷰: {tag_success_count}/{len(tag_reviews)}개 저장")
-                                else:
-                                    fail_count += 1
-                                    logger.error(f"✗ [{idx+1}/{total}] '{name}' DB 저장 실패")
-                                    
-                            except Exception as db_error:
-                                fail_count += 1
-                                logger.error(f"✗ [{idx+1}/{total}] '{name}' DB 저장 중 오류: {db_error}")
+                            # 크롤링 완료 후 바로 delay 시작
+                            if idx < total - 1:
+                                logger.info(f"[대기] {delay}초 대기 중... (저장은 백그라운드에서 진행)")
+                                await asyncio.sleep(delay)
+                            
                         else:
                             fail_count += 1
-                            logger.error(f"✗ [{idx+1}/{total}] 상점 정보 추출 실패")
-                        
-                        # 마지막 장소가 아니면 딜레이
-                        if idx < total - 1:
-                            logger.info(f"{delay}초 대기 중...")
-                            await asyncio.sleep(delay)
+                            logger.error(f"✗ [크롤링 {idx+1}/{total}] 상점 정보 추출 실패")
+                            
+                            # 실패해도 딜레이
+                            if idx < total - 1:
+                                logger.info(f"[대기] {delay}초 대기 중...")
+                                await asyncio.sleep(delay)
                         
                     except Exception as e:
                         fail_count += 1
-                        logger.error(f"✗ [{idx+1}/{total}] 크롤링 중 오류: {e}")
+                        logger.error(f"✗ [크롤링 {idx+1}/{total}] 크롤링 중 오류: {e}")
                         import traceback
                         logger.error(traceback.format_exc())
+                        
+                        # 오류가 발생해도 딜레이
+                        if idx < total - 1:
+                            logger.info(f"[대기] {delay}초 대기 중...")
+                            await asyncio.sleep(delay)
                         continue
                 
-                logger.info(f"=" * 60)
-                logger.info(f"크롤링 완료: 성공 {success_count}/{total}, 실패 {fail_count}/{total}")
-                logger.info(f"=" * 60)
+                # 모든 크롤링이 끝난 후 저장 태스크들이 완료될 때까지 대기
+                logger.info("=" * 60)
+                logger.info(f"모든 크롤링 완료! 저장 작업 완료 대기 중... ({len(save_tasks)}개)")
+                logger.info("=" * 60)
+                
+                if save_tasks:
+                    save_results = await asyncio.gather(*save_tasks, return_exceptions=True)
+                    
+                    # 저장 결과 집계
+                    for result in save_results:
+                        if isinstance(result, Exception):
+                            fail_count += 1
+                        elif isinstance(result, tuple):
+                            success, msg = result
+                            if success:
+                                success_count += 1
+                            else:
+                                fail_count += 1
+                
+                logger.info("=" * 60)
+                logger.info(f"전체 작업 완료: 성공 {success_count}/{total}, 실패 {fail_count}/{total}")
+                logger.info("=" * 60)
                 
             except Exception as e:
                 logger.error(f"즐겨찾기 크롤링 중 오류: {e}")
@@ -963,7 +1023,7 @@ class StoreDetailExtractor:
             return ""
     
     async def _clean_business_hours_with_llm(self, raw_hours: str, max_retries: int = 10) -> str:
-        """LLM을 사용하여 영업시간 데이터를 정리"""
+        """LLM을 사용하여 영업시간 데이터를 정리 (비동기)"""
         if not self.api_token:
             logger.warning("API 토큰이 없어 영업시간을 정리하지 못했습니다.")
             return raw_hours
@@ -1004,28 +1064,28 @@ class StoreDetailExtractor:
         
         for attempt in range(1, max_retries + 1):
             try:
-                response = requests.post(
-                    self.api_endpoint,
-                    headers=self.headers,
-                    json=payload,
-                    timeout=30
-                )
+                timeout = aiohttp.ClientTimeout(total=30)
+                async with aiohttp.ClientSession(timeout=timeout) as session:
+                    async with session.post(
+                        self.api_endpoint,
+                        headers=self.headers,
+                        json=payload
+                    ) as response:
+                        if response.status == 200:
+                            result = await response.json()
+                            cleaned_hours = result['choices'][0]['message']['content'].strip()
+                            return cleaned_hours
+                        else:
+                            if response.status != 403:
+                                logger.warning(f"✗ 영업시간 정리 API 호출 실패 ({attempt}번째 시도) - 상태 코드: {response.status}")
+                            
+                            if attempt < max_retries:
+                                await asyncio.sleep(2)
+                            else:
+                                logger.error(f"✗ 최대 재시도 횟수({max_retries}회) 초과 - 원본 반환")
+                                return raw_hours
                 
-                if response.status_code == 200:
-                    result = response.json()
-                    cleaned_hours = result['choices'][0]['message']['content'].strip()
-                    return cleaned_hours
-                else:
-                    if response.status_code != 403:
-                        logger.warning(f"✗ 영업시간 정리 API 호출 실패 ({attempt}번째 시도) - 상태 코드: {response.status_code}")
-                    
-                    if attempt < max_retries:
-                        await asyncio.sleep(2)
-                    else:
-                        logger.error(f"✗ 최대 재시도 횟수({max_retries}회) 초과 - 원본 반환")
-                        return raw_hours
-                
-            except requests.exceptions.Timeout:
+            except asyncio.TimeoutError:
                 logger.warning(f"✗ 영업시간 정리 API 시간 초과 ({attempt}번째 시도)")
                 
                 if attempt < max_retries:
@@ -1119,11 +1179,8 @@ class StoreDetailExtractor:
         return tag_reviews
 
 
-async def main():
+async def main(favorite_url = 'https://map.naver.com/p/favorite/sSjt-6mGnGEqi8HA:2D_MP7QkdZtDuASbcBgfEqXAYqV5Tw/folder/723cd582cd1e43dcac5234ad055c7494/pc/place/1477750254?c=10.15,0,0,0,dh&placePath=/home?from=map&fromPanelNum=2&timestamp=202510210943&locale=ko&svcName=map_pcv5'):
     """메인 함수"""
-    
-    # 즐겨찾기 URL 설정
-    favorite_url = "https://map.naver.com/p/favorite/sSjt-6mGnGEqi8HA:2D_MP7QkdZtDuASbcBgfEqXAYqV5Tw/folder/723cd582cd1e43dcac5234ad055c7494/pc/place/1477750254?c=10.15,0,0,0,dh&placePath=/home?from=map&fromPanelNum=2&timestamp=202510210943&locale=ko&svcName=map_pcv5"
     
     # 크롤러 생성
     crawler = NaverMapFavoriteCrawler(headless=False)
@@ -1136,4 +1193,4 @@ async def main():
     )
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(main("https://map.naver.com/p/favorite/sSjt-6mGnGEqi8HA:2D_MP7QkdZtDuASbcBgfEqXAYqV5Tw/folder/723cd582cd1e43dcac5234ad055c7494/pc/place/1477750254?c=10.15,0,0,0,dh&placePath=/home?from=map&fromPanelNum=2&timestamp=202510210943&locale=ko&svcName=map_pcv5"))
