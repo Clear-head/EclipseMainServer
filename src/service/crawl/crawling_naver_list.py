@@ -706,9 +706,6 @@ class NaverMapFavoriteCrawler:
                 
                 logger.info(f"스크롤 {scroll_attempt + 1}회: {current_count}개 장소 발견")
                 
-                if current_count > 0:
-                    break
-                
                 # 개수가 같으면 카운트 증가
                 if current_count == prev_count:
                     same_count += 1
