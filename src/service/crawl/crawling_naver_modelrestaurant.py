@@ -218,8 +218,8 @@ class CategoryTypeClassifier:
                 if attempt < max_retries:
                     await asyncio.sleep(2)
                 else:
-                    logger.error(f"✗ 최대 재시도 횟수({max_retries}회) 초과 - 기본값 0 반환")
-                    return 0
+                    logger.error(f"✗ 최대 재시도 횟수({max_retries}회) 초과 - 기본값 3 반환")
+                    return 3
                     
             except Exception as e:
                 logger.error(f"✗ 카테고리 분류 중 오류 ({attempt}번째 시도): {e}")
@@ -227,8 +227,8 @@ class CategoryTypeClassifier:
                 if attempt < max_retries:
                     await asyncio.sleep(2)
                 else:
-                    logger.error(f"✗ 최대 재시도 횟수({max_retries}회) 초과 - 기본값 0 반환")
-                    return 0
+                    logger.error(f"✗ 최대 재시도 횟수({max_retries}회) 초과 - 기본값 3 반환")
+                    return 3
         
         return 0
 
