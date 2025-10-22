@@ -19,6 +19,17 @@ async def insert_category(dto: InsertCategoryDto):
 
         while not flag:
             entity = CategoryEntity.from_dto(dto)
+
+            if len(
+                    await repository.select_by(
+                        name=entity.name,
+                        si=entity.si,
+                        gu=entity.gu,
+                        detail_address=entity.detail_address
+                    )
+            ) > 0:
+                raise Exception(f"duplicate category: {dto.name}")
+
             flag = repository.insert(entity)
     except Exception as e:
         logger.error(e)
@@ -30,7 +41,7 @@ async def insert_category(dto: InsertCategoryDto):
 
 async def insert_category_tags(dto: InsertCategoryTagsDTO):
     logger = get_logger(__name__)
-    logger.info(f"Inserting category tags: {dto.name}")
+    logger.info(f"Inserting category tags: {dto}")
 
     try:
         repository = CategoryTagsRepository()
@@ -41,7 +52,7 @@ async def insert_category_tags(dto: InsertCategoryTagsDTO):
         logger.error(f"error insert category tags {e}")
         raise Exception(e)
 
-    logger.info(f"Inserting category tags successes: {dto.name}")
+    logger.info(f"Inserting category tags successes: {dto}")
     return True
 
 
