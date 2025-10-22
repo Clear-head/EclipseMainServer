@@ -13,33 +13,37 @@ async def insert_category(dto: InsertCategoryDto):
     logger.info(f"Inserting category: {dto.name}")
 
     try:
+        flag = False
         repository = CategoryRepository()
-        entity = CategoryEntity.from_dto(dto)
-        await repository.insert(entity)  # ✅ await 추가
-        
-        logger.info(f"Inserting category successes: {dto.name}")
-        return entity.id
+        entity = CategoryEntity
 
+        while not flag:
+            entity = CategoryEntity.from_dto(dto)
+            flag = repository.insert(entity)
     except Exception as e:
-        logger.error(f"error insert category: {e}")
+        logger.error(e)
         raise Exception(e)
+
+    logger.info(f"Inserting category successes: {dto.name}")
+    return entity.id
 
 
 async def insert_category_tags(dto: InsertCategoryTagsDTO):
     logger = get_logger(__name__)
-    logger.info(f"Inserting category tags: category_id={dto.category_id}, tag_id={dto.tag_id}")  # ✅ name 대신 ids 사용
+    logger.info(f"Inserting category tags: {dto.name}")
 
     try:
         repository = CategoryTagsRepository()
         entity = CategoryTagsEntity.from_dto(dto)
         await repository.insert(entity)
 
-        logger.info(f"Inserting category tags successes: category_id={dto.category_id}, tag_id={dto.tag_id}")
-        return True
-
     except Exception as e:
         logger.error(f"error insert category tags {e}")
         raise Exception(e)
+
+    logger.info(f"Inserting category tags successes: {dto.name}")
+    return True
+
 
 
 async def insert_tags(name: str, category_type: int):
@@ -61,6 +65,6 @@ async def insert_tags(name: str, category_type: int):
     except Exception as e:
         logger.error(f"error insert tags: {e}")
         raise Exception(e)
-    
+
     logger.info(f"Inserting tags successes: {name}")
     return last_id
