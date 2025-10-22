@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 # 환경 변수 로드
 load_dotenv(dotenv_path="src/.env")
 
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 from src.logger.logger_handler import get_logger
 from src.domain.dto.insert_category_dto import InsertCategoryDto
 from src.domain.dto.insert_category_tags_dto import InsertCategoryTagsDTO
@@ -567,35 +568,43 @@ class NaverMapFavoriteCrawler:
                             )
                             
                             # category 저장
-                            category_id = await insert_category(category_dto)
-                            
-                            if category_id:
-                                # 태그 리뷰 저장
-                                tag_success_count = 0
-                                for tag_name, tag_count in tag_reviews:
-                                    # tags 테이블에 저장 또는 가져오기
-                                    tag_id = await insert_tags(tag_name, category_type)
-                                    
-                                    if tag_id:
-                                        # category_tags DTO 생성 및 저장
-                                        category_tags_dto = InsertCategoryTagsDTO(
-                                            tag_id=tag_id,
-                                            category_id=category_id,
-                                            count=tag_count
-                                        )
-                                        
-                                        if await insert_category_tags(category_tags_dto):
-                                            tag_success_count += 1
+                            try:
+                                category_id = await insert_category(category_dto)  # ✅ await 추가
                                 
-                                success_count += 1
-                                type_names = {0: '음식점', 1: '카페', 2: '콘텐츠', 3: '기타'}
-                                logger.info(f"✓ [{idx+1}/{total}] '{name}' 완료")
-                                logger.info(f"  - 서브 카테고리: {sub_category}")
-                                logger.info(f"  - 타입: {type_names.get(category_type, '기타')} ({category_type})")
-                                logger.info(f"  - 태그 리뷰: {tag_success_count}/{len(tag_reviews)}개 저장")
-                            else:
+                                if category_id:
+                                    # 태그 리뷰 저장
+                                    tag_success_count = 0
+                                    for tag_name, tag_count in tag_reviews:
+                                        try:
+                                            # tags 테이블에 저장 또는 가져오기
+                                            tag_id = await insert_tags(tag_name, category_type)
+                                            
+                                            if tag_id:
+                                                # category_tags DTO 생성 및 저장
+                                                category_tags_dto = InsertCategoryTagsDTO(
+                                                    tag_id=tag_id,
+                                                    category_id=category_id,
+                                                    count=tag_count
+                                                )
+                                                
+                                                if await insert_category_tags(category_tags_dto):
+                                                    tag_success_count += 1
+                                        except Exception as tag_error:
+                                            logger.error(f"태그 저장 중 오류: {tag_name} - {tag_error}")
+                                            continue
+                                    
+                                    success_count += 1
+                                    type_names = {0: '음식점', 1: '카페', 2: '콘텐츠', 3: '기타'}
+                                    logger.info(f"✓ [{idx+1}/{total}] '{name}' 완료")
+                                    logger.info(f"  - 서브 카테고리: {sub_category}")
+                                    logger.info(f"  - 타입: {type_names.get(category_type, '기타')} ({category_type})")
+                                    logger.info(f"  - 태그 리뷰: {tag_success_count}/{len(tag_reviews)}개 저장")
+                                else:
+                                    fail_count += 1
+                                    logger.error(f"✗ [{idx+1}/{total}] '{name}' DB 저장 실패")
+                            except Exception as db_error:
                                 fail_count += 1
-                                logger.error(f"✗ [{idx+1}/{total}] '{name}' DB 저장 실패")
+                                logger.error(f"✗ [{idx+1}/{total}] '{name}' DB 저장 중 오류: {db_error}")
                         else:
                             fail_count += 1
                             logger.error(f"✗ [{idx+1}/{total}] 상점 정보 추출 실패")
@@ -608,6 +617,8 @@ class NaverMapFavoriteCrawler:
                     except Exception as e:
                         fail_count += 1
                         logger.error(f"✗ [{idx+1}/{total}] 크롤링 중 오류: {e}")
+                        import traceback
+                        logger.error(traceback.format_exc())
                         continue
                 
                 logger.info(f"=" * 60)
@@ -651,6 +662,8 @@ class NaverMapFavoriteCrawler:
                 
                 logger.info(f"스크롤 {scroll_attempt + 1}회: {current_count}개 장소 발견")
                 
+                if current_count == 20:
+                    break
                 # 개수가 같으면 카운트 증가
                 if current_count == prev_count:
                     same_count += 1
@@ -1064,8 +1077,11 @@ class StoreDetailExtractor:
         return tag_reviews
 
 
-async def main(favorite_url):
+async def main():
     """메인 함수"""
+    
+    # 즐겨찾기 URL 설정
+    favorite_url = "https://map.naver.com/p/favorite/sSjt-6mGnGEqi8HA:2D_MP7QkdZtDuASbcBgfEqXAYqV5Tw/folder/723cd582cd1e43dcac5234ad055c7494/pc/place/1477750254?c=10.15,0,0,0,dh&placePath=/home?from=map&fromPanelNum=2&timestamp=202510210943&locale=ko&svcName=map_pcv5"
     
     # 크롤러 생성
     crawler = NaverMapFavoriteCrawler(headless=False)
@@ -1078,4 +1094,4 @@ async def main(favorite_url):
     )
 
 if __name__ == "__main__":
-    asyncio.run(main("https://map.naver.com/p/favorite/sSjt-6mGnGEqi8HA:2D_MP7QkdZtDuASbcBgfEqXAYqV5Tw/folder/723cd582cd1e43dcac5234ad055c7494/pc/place/1477750254?c=10.15,0,0,0,dh&placePath=/home?from=map&fromPanelNum=2&timestamp=202510210943&locale=ko&svcName=map_pcv5"))
+    asyncio.run(main())
