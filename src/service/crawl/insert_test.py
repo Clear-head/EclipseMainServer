@@ -53,14 +53,14 @@ async def insert_tags(name: str, category_type: int):
     try:
         repository = TagsRepository()
         result = await repository.select_by(name=name)
+        print(result)
 
-        if not result:
+        if len(result) == 0:
             last_id = await repository.select_last_id(category_type) + 1
-
+            await repository.insert(TagsEntity(id=last_id, name=name))
         else:
             last_id = result[0].id
 
-        await repository.insert(TagsEntity(id=last_id, name=name))
 
     except Exception as e:
         logger.error(f"error insert tags: {e}")
