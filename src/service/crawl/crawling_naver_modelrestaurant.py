@@ -144,12 +144,12 @@ class CategoryTypeClassifier:
             int: 0 (음식점), 1 (카페), 2 (콘텐츠), 3 (기타)
         """
         if not self.api_token:
-            logger.warning("API 토큰이 없어 기본값 0을 반환합니다.")
-            return 0
+            logger.warning("API 토큰이 없어 기본값 3을 반환합니다.")
+            return 3
         
         if not sub_category or not sub_category.strip():
-            logger.warning("서브 카테고리가 비어있어 기본값 0을 반환합니다.")
-            return 0
+            logger.warning("서브 카테고리가 비어있어 기본값 3을 반환합니다.")
+            return 3
         
         prompt = f"""다음 카테고리를 분석하여 숫자로만 답변하세요.
 
@@ -201,16 +201,16 @@ class CategoryTypeClassifier:
                                 logger.info(f"카테고리 분류 완료: '{sub_category}' → 타입 {category_type}")
                                 return category_type
                             else:
-                                logger.warning(f"유효하지 않은 응답: {category_type_str}, 기본값 0 반환")
-                                return 0
+                                logger.warning(f"유효하지 않은 응답: {category_type_str}, 기본값 3 반환")
+                                return 3
                         else:
                             logger.warning(f"✗ 카테고리 분류 API 호출 실패 ({attempt}번째 시도) - 상태 코드: {response.status}")
                             
                             if attempt < max_retries:
                                 await asyncio.sleep(2)
                             else:
-                                logger.error(f"✗ 최대 재시도 횟수({max_retries}회) 초과 - 기본값 0 반환")
-                                return 0
+                                logger.error(f"✗ 최대 재시도 횟수({max_retries}회) 초과 - 기본값 3 반환")
+                                return 3
                 
             except asyncio.TimeoutError:
                 logger.warning(f"✗ 카테고리 분류 API 시간 초과 ({attempt}번째 시도)")
