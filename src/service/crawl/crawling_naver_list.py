@@ -28,20 +28,25 @@ from src.infra.external.category_classifier_service import CategoryTypeClassifie
 from src.service.crawl.utils.address_parser import AddressParser
 from src.service.crawl.utils.store_detail_extractor import StoreDetailExtractor
 from src.service.crawl.utils.store_data_saver import StoreDataSaver
-from src.service.crawl.utils.crawling_manager import CrawlingManager  # 추가
+from src.service.crawl.utils.crawling_manager import CrawlingManager
 
-# 로거 초기화
-logger = get_logger('crawling_naver')
 
 class NaverMapFavoriteCrawler:
     """네이버 지도 즐겨찾기 목록 크롤링을 위한 클래스"""
     
-    def __init__(self, headless: bool = False):
+    def __init__(self, logger, headless: bool = False):
         self.headless = headless
+        self.logger = logger
         self.geocoding_service = GeocodingService()
         self.category_classifier = CategoryTypeClassifier()
-        self.data_saver = StoreDataSaver()
-        self.crawling_manager = CrawlingManager("즐겨찾기")  # 추가
+        
+        # logger를 외부 서비스에도 전달
+        self.geocoding_service = GeocodingService(logger=logger)
+        self.category_classifier = CategoryTypeClassifier(logger=logger)
+        
+        # logger를 유틸리티 클래스에 전달
+        self.data_saver = StoreDataSaver(logger)
+        self.crawling_manager = CrawlingManager("즐겨찾기", logger)
         
     async def _save_store_data(self, idx: int, total: int, store_data: Tuple, place_name: str):
         """공통 저장 로직 호출"""
@@ -83,7 +88,7 @@ class NaverMapFavoriteCrawler:
                 try:
                     await page.wait_for_selector('iframe#myPlaceBookmarkListIframe', timeout=30000)
                 except Exception as e:
-                    logger.error(f"iframe을 찾을 수 없습니다: {e}")
+                    self.logger.error(f"iframe을 찾을 수 없습니다: {e}")
                     html = await page.content()
                     with open('debug_main_page.html', 'w', encoding='utf-8') as f:
                         f.write(html)
@@ -94,7 +99,7 @@ class NaverMapFavoriteCrawler:
                 list_frame = page.frame('myPlaceBookmarkListIframe')
                 
                 if not list_frame:
-                    logger.error("myPlaceBookmarkListIframe을 찾을 수 없습니다.")
+                    self.logger.error("myPlaceBookmarkListIframe을 찾을 수 없습니다.")
                     return
                 
                 await asyncio.sleep(3)
@@ -112,12 +117,12 @@ class NaverMapFavoriteCrawler:
                 total = len(places)
                 
                 if total == 0:
-                    logger.warning("크롤링할 장소가 없습니다.")
+                    self.logger.warning("크롤링할 장소가 없습니다.")
                     return
                 
-                # 장소 정보를 리스트로 변환 (인덱스와 함께)
+                # 장소 정보를 리스트로 변환
                 place_indices = list(range(total))
-                
+
                 # CrawlingManager를 사용한 병렬 처리
                 await self.crawling_manager.execute_crawling_with_save(
                     stores=place_indices,
@@ -129,9 +134,9 @@ class NaverMapFavoriteCrawler:
                 )
                 
             except Exception as e:
-                logger.error(f"즐겨찾기 크롤링 중 오류: {e}")
+                self.logger.error(f"즐겨찾기 크롤링 중 오류: {e}")
                 import traceback
-                logger.error(traceback.format_exc())
+                self.logger.error(traceback.format_exc())
             finally:
                 await context.close()
                 await browser.close()
@@ -149,17 +154,16 @@ class NaverMapFavoriteCrawler:
             try:
                 elements = await list_frame_locator.locator(selector).all()
                 if len(elements) > 0:
-                    # logger.info(f"선택자 발견: {selector} - {len(elements)}개 요소")
                     return selector
             except Exception as e:
-                logger.debug(f"선택자 없음: {selector} - {e}")
+                self.logger.debug(f"선택자 없음: {selector} - {e}")
                 continue
         
         # 선택자를 찾지 못한 경우
         html_content = await list_frame.content()
         with open('debug_iframe.html', 'w', encoding='utf-8') as f:
             f.write(html_content)
-        logger.error("장소 목록 선택자를 찾을 수 없습니다. debug_iframe.html 파일을 확인하세요.")
+        self.logger.error("장소 목록 선택자를 찾을 수 없습니다. debug_iframe.html 파일을 확인하세요.")
         return None
     
     async def _crawl_single_place(
@@ -172,29 +176,20 @@ class NaverMapFavoriteCrawler:
     ):
         """
         단일 장소 크롤링
-        
-        Args:
-            page: 메인 페이지
-            list_frame_locator: 리스트 iframe locator
-            place_selector: 장소 선택자
-            idx: 장소 인덱스 (0부터 시작)
-            total: 전체 장소 수
-        
-        Returns:
-            Tuple: (store_data, place_name) 또는 None
         """
         try:
-            # 매번 목록을 다시 가져와야 함 (DOM이 변경되기 때문)
+            # 매번 목록을 다시 가져와야 함
             places = await list_frame_locator.locator(place_selector).all()
             
             if idx >= len(places):
-                logger.error(f"장소 인덱스가 범위를 벗어났습니다: {idx}/{len(places)}")
+                self.logger.error(f"장소 인덱스가 범위를 벗어났습니다: {idx}/{len(places)}")
                 return None
             
             place = places[idx]
             
-            # 장소명 미리 가져오기 (로깅용)
+            # 장소명 먼저 추출 (로깅용)
             place_name = await self._extract_place_name(place, idx)
+            self.logger.info(f"[즐겨찾기 크롤링 {idx+1}/{total}] '{place_name}' 상세 크롤링 시작...")
             
             # 장소 클릭
             await self._click_place(place)
@@ -202,30 +197,30 @@ class NaverMapFavoriteCrawler:
             
             # 폐업 팝업 체크
             if await self._check_and_close_popup(list_frame_locator, place_name):
-                logger.warning(f"'{place_name}' 폐업 또는 접근 불가")
+                self.logger.warning(f"'{place_name}' 폐업 또는 접근 불가")
                 return None
             
-            # entry iframe 가져오기 (메인 페이지에서)
+            # entry iframe 가져오기
             entry_frame = await self._get_entry_frame(page)
             
             if not entry_frame:
-                logger.error(f"entry iframe을 찾을 수 없습니다.")
+                self.logger.error(f"entry iframe을 찾을 수 없습니다.")
                 return None
             
             # 상세 정보 추출
-            extractor = StoreDetailExtractor(entry_frame, page)
+            extractor = StoreDetailExtractor(entry_frame, page, self.logger)
             store_data = await extractor.extract_all_details()
             
             if store_data:
                 return (store_data, place_name)
             else:
-                logger.error(f"상점 정보 추출 실패: {place_name}")
+                self.logger.error(f"상점 정보 추출 실패: {place_name}")
                 return None
                 
         except Exception as e:
-            logger.error(f"크롤링 중 오류: {e}")
+            self.logger.error(f"크롤링 중 오류: {e}")
             import traceback
-            logger.error(traceback.format_exc())
+            self.logger.error(traceback.format_exc())
             return None
     
     async def _extract_place_name(self, place, idx: int) -> str:
@@ -283,11 +278,11 @@ class NaverMapFavoriteCrawler:
                 is_visible = await popup_element.is_visible(timeout=1000)
                 
                 if is_visible:
-                    logger.warning(f"'{place_name}' 폐업 팝업 감지! (셀렉터: {popup_selector})")
+                    self.logger.warning(f"'{place_name}' 폐업 팝업 감지! (셀렉터: {popup_selector})")
                     is_popup_found = True
                     break
             except Exception as e:
-                logger.debug(f"셀렉터 '{popup_selector}' 실패: {e}")
+                self.logger.debug(f"셀렉터 '{popup_selector}' 실패: {e}")
                 continue
         
         if is_popup_found:
@@ -306,11 +301,11 @@ class NaverMapFavoriteCrawler:
                         button_clicked = True
                         break
                 except Exception as e:
-                    logger.debug(f"버튼 셀렉터 '{button_selector}' 실패: {e}")
+                    self.logger.debug(f"버튼 셀렉터 '{button_selector}' 실패: {e}")
                     continue
             
             if not button_clicked:
-                logger.error("팝업 닫기 버튼을 찾을 수 없습니다")
+                self.logger.error("팝업 닫기 버튼을 찾을 수 없습니다")
         
         return is_popup_found
     
@@ -342,8 +337,6 @@ class NaverMapFavoriteCrawler:
             frame_locator: iframe locator
             place_selector: 장소 선택자
         """
-        # logger.info("스크롤 시작...")
-        
         scroll_container_selectors = [
             '#app > div > div:nth-child(3)',
             '#app > div > div:nth-child(3) > div',
@@ -361,14 +354,10 @@ class NaverMapFavoriteCrawler:
                 places = await frame_locator.locator(place_selector).all()
                 current_count = len(places)
                 
-                # if scroll_attempt % 10 == 0:  # 10회마다 로그
-                #     logger.info(f"스크롤 {scroll_attempt + 1}회: {current_count}개 장소 발견")
-                
                 # 개수가 같으면 카운트 증가
                 if current_count == prev_count:
                     same_count += 1
                     if same_count >= max_same_count:
-                        # logger.info(f"스크롤 완료: 총 {current_count}개 장소")
                         break
                 else:
                     same_count = 0
@@ -396,10 +385,8 @@ class NaverMapFavoriteCrawler:
                 await asyncio.sleep(2)
                 
             except Exception as e:
-                logger.warning(f"스크롤 중 오류: {e}")
+                self.logger.warning(f"스크롤 중 오류: {e}")
                 break
-        
-        # logger.info("스크롤 완료")
     
     async def _get_entry_frame(self, page: Page):
         """상세 정보 iframe 가져오기"""
@@ -409,15 +396,20 @@ class NaverMapFavoriteCrawler:
             await asyncio.sleep(3)
             return entry_frame
         except TimeoutError:
-            logger.error("entryIframe을 찾을 수 없습니다.")
+            self.logger.error("entryIframe을 찾을 수 없습니다.")
             return None
 
 
 async def main(favorite_url = 'https://map.naver.com/p/favorite/sSjt-6mGnGEqi8HA:2D_MP7QkdZtDuASbcBgfEqXAYqV5Tw/folder/723cd582cd1e43dcac5234ad055c7494/pc/place/1477750254?c=10.15,0,0,0,dh&placePath=/home?from=map&fromPanelNum=2&timestamp=202510210943&locale=ko&svcName=map_pcv5'):
     """메인 함수"""
     
-    # 크롤러 생성
-    crawler = NaverMapFavoriteCrawler(headless=False)
+    # ========================================
+    # 로거 초기화 (한 번만)
+    # ========================================
+    logger = get_logger('crawling_naver')
+    
+    # 크롤러 생성 (logger 전달)
+    crawler = NaverMapFavoriteCrawler(logger=logger, headless=False)
     
     # 즐겨찾기 목록 크롤링
     await crawler.crawl_favorite_list(

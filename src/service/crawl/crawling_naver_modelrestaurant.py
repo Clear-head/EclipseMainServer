@@ -34,30 +34,35 @@ from src.service.crawl.utils.store_data_saver import StoreDataSaver
 from src.service.crawl.utils.search_strategy import NaverMapSearchStrategy
 from src.service.crawl.utils.crawling_manager import CrawlingManager
 
-# 로거 초기화
-logger = get_logger('crawling_naver_model')
 
 class NaverMapDistrictCrawler:
     """서울시 각 구 API 데이터 크롤링 클래스"""
     
-    def __init__(self, district_name: str, headless: bool = False):
+    def __init__(self, district_name: str, logger, headless: bool = False):
         self.district_name = district_name
         self.headless = headless
+        self.logger = logger
         self.naver_map_url = "https://map.naver.com/v5/search"
         self.geocoding_service = GeocodingService()
         self.category_classifier = CategoryTypeClassifier()
-        self.data_saver = StoreDataSaver()
-        self.search_strategy = NaverMapSearchStrategy()
-        self.crawling_manager = CrawlingManager(district_name)
+        
+        # logger를 외부 서비스에도 전달
+        self.geocoding_service = GeocodingService(logger=logger)
+        self.category_classifier = CategoryTypeClassifier(logger=logger)
+        
+        # logger를 유틸리티 클래스에 전달
+        self.data_saver = StoreDataSaver(logger)
+        self.search_strategy = NaverMapSearchStrategy(logger)
+        self.crawling_manager = CrawlingManager(district_name, logger)
     
     async def crawl_district_api(self, delay: int = 20):
         """해당 구의 API에서 데이터를 가져와 크롤링"""
         # API 데이터 가져오기
-        api_service = SeoulDistrictAPIService(self.district_name)
+        api_service = SeoulDistrictAPIService(self.district_name, logger=self.logger)
         api_data = await api_service.fetch_all_restaurants()
         
         if not api_data:
-            logger.warning(f"{self.district_name} API에서 데이터를 가져올 수 없습니다.")
+            self.logger.warning(f"{self.district_name} API에서 데이터를 가져올 수 없습니다.")
             return
         
         stores = api_service.convert_to_store_format(api_data)
@@ -82,9 +87,9 @@ class NaverMapDistrictCrawler:
                 )
                 
             except Exception as e:
-                logger.error(f"{self.district_name} 크롤링 중 오류: {e}")
+                self.logger.error(f"{self.district_name} 크롤링 중 오류: {e}")
                 import traceback
-                logger.error(traceback.format_exc())
+                self.logger.error(traceback.format_exc())
             finally:
                 await context.close()
                 await browser.close()
@@ -97,7 +102,7 @@ class NaverMapDistrictCrawler:
         
         # 검색 전략 사용
         async def extract_callback(entry_frame, page):
-            extractor = StoreDetailExtractor(entry_frame, page)
+            extractor = StoreDetailExtractor(entry_frame, page, self.logger)
             return await extractor.extract_all_details()
         
         return await self.search_strategy.search_with_multiple_strategies(
@@ -121,6 +126,11 @@ class NaverMapDistrictCrawler:
 
 async def main():
     """메인 함수"""
+    
+    # ========================================
+    # 로거 초기화 (한 번만)
+    # ========================================
+    logger = get_logger('crawling_naver_model')
     
     # ========================================
     # 🔧 여기서 크롤링할 구를 선택하세요!
@@ -170,36 +180,25 @@ async def main():
     # 크롤링 실행
     # ========================================
     
-    # logger.info("=" * 80)
-    # logger.info(f"크롤링 시작 - 총 {len(districts_to_crawl)}개 구")
-    # logger.info(f"대상 구: {', '.join(districts_to_crawl)}")
-    # logger.info("=" * 80)
-    
     for idx, district_name in enumerate(districts_to_crawl, 1):
         try:
-            # logger.info("")
-            # logger.info("=" * 80)
             logger.info(f"[{idx}/{len(districts_to_crawl)}] {district_name} 크롤링 시작")
-            # logger.info("=" * 80)
             
-            # 크롤러 생성
+            # 크롤러 생성 (logger 전달)
             crawler = NaverMapDistrictCrawler(
                 district_name=district_name,
+                logger=logger,
                 headless=headless_mode
             )
             
             # 해당 구의 API 데이터로 크롤링 시작
             await crawler.crawl_district_api(delay=delay_seconds)
             
-            # logger.info("")
-            # logger.info("=" * 80)
             logger.info(f"[{idx}/{len(districts_to_crawl)}] {district_name} 크롤링 완료!")
-            # logger.info("=" * 80)
             
             # 다음 구로 넘어가기 전 대기 (마지막 구가 아닌 경우)
             if idx < len(districts_to_crawl):
                 wait_time = 60  # 구 사이 대기 시간 (초)
-                # logger.info(f"다음 구 크롤링 전 {wait_time}초 대기 중...")
                 await asyncio.sleep(wait_time)
                 
         except Exception as e:
@@ -209,13 +208,9 @@ async def main():
             
             # 오류 발생 시에도 다음 구 진행 여부 확인
             if idx < len(districts_to_crawl):
-                # logger.info(f"다음 구({districts_to_crawl[idx]})로 계속 진행합니다...")
                 await asyncio.sleep(30)
     
-    # logger.info("")
-    # logger.info("=" * 80)
     logger.info("모든 구 크롤링 완료!")
-    # logger.info("=" * 80)
     
     
 if __name__ == "__main__":

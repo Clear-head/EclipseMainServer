@@ -4,20 +4,19 @@
 """
 import asyncio
 from typing import List, Tuple, Callable
-from src.logger.logger_handler import get_logger
-
-logger = get_logger('crawling_manager')
 
 
 class CrawlingManager:
     """크롤링 작업 매니저"""
     
-    def __init__(self, source_name: str):
+    def __init__(self, source_name: str, logger):
         """
         Args:
             source_name: 크롤링 소스 이름 (예: 'Bluer', '강남구')
+            logger: 로거 인스턴스
         """
         self.source_name = source_name
+        self.logger = logger
         self.success_count = 0
         self.fail_count = 0
     
@@ -43,18 +42,18 @@ class CrawlingManager:
         total = len(stores)
         save_tasks = []
         
-        logger.info(f"총 {total}개 {self.source_name} 매장 크롤링 시작")
+        self.logger.info(f"총 {total}개 {self.source_name} 매장 크롤링 시작")
         
         for idx, store in enumerate(stores, 1):
             store_name = self._get_store_name(store)
             
-            logger.info(f"[{self.source_name} 크롤링 {idx}/{total}] '{store_name}' 크롤링 진행 중...")
+            self.logger.info(f"[{self.source_name} 크롤링 {idx}/{total}] '{store_name}' 크롤링 진행 중...")
             
             # 크롤링 실행
             store_data = await crawl_func(store, idx, total)
             
             if store_data:
-                logger.info(f"[{self.source_name} 크롤링 {idx}/{total}] '{store_name}' 크롤링 완료")
+                self.logger.info(f"[{self.source_name} 크롤링 {idx}/{total}] '{store_name}' 크롤링 완료")
                 
                 # 저장 태스크 생성 (백그라운드)
                 save_task = asyncio.create_task(
@@ -67,14 +66,14 @@ class CrawlingManager:
                     await asyncio.sleep(delay)
             else:
                 self.fail_count += 1
-                logger.error(f"[{self.source_name} 크롤링 {idx}/{total}] '{store_name}' 크롤링 실패")
+                self.logger.error(f"[{self.source_name} 크롤링 {idx}/{total}] '{store_name}' 크롤링 실패")
                 
                 # 실패해도 딜레이
                 if idx < total:
                     await asyncio.sleep(delay)
         
         # 저장 작업 완료 대기
-        logger.info(f"{self.source_name} 모든 크롤링 완료! 저장 작업 완료 대기 중... ({len(save_tasks)}개)")
+        self.logger.info(f"{self.source_name} 모든 크롤링 완료! 저장 작업 완료 대기 중... ({len(save_tasks)}개)")
         
         if save_tasks:
             save_results = await asyncio.gather(*save_tasks, return_exceptions=True)
@@ -90,7 +89,7 @@ class CrawlingManager:
                     else:
                         self.fail_count += 1
         
-        logger.info(f"{self.source_name} 전체 작업 완료: 성공 {self.success_count}/{total}, 실패 {self.fail_count}/{total}")
+        self.logger.info(f"{self.source_name} 전체 작업 완료: 성공 {self.success_count}/{total}, 실패 {self.fail_count}/{total}")
         
         return self.success_count, self.fail_count
     

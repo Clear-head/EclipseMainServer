@@ -11,16 +11,6 @@ from dotenv import load_dotenv
 # 환경 변수 로드
 load_dotenv(dotenv_path="src/.env")
 
-# 로거는 필요시 import
-try:
-    import sys
-    sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-    from src.logger.logger_handler import get_logger
-    logger = get_logger('seoul_district_api')
-except:
-    import logging
-    logger = logging.getLogger('seoul_district_api')
-
 
 class SeoulDistrictAPIService:
     """서울시 각 구의 모범음식점 API 서비스"""
@@ -54,12 +44,14 @@ class SeoulDistrictAPIService:
         '중랑구': f'http://openAPI.jungnang.seoul.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/JungnangModelRestaurantDesignate',
     }
     
-    def __init__(self, district_name: str):
+    def __init__(self, district_name: str, logger=None):
         """
         Args:
             district_name: 구 이름 (예: '강남구', '서초구')
+            logger: 로거 인스턴스
         """
         self.district_name = district_name
+        self.logger = logger
         
         if district_name not in self.DISTRICT_ENDPOINTS:
             raise ValueError(f"지원하지 않는 구입니다: {district_name}. 지원 가능한 구: {list(self.DISTRICT_ENDPOINTS.keys())}")
@@ -80,7 +72,8 @@ class SeoulDistrictAPIService:
             async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.get(f'{self.base_url}/1/1/') as response:
                     if response.status != 200:
-                        logger.error(f"{self.district_name} API 호출 오류: {response.status}")
+                        if self.logger:
+                            self.logger.error(f"{self.district_name} API 호출 오류: {response.status}")
                         return []
                     
                     # XML 파싱
@@ -90,7 +83,8 @@ class SeoulDistrictAPIService:
                     # 전체 개수 추출
                     total_count_elem = root.find('.//list_total_count')
                     if total_count_elem is None:
-                        logger.error(f"{self.district_name} API 응답에서 list_total_count를 찾을 수 없습니다")
+                        if self.logger:
+                            self.logger.error(f"{self.district_name} API 응답에서 list_total_count를 찾을 수 없습니다")
                         return []
                     
                     total_count = int(total_count_elem.text)
@@ -115,9 +109,10 @@ class SeoulDistrictAPIService:
                 return all_data
             
         except Exception as e:
-            logger.error(f"{self.district_name} API 데이터 수집 중 오류: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
+            if self.logger:
+                self.logger.error(f"{self.district_name} API 데이터 수집 중 오류: {e}")
+                import traceback
+                self.logger.error(traceback.format_exc())
             return []
 
     async def _fetch_batch(self, session, url: str, start: int, end: int) -> List[dict]:
@@ -139,12 +134,14 @@ class SeoulDistrictAPIService:
                     
                     return rows
                 else:
-                    logger.error(f"{self.district_name} 배치 {start}~{end} API 호출 오류: {response.status}")
+                    if self.logger:
+                        self.logger.error(f"{self.district_name} 배치 {start}~{end} API 호출 오류: {response.status}")
             return []
         except Exception as e:
-            logger.error(f"{self.district_name} 배치 {start}~{end} 수집 중 오류: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
+            if self.logger:
+                self.logger.error(f"{self.district_name} 배치 {start}~{end} 수집 중 오류: {e}")
+                import traceback
+                self.logger.error(traceback.format_exc())
             return []
     
     def convert_to_store_format(self, api_data: List[dict]) -> List[dict]:

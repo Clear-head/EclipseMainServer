@@ -4,16 +4,6 @@
 import os
 from typing import Tuple
 
-# 로거는 필요시 import
-try:
-    import sys
-    sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-    from src.logger.logger_handler import get_logger
-    logger = get_logger('address_parser')
-except:
-    import logging
-    logger = logging.getLogger('address_parser')
-
 
 class AddressParser:
     """주소 파싱 유틸리티 클래스"""
@@ -159,5 +149,4 @@ class AddressParser:
             return do, si, gu, detail_address
             
         except Exception as e:
-            logger.error(f"주소 파싱 중 오류: {e}")
             return "", "", "", full_address

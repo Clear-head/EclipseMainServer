@@ -10,21 +10,12 @@ from dotenv import load_dotenv
 # 환경 변수 로드
 load_dotenv(dotenv_path="src/.env")
 
-# 로거는 필요시 import
-try:
-    import sys
-    sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-    from src.logger.logger_handler import get_logger
-    logger = get_logger('category_classifier')
-except:
-    import logging
-    logger = logging.getLogger('category_classifier')
-
 
 class CategoryTypeClassifier:
     """LLM을 사용하여 서브 카테고리를 분류하는 클래스"""
     
-    def __init__(self):
+    def __init__(self, logger=None):
+        self.logger = logger
         self.api_token = os.getenv('COPILOT_API_KEY') or os.getenv('GITHUB_TOKEN')
         if self.api_token:
             self.api_endpoint = "https://api.githubcopilot.com/chat/completions"
@@ -34,7 +25,8 @@ class CategoryTypeClassifier:
                 "Accept": "application/json"
             }
         else:
-            logger.warning("GitHub API 토큰이 없습니다. 카테고리 분류 기능이 비활성화됩니다.")
+            if self.logger:
+                self.logger.warning("GitHub API 토큰이 없습니다. 카테고리 분류 기능이 비활성화됩니다.")
     
     async def classify_category_type(self, sub_category: str, max_retries: int = 5) -> int:
         """
@@ -48,11 +40,13 @@ class CategoryTypeClassifier:
             int: 0 (음식점), 1 (카페), 2 (콘텐츠), 3 (기타)
         """
         if not self.api_token:
-            logger.warning("API 토큰이 없어 기본값 3을 반환합니다.")
+            if self.logger:
+                self.logger.warning("API 토큰이 없어 기본값 3을 반환합니다.")
             return 3
         
         if not sub_category or not sub_category.strip():
-            logger.warning("서브 카테고리가 비어있어 기본값 3을 반환합니다.")
+            if self.logger:
+                self.logger.warning("서브 카테고리가 비어있어 기본값 3을 반환합니다.")
             return 3
         
         prompt = f"""다음 카테고리를 분석하여 숫자로만 답변하세요.
@@ -104,33 +98,40 @@ class CategoryTypeClassifier:
                                 category_type = int(category_type_str)
                                 return category_type
                             else:
-                                logger.warning(f"유효하지 않은 응답: {category_type_str}, 기본값 3 반환")
+                                if self.logger:
+                                    self.logger.warning(f"유효하지 않은 응답: {category_type_str}, 기본값 3 반환")
                                 return 3
                         else:
-                            logger.warning(f"✗ 카테고리 분류 API 호출 실패 ({attempt}번째 시도) - 상태 코드: {response.status}")
+                            if self.logger:
+                                self.logger.warning(f"✗ 카테고리 분류 API 호출 실패 ({attempt}번째 시도) - 상태 코드: {response.status}")
                             
                             if attempt < max_retries:
                                 await asyncio.sleep(2)
                             else:
-                                logger.error(f"✗ 최대 재시도 횟수({max_retries}회) 초과 - 기본값 3 반환")
+                                if self.logger:
+                                    self.logger.error(f"✗ 최대 재시도 횟수({max_retries}회) 초과 - 기본값 3 반환")
                                 return 3
                 
             except asyncio.TimeoutError:
-                logger.warning(f"✗ 카테고리 분류 API 시간 초과 ({attempt}번째 시도)")
+                if self.logger:
+                    self.logger.warning(f"✗ 카테고리 분류 API 시간 초과 ({attempt}번째 시도)")
                 
                 if attempt < max_retries:
                     await asyncio.sleep(2)
                 else:
-                    logger.error(f"✗ 최대 재시도 횟수({max_retries}회) 초과 - 기본값 3 반환")
+                    if self.logger:
+                        self.logger.error(f"✗ 최대 재시도 횟수({max_retries}회) 초과 - 기본값 3 반환")
                     return 3
                     
             except Exception as e:
-                logger.error(f"✗ 카테고리 분류 중 오류 ({attempt}번째 시도): {e}")
+                if self.logger:
+                    self.logger.error(f"✗ 카테고리 분류 중 오류 ({attempt}번째 시도): {e}")
                 
                 if attempt < max_retries:
                     await asyncio.sleep(2)
                 else:
-                    logger.error(f"✗ 최대 재시도 횟수({max_retries}회) 초과 - 기본값 3 반환")
+                    if self.logger:
+                        self.logger.error(f"✗ 최대 재시도 횟수({max_retries}회) 초과 - 기본값 3 반환")
                     return 3
         
         return 3

@@ -6,16 +6,14 @@ from typing import Optional, Tuple, List
 from playwright.async_api import Page
 from dotenv import load_dotenv
 
-from src.logger.logger_handler import get_logger
-
-logger = get_logger('store_detail_extractor')
 
 class StoreDetailExtractor:
     """상점 상세 정보 추출 클래스 (공통)"""
     
-    def __init__(self, frame, page: Page):
+    def __init__(self, frame, page: Page, logger):
         self.frame = frame
         self.page = page
+        self.logger = logger
         
         # GitHub Copilot API 설정
         self.api_token = os.getenv('COPILOT_API_KEY') or os.getenv('GITHUB_TOKEN')
@@ -27,7 +25,7 @@ class StoreDetailExtractor:
                 "Accept": "application/json"
             }
         else:
-            logger.warning("GitHub API 토큰이 없습니다. 영업시간 정리 기능이 비활성화됩니다.")
+            self.logger.warning("GitHub API 토큰이 없습니다. 영업시간 정리 기능이 비활성화됩니다.")
     
     def _clean_utf8_string(self, text: str) -> str:
         """4바이트 UTF-8 문자 제거 (이모지 등)"""
@@ -53,12 +51,12 @@ class StoreDetailExtractor:
             sub_category = await self._extract_sub_category()
             tag_reviews = await self._extract_tag_reviews()
             
-            logger.info(f"상점 정보 추출 완료: {name}")
+            self.logger.info(f"상점 정보 추출 완료: {name}")
             
             return (name, full_address, phone, business_hours, image, sub_category, tag_reviews)
             
         except Exception as e:
-            logger.error(f"상점 정보 추출 중 오류: {e}")
+            self.logger.error(f"상점 정보 추출 중 오류: {e}")
             return None
     
     async def _extract_title(self) -> str:
@@ -147,9 +145,9 @@ class StoreDetailExtractor:
                         if clipboard_text and clipboard_text.strip():
                             return clipboard_text.strip()
                     except Exception as clipboard_error:
-                        logger.error(f"클립보드 읽기 실패: {clipboard_error}")
+                        self.logger.error(f"클립보드 읽기 실패: {clipboard_error}")
         except Exception as e:
-            logger.error(f"대체 전화번호 추출 중 오류: {e}")
+            self.logger.error(f"대체 전화번호 추출 중 오류: {e}")
         
         return ""
     
@@ -293,6 +291,6 @@ class StoreDetailExtractor:
                     continue
             
         except Exception as e:
-            logger.error(f"태그 리뷰 추출 중 오류: {e}")
+            self.logger.error(f"태그 리뷰 추출 중 오류: {e}")
         
         return tag_reviews
