@@ -679,7 +679,7 @@ class NaverMapDistrictCrawler:
                 
                 type_names = {0: '음식점', 1: '카페', 2: '콘텐츠', 3: '기타'}
                 success_msg = (
-                    f"✓ [{self.district_name} 저장 {idx+1}/{total}] ID {store_id} '{name}' 완료\n"
+                    f"✓ [{self.district_name} 저장 {idx}/{total}] ID {store_id} '{name}' 완료\n"
                     f"  - 저장된 서브 카테고리: {final_sub_category}\n"
                     f"  - 타입: {type_names.get(category_type, '기타')} ({category_type})\n"
                     f"  - 태그 리뷰: {tag_success_count}/{len(tag_reviews)}개 저장"
