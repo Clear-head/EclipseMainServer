@@ -428,6 +428,3 @@ async def main(favorite_url = 'https://map.naver.com/p/favorite/sSjt-6mGnGEqi8HA
         delay=30,
         output_file=None
     )
-
-if __name__ == "__main__":
-    asyncio.run(main("https://map.naver.com/p/favorite/sharedPlace/folder/a5b889b0ec9d4bafa6156d25cde3fedd/pc?c=6.00,0,0,0,dh"))

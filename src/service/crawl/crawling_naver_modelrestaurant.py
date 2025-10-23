@@ -425,7 +425,3 @@ async def main():
     # logger.info("=" * 80)
     logger.info("모든 구 크롤링 완료!")
     # logger.info("=" * 80)
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
