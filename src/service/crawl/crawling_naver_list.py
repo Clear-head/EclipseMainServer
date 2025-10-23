@@ -19,8 +19,7 @@ from src.service.crawl.insert_crawled import insert_category, insert_category_ta
 from src.service.crawl.update_crawled import update_category, update_category_tags
 from src.infra.database.repository.category_repository import CategoryRepository
 from src.infra.database.repository.category_tags_repository import CategoryTagsRepository
-from src.service.crawl.store_detail_extractor import StoreDetailExtractor
-from src.service.crawl.store_data_saver import StoreDataSaver
+
 
 # 외부 API 서비스 import
 from src.infra.external.kakao_geocoding_service import GeocodingService
@@ -28,6 +27,8 @@ from src.infra.external.category_classifier_service import CategoryTypeClassifie
 
 # 유틸리티 import
 from src.service.crawl.utils.address_parser import AddressParser
+from src.service.crawl.utils.store_detail_extractor import StoreDetailExtractor
+from src.service.crawl.utils.store_data_saver import StoreDataSaver
 
 # 로거 초기화
 logger = get_logger('crawling_naver')
