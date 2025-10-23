@@ -331,7 +331,7 @@ class AddressParser:
         전체 주소를 do, si, gu, detail_address로 분리
         
         Args:
-            full_address: 전체 주소
+            full_address: 전체 주소 (예: "서울 마포구 양화로 144")
             
         Returns:
             Tuple[str, str, str, str]: (do, si, gu, detail_address)
@@ -347,7 +347,7 @@ class AddressParser:
             
             logger.info(f"원본 주소: {full_address}")
             
-            # 특별시/광역시 매핑
+            # 특별시/광역시 매핑 (do 없이 si에만 들어감)
             city_mapping = {
                 '서울': '서울특별시',
                 '부산': '부산광역시',
@@ -359,49 +359,111 @@ class AddressParser:
                 '세종': '세종특별자치시'
             }
             
-            # 공백 기준으로 분리
-            parts = full_address.split(maxsplit=1)
+            # 도 단위 매핑 (약칭 처리)
+            do_mapping = {
+                '경기': '경기도',
+                '강원': '강원도',
+                '충북': '충청북도',
+                '충남': '충청남도',
+                '전북': '전북특별자치도',
+                '전남': '전라남도',
+                '경북': '경상북도',
+                '경남': '경상남도',
+                '제주': '제주특별자치도'
+            }
             
-            if parts:
-                first_word = parts[0]
+            remaining = full_address
+            
+            # 1단계: 특별시/광역시/도 처리
+            for short_name, full_name in city_mapping.items():
+                # "서울" 또는 "서울특별시"로 시작하는 경우
+                if remaining.startswith(short_name):
+                    si = full_name
+                    # "서울" 다음이 공백이거나 구로 끝나는 단어가 오는 경우
+                    if len(remaining) > len(short_name):
+                        next_char = remaining[len(short_name)]
+                        if next_char == ' ':
+                            remaining = remaining[len(short_name):].strip()
+                        elif next_char in ['구', '군', '시']:
+                            remaining = remaining[len(short_name):]
+                        else:
+                            # "서울특별시"처럼 붙어있는 경우
+                            if remaining.startswith(full_name):
+                                remaining = remaining[len(full_name):].strip()
+                            else:
+                                remaining = remaining[len(short_name):]
+                    else:
+                        remaining = ""
+                    break
+            
+            # 도 단위 처리 (si가 아직 설정되지 않은 경우)
+            if not si:
+                for short_name, full_name in do_mapping.items():
+                    # "경기" 또는 "경기도"로 시작하는 경우
+                    if remaining.startswith(short_name):
+                        do = full_name
+                        # "경기" 다음이 공백이거나 시/군으로 끝나는 단어가 오는 경우
+                        if len(remaining) > len(short_name):
+                            next_char = remaining[len(short_name)]
+                            if next_char == ' ':
+                                remaining = remaining[len(short_name):].strip()
+                            elif next_char in ['시', '군']:
+                                remaining = remaining[len(short_name):]
+                            else:
+                                # "경기도"처럼 붙어있는 경우
+                                if remaining.startswith(full_name):
+                                    remaining = remaining[len(full_name):].strip()
+                                else:
+                                    remaining = remaining[len(short_name):]
+                        else:
+                            remaining = ""
+                        break
                 
-                # 특별시/광역시 약칭인 경우
-                if first_word in city_mapping:
-                    si = city_mapping[first_word]
-                    remaining = parts[1] if len(parts) > 1 else ""
-                # 전체 이름으로 온 경우
-                elif any(first_word.endswith(suffix) for suffix in ['특별시', '광역시', '특별자치시']):
-                    si = first_word
-                    remaining = parts[1] if len(parts) > 1 else ""
-                # 도 단위
-                elif first_word.endswith('도') or first_word.endswith('특별자치도'):
-                    do = first_word
-                    remaining = parts[1] if len(parts) > 1 else ""
-                else:
-                    remaining = full_address
-            else:
-                remaining = full_address
+                # 기존 로직: "경기도", "충청북도" 등 전체 이름으로 끝나는 경우
+                if not do:
+                    parts = remaining.split(maxsplit=1)
+                    if parts:
+                        first_word = parts[0]
+                        if first_word.endswith('도') or first_word.endswith('특별자치도'):
+                            do = first_word
+                            remaining = parts[1] if len(parts) > 1 else ""
             
-            # do가 있는 경우에만 si 추출
+            # 2단계: do가 있는 경우 si 추출 (시/군)
             if do and not si:
-                si_parts = remaining.split(maxsplit=1)
-                if si_parts:
-                    first_part = si_parts[0]
+                # 공백으로 구분된 경우
+                parts = remaining.split(maxsplit=1)
+                if parts:
+                    first_part = parts[0]
                     if first_part.endswith('시') or first_part.endswith('군'):
                         si = first_part
-                        remaining = si_parts[1] if len(si_parts) > 1 else ""
+                        remaining = parts[1] if len(parts) > 1 else ""
+                    else:
+                        # 공백 없이 붙어있는 경우 (예: "수원시권선구")
+                        # 시/군을 찾아서 분리
+                        import re
+                        match = re.match(r'^([가-힣]+[시군])', remaining)
+                        if match:
+                            si = match.group(1)
+                            remaining = remaining[len(si):].strip()
             
-            # 구/읍/면 추출
-            gu_parts = remaining.split(maxsplit=1)
-            if gu_parts:
-                first_part = gu_parts[0]
-                if first_part.endswith('구') or first_part.endswith('읍') or first_part.endswith('면'):
-                    gu = first_part
-                    detail_address = gu_parts[1] if len(gu_parts) > 1 else ""
-                else:
-                    detail_address = remaining
-            else:
-                detail_address = remaining
+            # 3단계: 구/읍/면 추출
+            if remaining:
+                # 공백으로 구분된 경우
+                parts = remaining.split(maxsplit=1)
+                if parts:
+                    first_part = parts[0]
+                    if first_part.endswith('구') or first_part.endswith('읍') or first_part.endswith('면'):
+                        gu = first_part
+                        detail_address = parts[1] if len(parts) > 1 else ""
+                    else:
+                        # 공백 없이 붙어있는 경우 (예: "권선구곡반정동")
+                        import re
+                        match = re.match(r'^([가-힣]+[구읍면])', remaining)
+                        if match:
+                            gu = match.group(1)
+                            detail_address = remaining[len(gu):].strip()
+                        else:
+                            detail_address = remaining
             
             logger.info(f"주소 파싱 결과:")
             logger.info(f"  - do: '{do}' (NULL: {not do})")
