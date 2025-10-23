@@ -37,10 +37,6 @@ class NaverMapFavoriteCrawler:
     def __init__(self, logger, headless: bool = False):
         self.headless = headless
         self.logger = logger
-        self.geocoding_service = GeocodingService()
-        self.category_classifier = CategoryTypeClassifier()
-        
-        # logger를 외부 서비스에도 전달
         self.geocoding_service = GeocodingService(logger=logger)
         self.category_classifier = CategoryTypeClassifier(logger=logger)
         
@@ -212,7 +208,9 @@ class NaverMapFavoriteCrawler:
             store_data = await extractor.extract_all_details()
             
             if store_data:
-                return (store_data, place_name)
+                # 👇 실제 추출된 이름 사용
+                actual_name = store_data[0]  # (name, full_address, phone, ...)에서 name
+                return (store_data, actual_name)  # 👈 실제 이름 반환
             else:
                 self.logger.error(f"상점 정보 추출 실패: {place_name}")
                 return None
@@ -314,7 +312,8 @@ class NaverMapFavoriteCrawler:
         저장 래퍼 함수
         
         Args:
-            store_data_tuple: (store_data, place_name) 튜플
+            store_data_tuple: (store_data, actual_name) 튜플
+            place_name: 원래 장소명 (사용 안 함)
         """
         if store_data_tuple is None:
             return (False, "크롤링 실패")
@@ -325,7 +324,7 @@ class NaverMapFavoriteCrawler:
             idx=idx,
             total=total,
             store_data=store_data,
-            store_name=actual_place_name,
+            store_name=actual_place_name,  # 👈 실제 추출된 이름 사용
             log_prefix="즐겨찾기"
         )
     

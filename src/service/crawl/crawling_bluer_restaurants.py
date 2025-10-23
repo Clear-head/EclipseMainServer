@@ -6,6 +6,9 @@ from dotenv import load_dotenv
 
 load_dotenv(dotenv_path="src/.env")
 
+from src.infra.external.kakao_geocoding_service import GeocodingService
+from src.infra.external.category_classifier_service import CategoryTypeClassifier
+
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 from src.logger.logger_handler import get_logger
 from src.service.crawl.utils.store_detail_extractor import StoreDetailExtractor
@@ -31,7 +34,7 @@ class BluerRestaurantCrawler:
         self.search_strategy = NaverMapSearchStrategy(logger)
         self.crawling_manager = CrawlingManager("Bluer", logger)
         
-        logger.info(f"✓ Bluer 크롤러 초기화 완료")
+        logger.info(f"Bluer 크롤러 초기화 완료")
     
     async def crawl_all_pages(self, delay: int = 5, naver_delay: int = 20):
         """Bluer 전체 페이지 크롤링"""

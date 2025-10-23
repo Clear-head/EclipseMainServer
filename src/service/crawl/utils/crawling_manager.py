@@ -97,8 +97,11 @@ class CrawlingManager:
     def _get_store_name(store) -> str:
         """매장명 추출 (타입에 따라 다름)"""
         if isinstance(store, tuple):
-            return store[0]  # (name, address) 형태
+            # 👇 수정: 튜플의 마지막 요소를 이름으로 사용
+            return str(store[-1]) if len(store) > 1 else str(store[0])
         elif isinstance(store, dict):
             return store.get('name', 'Unknown')
+        elif isinstance(store, int):
+            return f"장소 {store + 1}"  # 👈 인덱스인 경우 "장소 1" 형태로
         else:
             return str(store)
