@@ -1,6 +1,6 @@
 from sqlalchemy import select
-from maria_engine import get_engine
 from . import base_repository
+from .maria_engine import get_engine
 from ..tables.table_users import users_table
 from src.domain.entities.user_entity import UserEntity
 
@@ -14,8 +14,8 @@ class UserRepository(base_repository.BaseRepository):
     async def insert(self, item):
         return await super().insert(item)
 
-    async def select(self, item):
-        return await super().select(item)
+    async def select(self, item, limit=None):
+        return await super().select(item, limit=limit)
 
     async def update(self, item_id, item):
         return await super().update(item_id, item)
