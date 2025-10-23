@@ -20,7 +20,7 @@ async def update_category(dto: InsertCategoryDto) -> str:
 
         else:
             id = result[0].id
-            entity = CategoryEntity.from_dto(result[0], id)
+            entity = CategoryEntity.from_dto(dto, id=id)
             flag = await repository.update(id, entity)
 
             if flag:

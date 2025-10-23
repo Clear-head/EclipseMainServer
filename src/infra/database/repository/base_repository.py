@@ -85,7 +85,6 @@ class BaseRepository:
                 for row in result:
                     tmp = self.entity(**row)
                     ans.append(tmp)
-                    print(f"ans: {ans}")
 
             return ans
 
