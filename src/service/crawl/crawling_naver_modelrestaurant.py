@@ -7,6 +7,7 @@ import sys, os
 import datetime
 import aiohttp
 from dotenv import load_dotenv
+import xml.etree.ElementTree as ET
 
 # 환경 변수 로드
 load_dotenv(dotenv_path="src/.env")
@@ -21,7 +22,165 @@ from src.infra.database.repository.category_repository import CategoryRepository
 from src.infra.database.repository.category_tags_repository import CategoryTagsRepository
 
 # 로거 초기화
-logger = get_logger('crawling_naver')
+logger = get_logger('crawling_naver_model')
+
+
+class SeoulDistrictAPIService:
+    """서울시 각 구의 모범음식점 API 서비스"""
+    # 서울시 25개 구의 API 엔드포인트 매핑
+    DISTRICT_ENDPOINTS = {
+        '강남구': f'http://openAPI.gangnam.go.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/GnModelRestaurantDesignate',
+        '강동구': f'http://openAPI.gd.go.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/GdModelRestaurantDesignate',
+        '강북구': f'http://openAPI.gangbuk.go.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/GbModelRestaurantDesignate',
+        '강서구': f'http://openAPI.gangseo.seoul.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/GangseoModelRestaurantDesignate',
+        '관악구': f'http://openAPI.gwanak.go.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/GaModelRestaurantDesignate',
+        '광진구': f'http://openAPI.gwangjin.go.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/GwangjinModelRestaurantDesignate',
+        '구로구': f'http://openAPI.guro.go.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/GuroModelRestaurantDesignate',
+        '금천구': f'http://openAPI.geumcheon.go.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/GeumcheonModelRestaurantDesignate',
+        '노원구': f'http://openAPI.nowon.go.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/NwModelRestaurantDesignate',
+        '도봉구': f'http://openAPI.dobong.go.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/DobongModelRestaurantDesignate',
+        '동대문구': f'http://openAPI.ddm.go.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/DongdeamoonModelRestaurantDesignate',
+        '동작구': f'http://openAPI.dongjak.go.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/DjModelRestaurantDesignate',
+        '마포구': f'http://openAPI.mapo.go.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/MpModelRestaurantDesignate',
+        '서대문구': f'http://openAPI.sdm.go.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/SeodaemunModelRestaurantDesignate',
+        '서초구': f'http://openAPI.seocho.go.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/ScModelRestaurantDesignate',
+        '성동구': f'http://openAPI.sd.go.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/SdModelRestaurantDesignate',
+        '성북구': f'http://openAPI.sb.go.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/SbModelRestaurantDesignate',
+        '송파구': f'http://openAPI.songpa.seoul.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/SpModelRestaurantDesignate',
+        '양천구': f'http://openAPI.yangcheon.go.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/YcModelRestaurantDesignate',
+        '영등포구': f'http://openAPI.ydp.go.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/YdpModelRestaurantDesignate',
+        '용산구': f'http://openAPI.yongsan.go.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/YsModelRestaurantDesignate',
+        '은평구': f'http://openAPI.ep.go.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/EpModelRestaurantDesignate',
+        '종로구': f'http://openAPI.jongno.go.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/JongnoModelRestaurantDesignate',
+        '중구': f'http://openAPI.junggu.seoul.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/JungguModelRestaurantDesignate',
+        '중랑구': f'http://openAPI.jungnang.seoul.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/JungnangModelRestaurantDesignate',
+    }
+    
+    def __init__(self, district_name: str):
+        """
+        Args:
+            district_name: 구 이름 (예: '강남구', '서초구')
+        """
+        self.district_name = district_name
+        
+        if district_name not in self.DISTRICT_ENDPOINTS:
+            raise ValueError(f"지원하지 않는 구입니다: {district_name}. 지원 가능한 구: {list(self.DISTRICT_ENDPOINTS.keys())}")
+        
+        endpoint = self.DISTRICT_ENDPOINTS[district_name]
+        self.base_url = endpoint
+        
+        # logger.info(f"✓ {district_name} API 서비스 초기화 완료")
+    
+    
+    async def fetch_all_restaurants(self) -> List[dict]:
+        """
+        해당 구의 모범음식점 API에서 모든 데이터 가져오기 (비동기)
+        
+        Returns:
+            List[dict]: 음식점 데이터 리스트
+        """
+        try:
+            # 전체 개수 확인
+            timeout = aiohttp.ClientTimeout(total=30)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.get(f'{self.base_url}/1/1/') as response:
+                    if response.status != 200:
+                        logger.error(f"{self.district_name} API 호출 오류: {response.status}")
+                        return []
+                    
+                    # XML 파싱
+                    xml_text = await response.text()
+                    root = ET.fromstring(xml_text)
+                    
+                    # 전체 개수 추출
+                    total_count_elem = root.find('.//list_total_count')
+                    if total_count_elem is None:
+                        logger.error(f"{self.district_name} API 응답에서 list_total_count를 찾을 수 없습니다")
+                        return []
+                    
+                    total_count = int(total_count_elem.text)
+                    # logger.info(f"{self.district_name} 모범음식점 전체 개수: {total_count}개")
+                
+                # 모든 데이터 수집
+                all_data = []
+                batch_size = 1000
+                
+                tasks = []
+                for start in range(1, total_count + 1, batch_size):
+                    end = min(start + batch_size - 1, total_count)
+                    url = f'{self.base_url}/{start}/{end}/'
+                    tasks.append(self._fetch_batch(session, url, start, end))
+                
+                # 병렬로 데이터 수집
+                batch_results = await asyncio.gather(*tasks)
+                
+                for batch_data in batch_results:
+                    if batch_data:
+                        all_data.extend(batch_data)
+                
+                # logger.info(f"{self.district_name} 총 {len(all_data)}개 데이터 수집 완료")
+                return all_data
+            
+        except Exception as e:
+            logger.error(f"{self.district_name} API 데이터 수집 중 오류: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return []
+
+    async def _fetch_batch(self, session, url: str, start: int, end: int) -> List[dict]:
+        """배치 데이터 가져오기 (XML 파싱)"""
+        try:
+            # logger.info(f"{self.district_name} API 데이터 수집 중... {start}~{end}")
+            async with session.get(url) as response:
+                if response.status == 200:
+                    # XML 파싱
+                    xml_text = await response.text()
+                    root = ET.fromstring(xml_text)
+                    
+                    # row 데이터 추출
+                    rows = []
+                    for row_elem in root.findall('.//row'):
+                        row_data = {}
+                        for child in row_elem:
+                            row_data[child.tag] = child.text or ''
+                        rows.append(row_data)
+                    
+                    return rows
+                else:
+                    logger.error(f"{self.district_name} 배치 {start}~{end} API 호출 오류: {response.status}")
+            return []
+        except Exception as e:
+            logger.error(f"{self.district_name} 배치 {start}~{end} 수집 중 오류: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return []
+    
+    def convert_to_store_format(self, api_data: List[dict]) -> List[dict]:
+        """
+        API 데이터를 크롤링용 포맷으로 변환
+        
+        Args:
+            api_data: API에서 가져온 원본 데이터
+            
+        Returns:
+            List[dict]: 변환된 상점 데이터
+        """
+        converted_data = []
+        
+        for idx, row in enumerate(api_data, 1):
+            store = {
+                'id': idx,
+                'name': row.get('UPSO_NM', '').strip(),
+                'address': row.get('SITE_ADDR', '').strip(),  # 지번 주소
+                'road_address': row.get('SITE_ADDR_RD', '').strip(),  # 도로명 주소
+                'sub_category': row.get('SNT_UPTAE_NM', '').strip(),
+                'admdng_nm': row.get('ADMDNG_NM', '').strip(),
+                'main_edf': row.get('MAIN_EDF', '').strip(),  # 이건 제거해도 됨
+                'original_data': row
+            }
+            converted_data.append(store)
+        
+        return converted_data
 
 
 class CategoryTypeClassifier:
@@ -44,7 +203,7 @@ class CategoryTypeClassifier:
         서브 카테고리를 LLM으로 분석하여 타입 결정
         
         Args:
-            sub_category: 서브 카테고리 (예: "일식", "카페", "박물관" 등)
+            sub_category: 서브 카테고리
             max_retries: 최대 재시도 횟수
             
         Returns:
@@ -144,10 +303,6 @@ class GeocodingService:
     """카카오 로컬 API를 사용한 주소 -> 좌표 변환 서비스"""
     
     def __init__(self, api_key: str = None):
-        """
-        Args:
-            api_key: 카카오 REST API 키
-        """
         self.api_key = api_key or os.getenv('KAKAO_REST_API_KEY')
         
         if not self.api_key:
@@ -195,9 +350,8 @@ class GeocodingService:
                             
                             if result.get('documents') and len(result['documents']) > 0:
                                 doc = result['documents'][0]
-                                longitude = str(doc['x'])  # 경도 (문자열로 변환)
-                                latitude = str(doc['y'])   # 위도 (문자열로 변환)
-                                
+                                longitude = str(doc['x'])  # 경도 (문자열)
+                                latitude = str(doc['y'])   # 위도 (문자열)
                                 return longitude, latitude
                             else:
                                 logger.warning(f"주소에 대한 좌표를 찾을 수 없습니다: {address}")
@@ -390,15 +544,24 @@ class AddressParser:
             return "", "", "", full_address
 
 
-class NaverMapFavoriteCrawler:
-    """네이버 지도 즐겨찾기 목록 크롤링을 위한 클래스"""
+class NaverMapDistrictCrawler:
+    """서울시 각 구 API 데이터 크롤링 클래스"""
     
-    def __init__(self, headless: bool = False):
+    def __init__(self, district_name: str, headless: bool = False):
+        """
+        Args:
+            district_name: 크롤링할 구 이름 (예: '강남구', '서초구')
+            headless: 헤드리스 모드 사용 여부
+        """
+        self.district_name = district_name
         self.headless = headless
+        self.naver_map_url = "https://map.naver.com/v5/search"
         self.geocoding_service = GeocodingService()
         self.category_classifier = CategoryTypeClassifier()
         
-    async def _save_store_data(self, idx: int, total: int, store_data: Tuple, place_name: str):
+        # logger.info(f"✓ {district_name} 크롤러 초기화 완료")
+    
+    async def _save_store_data(self, idx: int, total: int, store_data: Tuple, store_name: str, store_id: int, api_sub_category: str):
         """
         크롤링한 데이터를 DB에 저장하는 비동기 함수
         
@@ -406,21 +569,34 @@ class NaverMapFavoriteCrawler:
             idx: 현재 인덱스
             total: 전체 개수
             store_data: 크롤링한 상점 데이터
-            place_name: 장소명
+            store_name: 상점명
+            store_id: 상점 ID
+            api_sub_category: API에서 가져온 서브 카테고리 (보조용)
             
         Returns:
             Tuple[bool, str]: (성공 여부, 로그 메시지)
         """
         try:
-            name, full_address, phone, business_hours, image, sub_category, tag_reviews = store_data
+            name, full_address, phone, business_hours, image, naver_sub_category, tag_reviews = store_data
             
             # 주소 파싱
             do, si, gu, detail_address = AddressParser.parse_address(full_address)
             
+            # ⭐ 서브 카테고리 결정: 네이버 지도 우선
+            # 1순위: 네이버 지도 서브 카테고리
+            # 2순위: API 서브 카테고리
+            final_sub_category = naver_sub_category or api_sub_category
+            
+            # logger.info(f"[{self.district_name} 저장 {idx+1}/{total}] 서브 카테고리 결정:")
+            # logger.info(f"  - 네이버 서브 카테고리: {naver_sub_category}")
+            # logger.info(f"  - API 서브 카테고리: {api_sub_category}")
+            # logger.info(f"  - 최종 선택 (저장 & 타입 분류): {final_sub_category}")
+            
             # 좌표 변환과 카테고리 분류를 병렬로 실행
+            # ⭐ 네이버 지도의 서브 카테고리로 타입 분류
             (longitude, latitude), category_type = await asyncio.gather(
                 self.geocoding_service.get_coordinates(full_address),
-                self.category_classifier.classify_category_type(sub_category)
+                self.category_classifier.classify_category_type(final_sub_category)
             )
             
             # DTO 생성
@@ -430,16 +606,16 @@ class NaverMapFavoriteCrawler:
                 si=si,
                 gu=gu,
                 detail_address=detail_address,
-                sub_category=sub_category,
+                sub_category=final_sub_category,  # 네이버 우선
                 business_hour=business_hours or "",
                 phone=phone.replace('-', '') if phone else "",
-                type=category_type,
+                type=category_type,  # 네이버 서브 카테고리로 분류된 타입
                 image=image or "",
                 latitude=latitude or "",
                 longitude=longitude or ""
             )
             
-            # category 저장
+            # category 저장 (중복 체크 포함)
             # 1. 먼저 DB에서 중복 체크 (name, type, detail_address로 조회)
             category_repository = CategoryRepository()
             existing_categories = await category_repository.select_by(
@@ -453,19 +629,19 @@ class NaverMapFavoriteCrawler:
             # 2. 중복 데이터가 있으면 update, 없으면 insert
             if len(existing_categories) == 1:
                 # 기존 데이터 업데이트
-                # logger.info(f"[저장 {idx+1}/{total}] 기존 카테고리 발견 - 업데이트 모드: {name}")
+                # logger.info(f"[{self.district_name} 저장 {idx+1}/{total}] 기존 카테고리 발견 - 업데이트 모드: {name}")
                 category_id = await update_category(category_dto)
             elif len(existing_categories) == 0:
                 # 새로운 데이터 삽입
-                # logger.info(f"[저장 {idx+1}/{total}] 신규 카테고리 - 삽입 모드: {name}")
+                # logger.info(f"[{self.district_name} 저장 {idx+1}/{total}] 신규 카테고리 - 삽입 모드: {name}")
                 category_id = await insert_category(category_dto)
             else:
                 # 중복이 2개 이상인 경우 (데이터 무결성 문제)
-                logger.error(f"[저장 {idx+1}/{total}] 중복 카테고리가 {len(existing_categories)}개 발견됨: {name}")
+                logger.error(f"[{self.district_name} 저장 {idx+1}/{total}] 중복 카테고리가 {len(existing_categories)}개 발견됨: {name}")
                 raise Exception(f"중복 카테고리 데이터 무결성 오류: {name}")
             
             if category_id:
-                # 태그 리뷰 저장
+                # 태그 리뷰 저장 (중복 체크 포함)
                 tag_success_count = 0
                 for tag_name, tag_count in tag_reviews:
                     try:
@@ -503,35 +679,51 @@ class NaverMapFavoriteCrawler:
                 
                 type_names = {0: '음식점', 1: '카페', 2: '콘텐츠', 3: '기타'}
                 success_msg = (
-                    f"✓ [저장 {idx+1}/{total}] '{name}' 완료\n"
-                    # f"  - 서브 카테고리: {sub_category}\n"
+                    f"✓ [{self.district_name} 저장 {idx}/{total}] ID {store_id} '{name}' 완료\n"
+                    # f"  - 저장된 서브 카테고리: {final_sub_category}\n"
                     # f"  - 타입: {type_names.get(category_type, '기타')} ({category_type})\n"
                     # f"  - 태그 리뷰: {tag_success_count}/{len(tag_reviews)}개 저장"
                 )
                 logger.info(success_msg)
                 return True, success_msg
             else:
-                error_msg = f"✗ [저장 {idx+1}/{total}] '{name}' DB 저장 실패"
+                error_msg = f"✗ [{self.district_name} 저장 {idx+1}/{total}] ID {store_id} '{name}' DB 저장 실패"
                 logger.error(error_msg)
                 return False, error_msg
                 
         except Exception as db_error:
-            error_msg = f"✗ [저장 {idx+1}/{total}] '{place_name}' DB 저장 중 오류: {db_error}"
+            error_msg = f"✗ [{self.district_name} 저장 {idx+1}/{total}] ID {store_id} '{store_name}' DB 저장 중 오류: {db_error}"
             logger.error(error_msg)
             import traceback
             logger.error(traceback.format_exc())
             return False, error_msg
-        
-    async def crawl_favorite_list(self, favorite_url: str, delay: int = 20, output_file: str = None):
+    
+    async def crawl_district_api(self, delay: int = 20):
         """
-        네이버 지도 즐겨찾기 목록에서 장소들을 크롤링
+        해당 구의 API에서 데이터를 가져와 크롤링
         크롤링과 저장을 분리하여 병렬 처리
         
         Args:
-            favorite_url: 즐겨찾기 URL
-            delay: 각 장소 크롤링 사이의 대기 시간(초)
-            output_file: 결과 저장 파일 (선택)
+            delay: 크롤링 간 딜레이 (초)
         """
+        # 해당 구의 API에서 데이터 가져오기 (비동기)
+        api_service = SeoulDistrictAPIService(self.district_name)
+        api_data = await api_service.fetch_all_restaurants()
+        
+        if not api_data:
+            logger.warning(f"{self.district_name} API에서 데이터를 가져올 수 없습니다.")
+            return
+        
+        # 크롤링용 포맷으로 변환
+        stores = api_service.convert_to_store_format(api_data)
+        
+        total = len(stores)
+        success_count = 0
+        fail_count = 0
+        
+        logger.info(f"총 {total}개 {self.district_name} 모범음식점 크롤링 시작")
+        # logger.info("=" * 60)
+        
         async with async_playwright() as p:
             browser = await p.chromium.launch(
                 headless=self.headless,
@@ -545,240 +737,53 @@ class NaverMapFavoriteCrawler:
             page = await context.new_page()
             
             try:
-                # 즐겨찾기 페이지로 이동
-                # logger.info(f"즐겨찾기 페이지로 이동: {favorite_url}")
-                await page.goto(favorite_url, wait_until='domcontentloaded', timeout=60000)
-                # logger.info("페이지 로딩 대기 중...")
-                await asyncio.sleep(10)
-                
-                # myPlaceBookmarkListIframe 대기
-                # logger.info("myPlaceBookmarkListIframe 대기 중...")
-                try:
-                    await page.wait_for_selector('iframe#myPlaceBookmarkListIframe', timeout=30000)
-                except Exception as e:
-                    logger.error(f"iframe을 찾을 수 없습니다: {e}")
-                    html = await page.content()
-                    with open('debug_main_page.html', 'w', encoding='utf-8') as f:
-                        f.write(html)
-                    # logger.info("debug_main_page.html 파일에 페이지 내용을 저장했습니다.")
-                    return
-                
-                # iframe 가져오기
-                list_frame_locator = page.frame_locator('iframe#myPlaceBookmarkListIframe')
-                list_frame = page.frame('myPlaceBookmarkListIframe')
-                
-                if not list_frame:
-                    logger.error("myPlaceBookmarkListIframe을 찾을 수 없습니다.")
-                    return
-                
-                # logger.info("✓ myPlaceBookmarkListIframe 발견")
-                await asyncio.sleep(3)
-                
-                # 여러 가능한 선택자 시도
-                possible_selectors = [
-                    '#app > div > div:nth-child(3) > div > ul > li',
-                    'ul.list_place > li',
-                    'ul > li',
-                    '[role="list"] > *',
-                ]
-                
-                place_selector = None
-                
-                # iframe 내부에서 선택자 찾기
-                for selector in possible_selectors:
-                    try:
-                        # logger.info(f"선택자 시도: {selector}")
-                        elements = await list_frame_locator.locator(selector).all()
-                        if len(elements) > 0:
-                            place_selector = selector
-                            # logger.info(f"✓ 선택자 발견: {selector} - {len(elements)}개 요소")
-                            break
-                    except Exception as e:
-                        logger.warning(f"✗ 선택자 없음: {selector} - {e}")
-                        continue
-                
-                if not place_selector:
-                    html_content = await list_frame.content()
-                    with open('debug_iframe.html', 'w', encoding='utf-8') as f:
-                        f.write(html_content)
-                    logger.error("장소 목록 선택자를 찾을 수 없습니다. debug_iframe.html 파일을 확인하세요.")
-                    return
-                
-                # 스크롤하여 모든 장소 로드
-                # logger.info("스크롤하여 모든 장소 로드 중...")
-                await self._scroll_to_load_all_places(list_frame_locator, place_selector)
-                
-                # 최종 장소 개수 확인
-                places = await list_frame_locator.locator(place_selector).all()
-                total = len(places)
-                
-                if total == 0:
-                    logger.warning("크롤링할 장소가 없습니다.")
-                    return
-                
-                # logger.info(f"총 {total}개 장소 크롤링 시작")
-                # logger.info("=" * 60)
-                
-                success_count = 0
-                fail_count = 0
-                
                 # 저장 태스크를 담을 리스트
                 save_tasks = []
                 
-                # 각 장소 크롤링
-                for idx in range(total):
-                    try:
-                        # 매번 목록을 다시 가져와야 함 (DOM이 변경되기 때문)
-                        places = await list_frame_locator.locator(place_selector).all()
+                for idx, store in enumerate(stores, 1):
+                    store_id = store['id']
+                    store_name = store['name']
+                    store_address = store['address']  # 지번 주소
+                    road_address = store['road_address']  # 도로명 주소 (SITE_ADDR_RD)
+                    api_sub_category = store['sub_category']  # API 서브 카테고리
+                    admdng_nm = store['admdng_nm']
+                    
+                    logger.info(f"[{self.district_name} 크롤링 {idx}/{total}] ID {store_id}: '{store_name}' (행정동: {admdng_nm}) 크롤링 진행 중...")
+                    # logger.info(f"  - API 서브 카테고리: {api_sub_category}")
+                    # logger.info(f"  - 지번 주소: {store_address}")
+                    # logger.info(f"  - 도로명 주소: {road_address}")
+                    
+                    # 네이버 지도에서 검색 (도로명 주소 전달)
+                    store_data = await self._search_and_extract(page, store_name, store_address, road_address)
+                    
+                    if store_data:
+                        # store_data에서 네이버 서브 카테고리 추출
+                        naver_sub_category = store_data[5]  # (name, address, phone, hours, image, sub_category, tags)
+                        # logger.info(f"  - 네이버 서브 카테고리: {naver_sub_category}")
+                        logger.info(f"✓ [{self.district_name} 크롤링 {idx}/{total}] ID {store_id} '{store_name}' 크롤링 완료")
                         
-                        if idx >= len(places):
-                            logger.error(f"[크롤링 {idx+1}/{total}] 장소 인덱스가 범위를 벗어났습니다.")
-                            fail_count += 1
-                            continue
+                        # 저장 태스크 생성 (백그라운드에서 실행)
+                        save_task = asyncio.create_task(
+                            self._save_store_data(idx, total, store_data, store_name, store_id, api_sub_category)
+                        )
+                        save_tasks.append(save_task)
                         
-                        place = places[idx]
-                        
-                        # 장소명 미리 가져오기 (로깅용)
-                        try:
-                            name_selectors = ['div.name', 'span.name', '.place_name', 'a.name', '.item_name', 'span']
-                            place_name = None
-                            
-                            for name_sel in name_selectors:
-                                try:
-                                    place_name = await place.locator(name_sel).first.inner_text(timeout=2000)
-                                    if place_name and place_name.strip():
-                                        break
-                                except:
-                                    continue
-                            
-                            if not place_name:
-                                place_name = f"장소 {idx+1}"
-                        except:
-                            place_name = f"장소 {idx+1}"
-                        
-                        # 장소 클릭
-                        # logger.info(f"[크롤링 {idx+1}/{total}] '{place_name}' 클릭 중...")
-
-                        # 클릭 가능한 요소 찾기
-                        try:
-                            clickable = place.locator('div, li[role="button"]').first
-                            await clickable.click(timeout=5000)
-                        except:
-                            await place.click(timeout=5000)
-
-                        await asyncio.sleep(3)
-
-                        # 폐업 팝업 체크
-                        # logger.info(f"[크롤링 {idx+1}/{total}] 폐업 팝업 체크 중...")
-
-                        popup_selectors = [
-                            'body > div:nth-child(4) > div._show_62e0u_8',
-                            'div._show_62e0u_8',
-                            'div._popup_62e0u_1._show_62e0u_8',
-                            'div[class*="_show_"]',
-                            'div._popup_62e0u_1',
-                        ]
-
-                        is_popup_found = False
-                        popup_element = None
-
-                        for popup_selector in popup_selectors:
-                            try:
-                                popup_element = list_frame_locator.locator(popup_selector).first
-                                is_visible = await popup_element.is_visible(timeout=1000)
-                                
-                                if is_visible:
-                                    logger.warning(f"⚠ [크롤링 {idx+1}/{total}] '{place_name}' 폐업 팝업 감지! (셀렉터: {popup_selector})")
-                                    is_popup_found = True
-                                    break
-                            except Exception as e:
-                                logger.debug(f"  셀렉터 '{popup_selector}' 실패: {e}")
-                                continue
-
-                        if is_popup_found:
-                            # 확인 버튼 클릭
-                            button_selectors = [
-                                'body > div:nth-child(4) > div > div._popup_62e0u_1._at_pc_62e0u_21._show_62e0u_8 > div._popup_buttons_62e0u_85 > button'
-                            ]
-                            
-                            button_clicked = False
-                            for button_selector in button_selectors:
-                                try:
-                                    popup_button = list_frame_locator.locator(button_selector).first
-                                    if await popup_button.is_visible(timeout=1000):
-                                        await popup_button.click(timeout=2000)
-                                        await asyncio.sleep(0.5)
-                                        # logger.info(f"✓ 폐업 팝업 닫기 완료 (버튼 셀렉터: {button_selector})")
-                                        button_clicked = True
-                                        break
-                                except Exception as e:
-                                    logger.debug(f"  버튼 셀렉터 '{button_selector}' 실패: {e}")
-                                    continue
-                            
-                            if not button_clicked:
-                                logger.error("✗ 팝업 닫기 버튼을 찾을 수 없습니다")
-                            
-                            fail_count += 1
-                            
-                            # 마지막 장소가 아니면 딜레이
-                            if idx < total - 1:
-                                # logger.info(f"[대기] {delay}초 대기 중...")
-                                await asyncio.sleep(delay)
-                            
-                            continue  # 다음 장소로 건너뛰기
-
-                        # logger.info(f"[크롤링 {idx+1}/{total}] 팝업 없음 - 정상 크롤링 진행")
-
-                        # entry iframe 가져오기 (메인 페이지에서)
-                        entry_frame = await self._get_entry_frame(page)
-
-                        if not entry_frame:
-                            logger.error(f"[크롤링 {idx+1}/{total}] entry iframe을 찾을 수 없습니다.")
-                            fail_count += 1
-                            continue
-
-                        # 상세 정보 추출
-                        extractor = StoreDetailExtractor(entry_frame, page)
-                        store_data = await extractor.extract_all_details()
-                        
-                        if store_data:
-                            logger.info(f"✓ [크롤링 {idx+1}/{total}] '{place_name}' 크롤링 완료")
-                            
-                            # 저장 태스크 생성 (백그라운드에서 실행)
-                            save_task = asyncio.create_task(
-                                self._save_store_data(idx, total, store_data, place_name)
-                            )
-                            save_tasks.append(save_task)
-                            
-                            # 크롤링 완료 후 바로 delay 시작
-                            if idx < total - 1:
-                                # logger.info(f"[대기] {delay}초 대기 중... (저장은 백그라운드에서 진행)")
-                                await asyncio.sleep(delay)
-                            
-                        else:
-                            fail_count += 1
-                            logger.error(f"✗ [크롤링 {idx+1}/{total}] 상점 정보 추출 실패")
-                            
-                            # 실패해도 딜레이
-                            if idx < total - 1:
-                                # logger.info(f"[대기] {delay}초 대기 중...")
-                                await asyncio.sleep(delay)
-                        
-                    except Exception as e:
-                        fail_count += 1
-                        logger.error(f"✗ [크롤링 {idx+1}/{total}] 크롤링 중 오류: {e}")
-                        import traceback
-                        logger.error(traceback.format_exc())
-                        
-                        # 오류가 발생해도 딜레이
-                        if idx < total - 1:
-                            # logger.info(f"[대기] {delay}초 대기 중...")
+                        # 마지막 상점이 아니면 딜레이
+                        if idx < total:
+                            # logger.info(f"[{self.district_name} 대기] {delay}초 대기 중... (저장은 백그라운드에서 진행)")
                             await asyncio.sleep(delay)
-                        continue
+                    else:
+                        fail_count += 1
+                        logger.error(f"✗ [{self.district_name} 크롤링 {idx}/{total}] ID {store_id} '{store_name}' 크롤링 실패")
+                        
+                        # 실패해도 딜레이
+                        if idx < total:
+                            # logger.info(f"[{self.district_name} 대기] {delay}초 대기 중...")
+                            await asyncio.sleep(delay)
                 
                 # 모든 크롤링이 끝난 후 저장 태스크들이 완료될 때까지 대기
                 # logger.info("=" * 60)
-                logger.info(f"모든 크롤링 완료! 저장 작업 완료 대기 중... ({len(save_tasks)}개)")
+                logger.info(f"{self.district_name} 모든 크롤링 완료! 저장 작업 완료 대기 중... ({len(save_tasks)}개)")
                 # logger.info("=" * 60)
                 
                 if save_tasks:
@@ -796,104 +801,175 @@ class NaverMapFavoriteCrawler:
                                 fail_count += 1
                 
                 # logger.info("=" * 60)
-                logger.info(f"전체 작업 완료: 성공 {success_count}/{total}, 실패 {fail_count}/{total}")
+                logger.info(f"{self.district_name} 전체 작업 완료: 성공 {success_count}/{total}, 실패 {fail_count}/{total}")
                 # logger.info("=" * 60)
                 
             except Exception as e:
-                logger.error(f"즐겨찾기 크롤링 중 오류: {e}")
+                logger.error(f"{self.district_name} 크롤링 중 오류: {e}")
                 import traceback
                 logger.error(traceback.format_exc())
             finally:
                 await context.close()
                 await browser.close()
-    
-    async def _scroll_to_load_all_places(self, frame_locator, place_selector: str):
-        """
-        iframe 내부를 스크롤하여 모든 장소를 로드
+
+    async def _search_and_extract(self, page: Page, store_name: str, store_address: str, road_address: str = ""):
+        """네이버 지도에서 검색 및 정보 추출 (도로명 주소 우선)"""
         
-        Args:
-            frame_locator: iframe locator
-            place_selector: 장소 선택자
-        """
-        # logger.info("스크롤 시작...")
+        # 도로명 주소가 있는 경우 우선 검색
+        if road_address and road_address.strip():
+            # 1차 시도: 도로명 주소(~로/길까지) + 매장명
+            road_parts = road_address.split()
+            if len(road_parts) >= 2:
+                # ~로, ~길까지만 추출
+                road_keyword = self._extract_road_name(road_parts)
+                if road_keyword:
+                    first_keyword = f"{road_keyword} {store_name}"
+                    # logger.info(f"🔍 1차 검색: {first_keyword}")
+                    result = await self._search_single(page, first_keyword)
+                    if result:
+                        return result
+                    
+                    await asyncio.sleep(4)
+                    logger.warning(f"✗ 1차 검색 실패")
+            
+            # 2차 시도: 도로명 전체 주소 + 매장명
+            second_keyword = f"{road_address} {store_name}"
+            # logger.info(f"🔍 2차 검색: {second_keyword}")
+            result = await self._search_single(page, second_keyword)
+            if result:
+                return result
+            
+            await asyncio.sleep(4)
+            logger.warning(f"✗ 2차 검색 실패")
         
-        # 스크롤 컨테이너 찾기 (여러 가능한 선택자 시도)
-        scroll_container_selectors = [
-            '#app > div > div:nth-child(3)',
-            '#app > div > div:nth-child(3) > div',
-            'div[class*="scroll"]',
-            'div[style*="overflow"]',
-        ]
+        # 3차 시도: 지번주소(~동까지) + 가게명
+        address_parts = store_address.split()
+        if len(address_parts) >= 3:
+            third_keyword = f"{self._extract_search_address(address_parts)} {store_name}"
+        else:
+            third_keyword = f"{store_address} {store_name}"
         
-        prev_count = 0
-        same_count = 0
-        max_same_count = 3
+        # logger.info(f"🔍 3차 검색: {third_keyword}")
+        result = await self._search_single(page, third_keyword)
+        if result:
+            return result
         
-        for scroll_attempt in range(500):
-            try:
-                # 현재 장소 개수
-                places = await frame_locator.locator(place_selector).all()
-                current_count = len(places)
-                
-                # logger.info(f"스크롤 {scroll_attempt + 1}회: {current_count}개 장소 발견")
-                
-                # 개수가 같으면 카운트 증가
-                if current_count == prev_count:
-                    same_count += 1
-                    if same_count >= max_same_count:
-                        # logger.info(f"✓ 스크롤 완료: 총 {current_count}개 장소")
-                        break
-                else:
-                    same_count = 0
-                
-                prev_count = current_count
-                
-                # 마지막 요소로 스크롤
-                if current_count > 0:
-                    last_place = frame_locator.locator(place_selector).nth(current_count - 1)
-                    try:
-                        await last_place.scroll_into_view_if_needed(timeout=3000)
-                    except:
-                        pass
-                
-                # 스크롤 컨테이너에서 직접 스크롤 시도
-                for container_selector in scroll_container_selectors:
-                    try:
-                        await frame_locator.locator(container_selector).evaluate(
-                            'element => element.scrollTop = element.scrollHeight'
-                        )
-                        break
-                    except:
-                        continue
-                
-                await asyncio.sleep(2)
-                
-            except Exception as e:
-                logger.warning(f"스크롤 중 오류: {e}")
+        await asyncio.sleep(4)
+        logger.warning(f"✗ 3차 검색 실패")
+        
+        # 4차 시도: 매장명만
+        # logger.info(f"🔍 4차 검색: {store_name}")
+        result = await self._search_single(page, store_name)
+        if result:
+            return result
+        
+        await asyncio.sleep(4)
+        logger.warning(f"✗ 4차 검색 실패")
+        
+        # 5차 시도: 지번 주소만
+        # logger.info(f"🔍 5차 검색: {store_address}")
+        result = await self._search_single(page, store_address)
+        if result:
+            return result
+        
+        await asyncio.sleep(4)
+        logger.warning(f"✗ 5차 검색 실패")
+        
+        # 6차 시도: 지번 전체 주소 + 매장명
+        sixth_keyword = f"{store_address} {store_name}"
+        # logger.info(f"🔍 6차 검색: {sixth_keyword}")
+        result = await self._search_single(page, sixth_keyword)
+        if result:
+            return result
+        
+        logger.error(f"✗ 모든 검색 시도 실패: {store_name}")
+        return None
+
+    def _extract_road_name(self, road_parts: List[str]) -> str:
+        """도로명 주소에서 ~로, ~길까지만 추출"""
+        if not road_parts:
+            return ""
+        
+        result_parts = []
+        
+        for part in road_parts:
+            result_parts.append(part)
+            
+            # ~로, ~길이 나오면 바로 종료
+            if part.endswith('로') or part.endswith('길'):
+                break
+            
+            # 안전장치: 최대 4개 요소까지
+            if len(result_parts) >= 4:
                 break
         
-        # logger.info("✓ 스크롤 완료")
+        return " ".join(result_parts)
     
-    async def _get_entry_frame(self, page: Page):
-        """상세 정보 iframe 가져오기"""
+    def _extract_search_address(self, address_parts: List[str]) -> str:
+        """주소에서 검색에 적합한 부분 추출 (지번 주소 ~동까지)"""
+        if not address_parts:
+            return ""
+        
+        result_parts = []
+        
+        for part in address_parts:
+            result_parts.append(part)
+            
+            # 읍/면/동이 나오면 바로 종료
+            if part.endswith('읍') or part.endswith('면') or part.endswith('동') or part.endswith('리'):
+                break
+            
+            # 도로명(~로, ~길)이 나오면 종료
+            elif part.endswith('로') or part.endswith('길'):
+                break
+            
+            # 안전장치: 최대 4개 요소까지
+            if len(result_parts) >= 4:
+                break
+        
+        return " ".join(result_parts)
+    
+    async def _search_single(self, page: Page, keyword: str):
+        """단일 키워드로 검색"""
         try:
+            # 네이버 지도 이동
+            await page.goto(self.naver_map_url)
+            
+            # 검색
+            search_input_selector = '.input_search'
+            await page.wait_for_selector(search_input_selector)
+            await asyncio.sleep(1)
+            
+            await page.fill(search_input_selector, '')
+            await asyncio.sleep(0.5)
+            
+            await page.fill(search_input_selector, keyword)
+            await page.press(search_input_selector, 'Enter')
+            
+            # entry iframe 대기
             await page.wait_for_selector('iframe#entryIframe', timeout=10000)
             entry_frame = page.frame_locator('iframe#entryIframe')
             await asyncio.sleep(3)
-            return entry_frame
+            
+            # 정보 추출
+            extractor = StoreDetailExtractor(entry_frame, page)
+            return await extractor.extract_all_details()
+            
         except TimeoutError:
-            logger.error("entryIframe을 찾을 수 없습니다.")
+            logger.error(f"'{keyword}' 검색 결과를 찾을 수 없습니다.")
+            return None
+        except Exception as e:
+            logger.error(f"'{keyword}' 검색 중 오류: {e}")
             return None
 
 
 class StoreDetailExtractor:
-    """상점 상세 정보 추출을 위한 클래스"""
+    """상점 상세 정보 추출 클래스"""
     
     def __init__(self, frame, page: Page):
         self.frame = frame
         self.page = page
         
-        # GitHub Copilot API 설정
         self.api_token = os.getenv('COPILOT_API_KEY') or os.getenv('GITHUB_TOKEN')
         if self.api_token:
             self.api_endpoint = "https://api.githubcopilot.com/chat/completions"
@@ -915,23 +991,18 @@ class StoreDetailExtractor:
     
     async def extract_all_details(self) -> Optional[Tuple]:
         """
-        모든 상세 정보 추출 (태그 리뷰 포함)
+        모든 상세 정보 추출
         
         Returns:
             Tuple: (name, full_address, phone, business_hours, image, sub_category, tag_reviews)
-            tag_reviews: List[Tuple[str, int]] - [(태그명, 선택횟수), ...]
         """
-        
         try:
-            # 기본 정보 추출
             name = await self._extract_title()
             full_address = await self._extract_address()
             phone = await self._extract_phone()
             business_hours = await self._extract_business_hours()
             image = await self._extract_image()
             sub_category = await self._extract_sub_category()
-            
-            # 리뷰 탭으로 이동하여 태그 리뷰 추출
             tag_reviews = await self._extract_tag_reviews()
             
             logger.info(f"상점 정보 추출 완료: {name}")
@@ -949,40 +1020,29 @@ class StoreDetailExtractor:
         """매장명 추출"""
         try:
             name_locator = self.frame.locator('span.GHAhO')
-            title = await name_locator.inner_text(timeout=5000)
-            return title
-        except TimeoutError:
-            logger.error(f"매장명 추출 Timeout")
-            return ""
-        except Exception as e:
-            logger.error(f"매장명 추출 오류: {e}")
+            return await name_locator.inner_text(timeout=5000)
+        except:
             return ""
     
-    async def _extract_address(self) -> Optional[str]:
-        """주소 추출 (지번 주소 버튼 클릭 후 가져오기)"""
+    async def _extract_address(self) -> str:
+        """주소 추출 (지번 주소)"""
         try:
-            # 주소 영역까지 스크롤
+            # 주소 버튼 클릭
             address_section = self.frame.locator('div.place_section_content > div > div.O8qbU.tQY7D')
             await address_section.scroll_into_view_if_needed()
             await asyncio.sleep(1)
             
-            # 주소 버튼 대기 및 클릭
             address_button = self.frame.locator('div.place_section_content > div > div.O8qbU.tQY7D > div > a')
-            
-            # 버튼이 보일 때까지 대기
             await address_button.wait_for(state='visible', timeout=5000)
             await asyncio.sleep(0.5)
             
-            # 버튼 클릭
             await address_button.click()
-            # logger.info("주소 버튼 클릭 완료")
             await asyncio.sleep(2)
             
-            # 지번 주소 div 대기
+            # 지번 주소 추출
             jibun_address_div = self.frame.locator('div.place_section_content > div > div.O8qbU.tQY7D > div > div.Y31Sf > div:nth-child(2)')
             await jibun_address_div.wait_for(state='visible', timeout=5000)
             
-            # JavaScript로 직접 텍스트 노드만 추출 (span 제외)
             jibun_address = await jibun_address_div.evaluate('''
                 (element) => {
                     let text = '';
@@ -995,46 +1055,24 @@ class StoreDetailExtractor:
                 }
             ''')
             
-            # logger.info(f"지번 주소 추출 완료: {jibun_address}")
-            
-            # 버튼 다시 클릭하여 닫기
+            # 버튼 닫기
             try:
                 await address_button.click()
                 await asyncio.sleep(0.5)
-                # logger.info("주소 팝업 닫기 완료")
             except:
                 pass
             
             return jibun_address
-            
-        except TimeoutError:
-            logger.error(f"주소 추출 Timeout")
-            
+        except:
             # 기본 주소 시도
             try:
                 fallback_locator = self.frame.locator('div.place_section_content > div > div.O8qbU.tQY7D > div > a > span.LDgIH')
-                fallback_address = await fallback_locator.inner_text(timeout=3000)
-                # logger.info(f"기본 주소 사용: {fallback_address}")
-                return fallback_address
+                return await fallback_locator.inner_text(timeout=3000)
             except:
-                logger.error("기본 주소도 추출 실패")
-                return ""
-                
-        except Exception as e:
-            logger.error(f"주소 추출 오류: {e}")
-            
-            # 기본 주소 시도
-            try:
-                fallback_locator = self.frame.locator('div.place_section_content > div > div.O8qbU.tQY7D > div > a > span.LDgIH')
-                fallback_address = await fallback_locator.inner_text(timeout=3000)
-                # logger.info(f"기본 주소 사용: {fallback_address}")
-                return fallback_address
-            except:
-                logger.error("기본 주소도 추출 실패")
                 return ""
     
-    async def _extract_phone(self) -> Optional[str]:
-        """전화번호 추출"""
+    async def _extract_phone(self) -> str:
+        """전화번호 추출 (클립보드 복사 방식 포함)"""
         try:
             # 1차 시도: 기본 전화번호 추출
             phone_locator = self.frame.locator('div.O8qbU.nbXkr > div > span.xlx7Q')
@@ -1095,14 +1133,8 @@ class StoreDetailExtractor:
         """서브 카테고리 추출"""
         try:
             sub_category_locator = self.frame.locator('#_title > div > span.lnJFt')
-            sub_category = await sub_category_locator.inner_text(timeout=5000)
-            # logger.info(f"서브 카테고리 추출: {sub_category}")
-            return sub_category
-        except TimeoutError:
-            logger.error(f"서브 카테고리 추출 Timeout")
-            return ""
-        except Exception as e:
-            logger.error(f"서브 카테고리 추출 오류: {e}")
+            return await sub_category_locator.inner_text(timeout=5000)
+        except:
             return ""
     
     async def _extract_business_hours(self) -> str:
@@ -1111,11 +1143,9 @@ class StoreDetailExtractor:
             business_hours_button = self.frame.locator('div.O8qbU.pSavy a').first
             
             if await business_hours_button.is_visible(timeout=5000):
-                # 영업시간 버튼까지 스크롤
                 await business_hours_button.scroll_into_view_if_needed()
                 await asyncio.sleep(1)
                 
-                # 버튼 클릭
                 await business_hours_button.click()
                 await asyncio.sleep(1)
                 
@@ -1124,29 +1154,16 @@ class StoreDetailExtractor:
                 
                 if hours_list:
                     raw_hours = "\n".join(hours_list)
-                    # logger.info(f"원본 영업시간 추출: {raw_hours}")
-                    
-                    # LLM으로 영업시간 정리
                     cleaned_hours = await self._clean_business_hours_with_llm(raw_hours)
-                    # logger.info(f"정리된 영업시간: {cleaned_hours}")
                     return cleaned_hours
-                else:
-                    return ""
-            else:
-                logger.error(f"영업시간 추출 실패")
-                return ""
-        except Exception as e:
-            logger.error(f"영업시간 추출 오류: {e}")
+            return ""
+        except:
             return ""
     
     async def _clean_business_hours_with_llm(self, raw_hours: str, max_retries: int = 10) -> str:
-        """LLM을 사용하여 영업시간 데이터를 정리 (비동기)"""
-        if not self.api_token:
-            logger.warning("API 토큰이 없어 영업시간을 정리하지 못했습니다.")
+        """LLM을 사용하여 영업시간 정리 (비동기)"""
+        if not self.api_token or not raw_hours:
             return raw_hours
-        
-        if not raw_hours or not raw_hours.strip():
-            return ""
         
         prompt = f"""다음은 상점의 영업시간 정보입니다. 중복되는 내용을 제거하고 간결하게 요약해주세요.
 
@@ -1166,14 +1183,8 @@ class StoreDetailExtractor:
         payload = {
             "model": "gpt-4.1",
             "messages": [
-                {
-                    "role": "system",
-                    "content": "당신은 상점 영업시간 정보를 간결하게 정리하는 전문가입니다."
-                },
-                {
-                    "role": "user",
-                    "content": prompt
-                }
+                {"role": "system", "content": "당신은 상점 영업시간 정보를 간결하게 정리하는 전문가입니다."},
+                {"role": "user", "content": prompt}
             ],
             "temperature": 0.3,
             "max_tokens": 500
@@ -1190,42 +1201,23 @@ class StoreDetailExtractor:
                     ) as response:
                         if response.status == 200:
                             result = await response.json()
-                            cleaned_hours = result['choices'][0]['message']['content'].strip()
-                            return cleaned_hours
+                            return result['choices'][0]['message']['content'].strip()
                         else:
-                            if response.status != 403:
-                                logger.warning(f"✗ 영업시간 정리 API 호출 실패 ({attempt}번째 시도) - 상태 코드: {response.status}")
-                            
                             if attempt < max_retries:
                                 await asyncio.sleep(2)
                             else:
-                                logger.error(f"✗ 최대 재시도 횟수({max_retries}회) 초과 - 원본 반환")
                                 return raw_hours
-                
-            except asyncio.TimeoutError:
-                logger.warning(f"✗ 영업시간 정리 API 시간 초과 ({attempt}번째 시도)")
-                
+            except:
                 if attempt < max_retries:
                     await asyncio.sleep(2)
                 else:
-                    logger.error(f"✗ 최대 재시도 횟수({max_retries}회) 초과 - 원본 반환")
-                    return raw_hours
-                    
-            except Exception as e:
-                logger.error(f"✗ 영업시간 정리 중 오류 ({attempt}번째 시도): {e}")
-                
-                if attempt < max_retries:
-                    await asyncio.sleep(2)
-                else:
-                    logger.error(f"✗ 최대 재시도 횟수({max_retries}회) 초과 - 원본 반환")
                     return raw_hours
         
         return raw_hours
     
-    async def _extract_image(self) -> Optional[str]:
+    async def _extract_image(self) -> str:
         """이미지 URL 추출"""
         try:
-            # 첫 번째 선택자 시도
             first_selector = 'div[role="main"] > div > div > a > img'
             first_image = self.frame.locator(first_selector).first
             
@@ -1234,7 +1226,6 @@ class StoreDetailExtractor:
                 if src:
                     return src
             
-            # 두 번째 선택자 시도
             second_selector = 'div[role="main"] > div > div > div > div > a > img'
             second_image = self.frame.locator(second_selector).first
             
@@ -1244,21 +1235,11 @@ class StoreDetailExtractor:
                     return src
             
             return ""
-            
-        except TimeoutError:
-            logger.error(f"이미지 추출 Timeout")
-            return ""
-        except Exception as e:
-            logger.error(f"이미지 추출 중 오류: {e}")
+        except:
             return ""
     
     async def _extract_tag_reviews(self) -> List[Tuple[str, int]]:
-        """
-        리뷰 탭에서 태그 리뷰 추출
-        
-        Returns:
-            List[Tuple[str, int]]: [(태그명, 선택횟수), ...]
-        """
+        """태그 리뷰 추출"""
         tag_reviews = []
         
         try:
@@ -1284,8 +1265,7 @@ class StoreDetailExtractor:
                     rating = await opinion_element.locator('span.CUoLy').inner_text(timeout=3000)
                     cleaned_rating = int(re.sub(r'이 키워드를 선택한 인원\n', '', rating).replace(',', ''))
                     tag_reviews.append((review_tag, cleaned_rating))
-                except (TimeoutError, ValueError) as e:
-                    logger.error(f"리뷰 태그 또는 평점 추출 중 오류: {e}")
+                except:
                     continue
             
             # logger.info(f"태그 리뷰 {len(tag_reviews)}개 추출 완료")
@@ -1296,18 +1276,104 @@ class StoreDetailExtractor:
         return tag_reviews
 
 
-async def main(favorite_url = 'https://map.naver.com/p/favorite/sSjt-6mGnGEqi8HA:2D_MP7QkdZtDuASbcBgfEqXAYqV5Tw/folder/723cd582cd1e43dcac5234ad055c7494/pc/place/1477750254?c=10.15,0,0,0,dh&placePath=/home?from=map&fromPanelNum=2&timestamp=202510210943&locale=ko&svcName=map_pcv5'):
+async def main():
     """메인 함수"""
     
-    # 크롤러 생성
-    crawler = NaverMapFavoriteCrawler(headless=False)
+    # ========================================
+    # 🔧 여기서 크롤링할 구를 선택하세요!
+    # ========================================
     
-    # 즐겨찾기 목록 크롤링
-    await crawler.crawl_favorite_list(
-        favorite_url=favorite_url,
-        delay=30,
-        output_file=None
-    )
+    # 단일 구 크롤링 예시:
+    # district_name = '강남구'
+    # district_name = '서초구'
+    # district_name = '마포구'
+    
+    # 또는 여러 구를 순차적으로 크롤링:
+    districts_to_crawl = [
+        '강남구',
+        '강동구',
+        '강북구',
+        '강서구',
+        '관악구',
+        '광진구',
+        '구로구',
+        '금천구',
+        '노원구',
+        '도봉구',
+        '동대문구',
+        '동작구',
+        '마포구',
+        '서대문구',
+        '서초구',
+        '성동구',
+        '성북구',
+        '송파구',
+        '양천구',
+        '영등포구',
+        '용산구',
+        '은평구',
+        '종로구',
+        '중구',
+        '중랑구'
+    ]
+    
+    # ========================================
+    # 크롤링 설정
+    # ========================================
+    headless_mode = False  # True로 설정하면 브라우저가 보이지 않음
+    delay_seconds = 30     # 크롤링 간 대기 시간 (초)
+    
+    # ========================================
+    # 크롤링 실행
+    # ========================================
+    
+    # logger.info("=" * 80)
+    # logger.info(f"크롤링 시작 - 총 {len(districts_to_crawl)}개 구")
+    # logger.info(f"대상 구: {', '.join(districts_to_crawl)}")
+    # logger.info("=" * 80)
+    
+    for idx, district_name in enumerate(districts_to_crawl, 1):
+        try:
+            # logger.info("")
+            # logger.info("=" * 80)
+            logger.info(f"[{idx}/{len(districts_to_crawl)}] {district_name} 크롤링 시작")
+            # logger.info("=" * 80)
+            
+            # 크롤러 생성
+            crawler = NaverMapDistrictCrawler(
+                district_name=district_name,
+                headless=headless_mode
+            )
+            
+            # 해당 구의 API 데이터로 크롤링 시작
+            await crawler.crawl_district_api(delay=delay_seconds)
+            
+            # logger.info("")
+            # logger.info("=" * 80)
+            logger.info(f"[{idx}/{len(districts_to_crawl)}] {district_name} 크롤링 완료!")
+            # logger.info("=" * 80)
+            
+            # 다음 구로 넘어가기 전 대기 (마지막 구가 아닌 경우)
+            if idx < len(districts_to_crawl):
+                wait_time = 60  # 구 사이 대기 시간 (초)
+                # logger.info(f"다음 구 크롤링 전 {wait_time}초 대기 중...")
+                await asyncio.sleep(wait_time)
+                
+        except Exception as e:
+            logger.error(f"✗ {district_name} 크롤링 중 오류 발생: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            
+            # 오류 발생 시에도 다음 구 진행 여부 확인
+            if idx < len(districts_to_crawl):
+                # logger.info(f"다음 구({districts_to_crawl[idx]})로 계속 진행합니다...")
+                await asyncio.sleep(30)
+    
+    # logger.info("")
+    # logger.info("=" * 80)
+    logger.info("🎉 모든 구 크롤링 완료!")
+    # logger.info("=" * 80)
+
 
 if __name__ == "__main__":
-    asyncio.run(main("https://map.naver.com/p/favorite/sharedPlace/folder/a5b889b0ec9d4bafa6156d25cde3fedd/pc?c=6.00,0,0,0,dh"))
+    asyncio.run(main())

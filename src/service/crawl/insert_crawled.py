@@ -30,7 +30,7 @@ async def insert_category(dto: InsertCategoryDto):
             ) > 0:
                 raise Exception(f"duplicate category: {dto.name}")
 
-            flag = repository.insert(entity)
+            flag = await repository.insert(entity)
     except Exception as e:
         logger.error(e)
         raise Exception(e)

@@ -10,7 +10,7 @@ class InsertCategoryDto(BaseModel):
     sub_category: str
     business_hour: str
     phone: str
-    type: str
+    type: int
     image: str
     latitude: str
     longitude: str
