@@ -30,12 +30,16 @@ class BaseRepository:
 
         return True
 
-    async def select(self, item_id):
+    async def select(self, item_id, limit=None):
         ans = []
         try:
             engine = await get_engine()
             async with engine.begin() as conn:
                 stmt = self.table.select().where(self.table.c.id == item_id)
+
+                if limit is not None:
+                    stmt = stmt.limit(limit)
+
                 result = await conn.execute(stmt)
 
                 result = [i for i in result.mappings()]
@@ -57,7 +61,7 @@ class BaseRepository:
 
 
 
-    async def select_by(self, **filters) -> list:
+    async def select_by(self, limit=None, **filters) -> list:
         """
 
             조건 조회
@@ -75,6 +79,9 @@ class BaseRepository:
                 for column, value in filters.items():
                     if hasattr(self.table.c, column):
                         stmt = stmt.where(getattr(self.table.c, column) == value)
+
+                if limit is not None:
+                    stmt = stmt.limit(limit)
 
                 result = await conn.execute(stmt)
                 result = [i for i in result.mappings()]
