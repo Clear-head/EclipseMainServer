@@ -105,7 +105,7 @@ class CategoryTypeClassifier:
                             
                             if category_type_str in ['0', '1', '2', '3']:
                                 category_type = int(category_type_str)
-                                logger.info(f"카테고리 분류 완료: '{sub_category}' → 타입 {category_type}")
+                                # logger.info(f"카테고리 분류 완료: '{sub_category}' → 타입 {category_type}")
                                 return category_type
                             else:
                                 logger.warning(f"유효하지 않은 응답: {category_type_str}, 기본값 3 반환")
@@ -257,7 +257,7 @@ class AddressParser:
             gu = ""
             detail_address = ""
             
-            logger.info(f"원본 주소: {full_address}")
+            # logger.info(f"원본 주소: {full_address}")
             
             # 특별시/광역시 매핑 (do 없이 si에만 들어감)
             city_mapping = {
@@ -377,11 +377,11 @@ class AddressParser:
                         else:
                             detail_address = remaining
             
-            logger.info(f"주소 파싱 결과:")
-            logger.info(f"  - do: '{do}' (NULL: {not do})")
-            logger.info(f"  - si: '{si}' (NULL: {not si})")
-            logger.info(f"  - gu: '{gu}' (NULL: {not gu})")
-            logger.info(f"  - detail: '{detail_address}'")
+            # logger.info(f"주소 파싱 결과:")
+            # logger.info(f"  - do: '{do}' (NULL: {not do})")
+            # logger.info(f"  - si: '{si}' (NULL: {not si})")
+            # logger.info(f"  - gu: '{gu}' (NULL: {not gu})")
+            # logger.info(f"  - detail: '{detail_address}'")
             
             return do, si, gu, detail_address
             
@@ -453,11 +453,11 @@ class NaverMapFavoriteCrawler:
             # 2. 중복 데이터가 있으면 update, 없으면 insert
             if len(existing_categories) == 1:
                 # 기존 데이터 업데이트
-                logger.info(f"[저장 {idx+1}/{total}] 기존 카테고리 발견 - 업데이트 모드: {name}")
+                # logger.info(f"[저장 {idx+1}/{total}] 기존 카테고리 발견 - 업데이트 모드: {name}")
                 category_id = await update_category(category_dto)
             elif len(existing_categories) == 0:
                 # 새로운 데이터 삽입
-                logger.info(f"[저장 {idx+1}/{total}] 신규 카테고리 - 삽입 모드: {name}")
+                # logger.info(f"[저장 {idx+1}/{total}] 신규 카테고리 - 삽입 모드: {name}")
                 category_id = await insert_category(category_dto)
             else:
                 # 중복이 2개 이상인 경우 (데이터 무결성 문제)
@@ -504,9 +504,9 @@ class NaverMapFavoriteCrawler:
                 type_names = {0: '음식점', 1: '카페', 2: '콘텐츠', 3: '기타'}
                 success_msg = (
                     f"✓ [저장 {idx+1}/{total}] '{name}' 완료\n"
-                    f"  - 서브 카테고리: {sub_category}\n"
-                    f"  - 타입: {type_names.get(category_type, '기타')} ({category_type})\n"
-                    f"  - 태그 리뷰: {tag_success_count}/{len(tag_reviews)}개 저장"
+                    # f"  - 서브 카테고리: {sub_category}\n"
+                    # f"  - 타입: {type_names.get(category_type, '기타')} ({category_type})\n"
+                    # f"  - 태그 리뷰: {tag_success_count}/{len(tag_reviews)}개 저장"
                 )
                 logger.info(success_msg)
                 return True, success_msg
@@ -546,13 +546,13 @@ class NaverMapFavoriteCrawler:
             
             try:
                 # 즐겨찾기 페이지로 이동
-                logger.info(f"즐겨찾기 페이지로 이동: {favorite_url}")
+                # logger.info(f"즐겨찾기 페이지로 이동: {favorite_url}")
                 await page.goto(favorite_url, wait_until='domcontentloaded', timeout=60000)
-                logger.info("페이지 로딩 대기 중...")
+                # logger.info("페이지 로딩 대기 중...")
                 await asyncio.sleep(10)
                 
                 # myPlaceBookmarkListIframe 대기
-                logger.info("myPlaceBookmarkListIframe 대기 중...")
+                # logger.info("myPlaceBookmarkListIframe 대기 중...")
                 try:
                     await page.wait_for_selector('iframe#myPlaceBookmarkListIframe', timeout=30000)
                 except Exception as e:
@@ -560,7 +560,7 @@ class NaverMapFavoriteCrawler:
                     html = await page.content()
                     with open('debug_main_page.html', 'w', encoding='utf-8') as f:
                         f.write(html)
-                    logger.info("debug_main_page.html 파일에 페이지 내용을 저장했습니다.")
+                    # logger.info("debug_main_page.html 파일에 페이지 내용을 저장했습니다.")
                     return
                 
                 # iframe 가져오기
@@ -571,7 +571,7 @@ class NaverMapFavoriteCrawler:
                     logger.error("myPlaceBookmarkListIframe을 찾을 수 없습니다.")
                     return
                 
-                logger.info("✓ myPlaceBookmarkListIframe 발견")
+                # logger.info("✓ myPlaceBookmarkListIframe 발견")
                 await asyncio.sleep(3)
                 
                 # 여러 가능한 선택자 시도
@@ -587,11 +587,11 @@ class NaverMapFavoriteCrawler:
                 # iframe 내부에서 선택자 찾기
                 for selector in possible_selectors:
                     try:
-                        logger.info(f"선택자 시도: {selector}")
+                        # logger.info(f"선택자 시도: {selector}")
                         elements = await list_frame_locator.locator(selector).all()
                         if len(elements) > 0:
                             place_selector = selector
-                            logger.info(f"✓ 선택자 발견: {selector} - {len(elements)}개 요소")
+                            # logger.info(f"✓ 선택자 발견: {selector} - {len(elements)}개 요소")
                             break
                     except Exception as e:
                         logger.warning(f"✗ 선택자 없음: {selector} - {e}")
@@ -605,7 +605,7 @@ class NaverMapFavoriteCrawler:
                     return
                 
                 # 스크롤하여 모든 장소 로드
-                logger.info("스크롤하여 모든 장소 로드 중...")
+                # logger.info("스크롤하여 모든 장소 로드 중...")
                 await self._scroll_to_load_all_places(list_frame_locator, place_selector)
                 
                 # 최종 장소 개수 확인
@@ -616,8 +616,8 @@ class NaverMapFavoriteCrawler:
                     logger.warning("크롤링할 장소가 없습니다.")
                     return
                 
-                logger.info(f"총 {total}개 장소 크롤링 시작")
-                logger.info("=" * 60)
+                # logger.info(f"총 {total}개 장소 크롤링 시작")
+                # logger.info("=" * 60)
                 
                 success_count = 0
                 fail_count = 0
@@ -657,7 +657,7 @@ class NaverMapFavoriteCrawler:
                             place_name = f"장소 {idx+1}"
                         
                         # 장소 클릭
-                        logger.info(f"[크롤링 {idx+1}/{total}] '{place_name}' 클릭 중...")
+                        # logger.info(f"[크롤링 {idx+1}/{total}] '{place_name}' 클릭 중...")
 
                         # 클릭 가능한 요소 찾기
                         try:
@@ -669,7 +669,7 @@ class NaverMapFavoriteCrawler:
                         await asyncio.sleep(3)
 
                         # 폐업 팝업 체크
-                        logger.info(f"[크롤링 {idx+1}/{total}] 폐업 팝업 체크 중...")
+                        # logger.info(f"[크롤링 {idx+1}/{total}] 폐업 팝업 체크 중...")
 
                         popup_selectors = [
                             'body > div:nth-child(4) > div._show_62e0u_8',
@@ -708,7 +708,7 @@ class NaverMapFavoriteCrawler:
                                     if await popup_button.is_visible(timeout=1000):
                                         await popup_button.click(timeout=2000)
                                         await asyncio.sleep(0.5)
-                                        logger.info(f"✓ 폐업 팝업 닫기 완료 (버튼 셀렉터: {button_selector})")
+                                        # logger.info(f"✓ 폐업 팝업 닫기 완료 (버튼 셀렉터: {button_selector})")
                                         button_clicked = True
                                         break
                                 except Exception as e:
@@ -722,12 +722,12 @@ class NaverMapFavoriteCrawler:
                             
                             # 마지막 장소가 아니면 딜레이
                             if idx < total - 1:
-                                logger.info(f"[대기] {delay}초 대기 중...")
+                                # logger.info(f"[대기] {delay}초 대기 중...")
                                 await asyncio.sleep(delay)
                             
                             continue  # 다음 장소로 건너뛰기
 
-                        logger.info(f"[크롤링 {idx+1}/{total}] 팝업 없음 - 정상 크롤링 진행")
+                        # logger.info(f"[크롤링 {idx+1}/{total}] 팝업 없음 - 정상 크롤링 진행")
 
                         # entry iframe 가져오기 (메인 페이지에서)
                         entry_frame = await self._get_entry_frame(page)
@@ -752,7 +752,7 @@ class NaverMapFavoriteCrawler:
                             
                             # 크롤링 완료 후 바로 delay 시작
                             if idx < total - 1:
-                                logger.info(f"[대기] {delay}초 대기 중... (저장은 백그라운드에서 진행)")
+                                # logger.info(f"[대기] {delay}초 대기 중... (저장은 백그라운드에서 진행)")
                                 await asyncio.sleep(delay)
                             
                         else:
@@ -761,7 +761,7 @@ class NaverMapFavoriteCrawler:
                             
                             # 실패해도 딜레이
                             if idx < total - 1:
-                                logger.info(f"[대기] {delay}초 대기 중...")
+                                # logger.info(f"[대기] {delay}초 대기 중...")
                                 await asyncio.sleep(delay)
                         
                     except Exception as e:
@@ -772,14 +772,14 @@ class NaverMapFavoriteCrawler:
                         
                         # 오류가 발생해도 딜레이
                         if idx < total - 1:
-                            logger.info(f"[대기] {delay}초 대기 중...")
+                            # logger.info(f"[대기] {delay}초 대기 중...")
                             await asyncio.sleep(delay)
                         continue
                 
                 # 모든 크롤링이 끝난 후 저장 태스크들이 완료될 때까지 대기
-                logger.info("=" * 60)
+                # logger.info("=" * 60)
                 logger.info(f"모든 크롤링 완료! 저장 작업 완료 대기 중... ({len(save_tasks)}개)")
-                logger.info("=" * 60)
+                # logger.info("=" * 60)
                 
                 if save_tasks:
                     save_results = await asyncio.gather(*save_tasks, return_exceptions=True)
@@ -795,9 +795,9 @@ class NaverMapFavoriteCrawler:
                             else:
                                 fail_count += 1
                 
-                logger.info("=" * 60)
+                # logger.info("=" * 60)
                 logger.info(f"전체 작업 완료: 성공 {success_count}/{total}, 실패 {fail_count}/{total}")
-                logger.info("=" * 60)
+                # logger.info("=" * 60)
                 
             except Exception as e:
                 logger.error(f"즐겨찾기 크롤링 중 오류: {e}")
@@ -815,7 +815,7 @@ class NaverMapFavoriteCrawler:
             frame_locator: iframe locator
             place_selector: 장소 선택자
         """
-        logger.info("스크롤 시작...")
+        # logger.info("스크롤 시작...")
         
         # 스크롤 컨테이너 찾기 (여러 가능한 선택자 시도)
         scroll_container_selectors = [
@@ -835,13 +835,13 @@ class NaverMapFavoriteCrawler:
                 places = await frame_locator.locator(place_selector).all()
                 current_count = len(places)
                 
-                logger.info(f"스크롤 {scroll_attempt + 1}회: {current_count}개 장소 발견")
+                # logger.info(f"스크롤 {scroll_attempt + 1}회: {current_count}개 장소 발견")
                 
                 # 개수가 같으면 카운트 증가
                 if current_count == prev_count:
                     same_count += 1
                     if same_count >= max_same_count:
-                        logger.info(f"✓ 스크롤 완료: 총 {current_count}개 장소")
+                        # logger.info(f"✓ 스크롤 완료: 총 {current_count}개 장소")
                         break
                 else:
                     same_count = 0
@@ -872,7 +872,7 @@ class NaverMapFavoriteCrawler:
                 logger.warning(f"스크롤 중 오류: {e}")
                 break
         
-        logger.info("✓ 스크롤 완료")
+        # logger.info("✓ 스크롤 완료")
     
     async def _get_entry_frame(self, page: Page):
         """상세 정보 iframe 가져오기"""
@@ -935,9 +935,9 @@ class StoreDetailExtractor:
             tag_reviews = await self._extract_tag_reviews()
             
             logger.info(f"상점 정보 추출 완료: {name}")
-            logger.info(f"  - 주소: {full_address}")
-            logger.info(f"  - 서브 카테고리: {sub_category}")
-            logger.info(f"  - 태그 리뷰: {len(tag_reviews)}개")
+            # logger.info(f"  - 주소: {full_address}")
+            # logger.info(f"  - 서브 카테고리: {sub_category}")
+            # logger.info(f"  - 태그 리뷰: {len(tag_reviews)}개")
             
             return (name, full_address, phone, business_hours, image, sub_category, tag_reviews)
             
@@ -975,7 +975,7 @@ class StoreDetailExtractor:
             
             # 버튼 클릭
             await address_button.click()
-            logger.info("주소 버튼 클릭 완료")
+            # logger.info("주소 버튼 클릭 완료")
             await asyncio.sleep(2)
             
             # 지번 주소 div 대기
@@ -995,13 +995,13 @@ class StoreDetailExtractor:
                 }
             ''')
             
-            logger.info(f"지번 주소 추출 완료: {jibun_address}")
+            # logger.info(f"지번 주소 추출 완료: {jibun_address}")
             
             # 버튼 다시 클릭하여 닫기
             try:
                 await address_button.click()
                 await asyncio.sleep(0.5)
-                logger.info("주소 팝업 닫기 완료")
+                # logger.info("주소 팝업 닫기 완료")
             except:
                 pass
             
@@ -1014,7 +1014,7 @@ class StoreDetailExtractor:
             try:
                 fallback_locator = self.frame.locator('div.place_section_content > div > div.O8qbU.tQY7D > div > a > span.LDgIH')
                 fallback_address = await fallback_locator.inner_text(timeout=3000)
-                logger.info(f"기본 주소 사용: {fallback_address}")
+                # logger.info(f"기본 주소 사용: {fallback_address}")
                 return fallback_address
             except:
                 logger.error("기본 주소도 추출 실패")
@@ -1027,7 +1027,7 @@ class StoreDetailExtractor:
             try:
                 fallback_locator = self.frame.locator('div.place_section_content > div > div.O8qbU.tQY7D > div > a > span.LDgIH')
                 fallback_address = await fallback_locator.inner_text(timeout=3000)
-                logger.info(f"기본 주소 사용: {fallback_address}")
+                # logger.info(f"기본 주소 사용: {fallback_address}")
                 return fallback_address
             except:
                 logger.error("기본 주소도 추출 실패")
@@ -1040,7 +1040,7 @@ class StoreDetailExtractor:
             phone_locator = self.frame.locator('div.O8qbU.nbXkr > div > span.xlx7Q')
             phone = await phone_locator.inner_text(timeout=5000)
             if phone and phone.strip():
-                logger.info(f"전화번호 추출 성공: {phone}")
+                # logger.info(f"전화번호 추출 성공: {phone}")
                 return phone
         except TimeoutError:
             logger.warning(f"기본 전화번호 추출 실패 - 대체 방법 시도")
@@ -1049,20 +1049,20 @@ class StoreDetailExtractor:
         
         # 2차 시도: a.BfF3H 클릭 후 a.place_bluelink에서 클립보드 복사
         try:
-            logger.info("a.BfF3H 버튼 찾는 중...")
+            # logger.info("a.BfF3H 버튼 찾는 중...")
             bf_button = self.frame.locator('a.BfF3H')
             
             if await bf_button.count() > 0:
-                logger.info("a.BfF3H 버튼 클릭 중...")
+                # logger.info("a.BfF3H 버튼 클릭 중...")
                 await bf_button.first.click(timeout=3000)
                 await asyncio.sleep(1)
                 
                 # a.place_bluelink 클릭하여 클립보드에 복사
-                logger.info("a.place_bluelink 버튼 찾는 중...")
+                # logger.info("a.place_bluelink 버튼 찾는 중...")
                 bluelink_button = self.frame.locator('a.place_bluelink')
                 
                 if await bluelink_button.count() > 0:
-                    logger.info("a.place_bluelink 버튼 클릭 중 (클립보드 복사)...")
+                    # logger.info("a.place_bluelink 버튼 클릭 중 (클립보드 복사)...")
                     
                     # 클립보드 권한 허용 및 클릭
                     await bluelink_button.first.click(timeout=3000)
@@ -1074,7 +1074,7 @@ class StoreDetailExtractor:
                         clipboard_text = await self.page.evaluate('navigator.clipboard.readText()')
                         
                         if clipboard_text and clipboard_text.strip():
-                            logger.info(f"클립보드에서 전화번호 추출 성공: {clipboard_text}")
+                            # logger.info(f"클립보드에서 전화번호 추출 성공: {clipboard_text}")
                             return clipboard_text.strip()
                         else:
                             logger.warning("클립보드가 비어있습니다")
@@ -1096,7 +1096,7 @@ class StoreDetailExtractor:
         try:
             sub_category_locator = self.frame.locator('#_title > div > span.lnJFt')
             sub_category = await sub_category_locator.inner_text(timeout=5000)
-            logger.info(f"서브 카테고리 추출: {sub_category}")
+            # logger.info(f"서브 카테고리 추출: {sub_category}")
             return sub_category
         except TimeoutError:
             logger.error(f"서브 카테고리 추출 Timeout")
@@ -1124,11 +1124,11 @@ class StoreDetailExtractor:
                 
                 if hours_list:
                     raw_hours = "\n".join(hours_list)
-                    logger.info(f"원본 영업시간 추출: {raw_hours}")
+                    # logger.info(f"원본 영업시간 추출: {raw_hours}")
                     
                     # LLM으로 영업시간 정리
                     cleaned_hours = await self._clean_business_hours_with_llm(raw_hours)
-                    logger.info(f"정리된 영업시간: {cleaned_hours}")
+                    # logger.info(f"정리된 영업시간: {cleaned_hours}")
                     return cleaned_hours
                 else:
                     return ""
@@ -1288,7 +1288,7 @@ class StoreDetailExtractor:
                     logger.error(f"리뷰 태그 또는 평점 추출 중 오류: {e}")
                     continue
             
-            logger.info(f"태그 리뷰 {len(tag_reviews)}개 추출 완료")
+            # logger.info(f"태그 리뷰 {len(tag_reviews)}개 추출 완료")
             
         except Exception as e:
             logger.error(f"태그 리뷰 추출 중 오류: {e}")

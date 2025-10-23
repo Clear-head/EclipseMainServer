@@ -69,7 +69,7 @@ class SeoulDistrictAPIService:
         endpoint = self.DISTRICT_ENDPOINTS[district_name]
         self.base_url = endpoint
         
-        logger.info(f"✓ {district_name} API 서비스 초기화 완료")
+        # logger.info(f"✓ {district_name} API 서비스 초기화 완료")
     
     
     async def fetch_all_restaurants(self) -> List[dict]:
@@ -99,7 +99,7 @@ class SeoulDistrictAPIService:
                         return []
                     
                     total_count = int(total_count_elem.text)
-                    logger.info(f"{self.district_name} 모범음식점 전체 개수: {total_count}개")
+                    # logger.info(f"{self.district_name} 모범음식점 전체 개수: {total_count}개")
                 
                 # 모든 데이터 수집
                 all_data = []
@@ -118,7 +118,7 @@ class SeoulDistrictAPIService:
                     if batch_data:
                         all_data.extend(batch_data)
                 
-                logger.info(f"{self.district_name} 총 {len(all_data)}개 데이터 수집 완료")
+                # logger.info(f"{self.district_name} 총 {len(all_data)}개 데이터 수집 완료")
                 return all_data
             
         except Exception as e:
@@ -130,7 +130,7 @@ class SeoulDistrictAPIService:
     async def _fetch_batch(self, session, url: str, start: int, end: int) -> List[dict]:
         """배치 데이터 가져오기 (XML 파싱)"""
         try:
-            logger.info(f"{self.district_name} API 데이터 수집 중... {start}~{end}")
+            # logger.info(f"{self.district_name} API 데이터 수집 중... {start}~{end}")
             async with session.get(url) as response:
                 if response.status == 200:
                     # XML 파싱
@@ -264,7 +264,7 @@ class CategoryTypeClassifier:
                             
                             if category_type_str in ['0', '1', '2', '3']:
                                 category_type = int(category_type_str)
-                                logger.info(f"카테고리 분류 완료: '{sub_category}' → 타입 {category_type}")
+                                # logger.info(f"카테고리 분류 완료: '{sub_category}' → 타입 {category_type}")
                                 return category_type
                             else:
                                 logger.warning(f"유효하지 않은 응답: {category_type_str}, 기본값 3 반환")
@@ -411,7 +411,7 @@ class AddressParser:
             gu = ""
             detail_address = ""
             
-            logger.info(f"원본 주소: {full_address}")
+            # logger.info(f"원본 주소: {full_address}")
             
             # 특별시/광역시 매핑 (do 없이 si에만 들어감)
             city_mapping = {
@@ -531,11 +531,11 @@ class AddressParser:
                         else:
                             detail_address = remaining
             
-            logger.info(f"주소 파싱 결과:")
-            logger.info(f"  - do: '{do}' (NULL: {not do})")
-            logger.info(f"  - si: '{si}' (NULL: {not si})")
-            logger.info(f"  - gu: '{gu}' (NULL: {not gu})")
-            logger.info(f"  - detail: '{detail_address}'")
+            # logger.info(f"주소 파싱 결과:")
+            # logger.info(f"  - do: '{do}' (NULL: {not do})")
+            # logger.info(f"  - si: '{si}' (NULL: {not si})")
+            # logger.info(f"  - gu: '{gu}' (NULL: {not gu})")
+            # logger.info(f"  - detail: '{detail_address}'")
             
             return do, si, gu, detail_address
             
@@ -559,7 +559,7 @@ class NaverMapDistrictCrawler:
         self.geocoding_service = GeocodingService()
         self.category_classifier = CategoryTypeClassifier()
         
-        logger.info(f"✓ {district_name} 크롤러 초기화 완료")
+        # logger.info(f"✓ {district_name} 크롤러 초기화 완료")
     
     async def _save_store_data(self, idx: int, total: int, store_data: Tuple, store_name: str, store_id: int, api_sub_category: str):
         """
@@ -587,10 +587,10 @@ class NaverMapDistrictCrawler:
             # 2순위: API 서브 카테고리
             final_sub_category = naver_sub_category or api_sub_category
             
-            logger.info(f"[{self.district_name} 저장 {idx+1}/{total}] 서브 카테고리 결정:")
-            logger.info(f"  - 네이버 서브 카테고리: {naver_sub_category}")
-            logger.info(f"  - API 서브 카테고리: {api_sub_category}")
-            logger.info(f"  - 최종 선택 (저장 & 타입 분류): {final_sub_category}")
+            # logger.info(f"[{self.district_name} 저장 {idx+1}/{total}] 서브 카테고리 결정:")
+            # logger.info(f"  - 네이버 서브 카테고리: {naver_sub_category}")
+            # logger.info(f"  - API 서브 카테고리: {api_sub_category}")
+            # logger.info(f"  - 최종 선택 (저장 & 타입 분류): {final_sub_category}")
             
             # 좌표 변환과 카테고리 분류를 병렬로 실행
             # ⭐ 네이버 지도의 서브 카테고리로 타입 분류
@@ -629,11 +629,11 @@ class NaverMapDistrictCrawler:
             # 2. 중복 데이터가 있으면 update, 없으면 insert
             if len(existing_categories) == 1:
                 # 기존 데이터 업데이트
-                logger.info(f"[{self.district_name} 저장 {idx+1}/{total}] 기존 카테고리 발견 - 업데이트 모드: {name}")
+                # logger.info(f"[{self.district_name} 저장 {idx+1}/{total}] 기존 카테고리 발견 - 업데이트 모드: {name}")
                 category_id = await update_category(category_dto)
             elif len(existing_categories) == 0:
                 # 새로운 데이터 삽입
-                logger.info(f"[{self.district_name} 저장 {idx+1}/{total}] 신규 카테고리 - 삽입 모드: {name}")
+                # logger.info(f"[{self.district_name} 저장 {idx+1}/{total}] 신규 카테고리 - 삽입 모드: {name}")
                 category_id = await insert_category(category_dto)
             else:
                 # 중복이 2개 이상인 경우 (데이터 무결성 문제)
@@ -680,9 +680,9 @@ class NaverMapDistrictCrawler:
                 type_names = {0: '음식점', 1: '카페', 2: '콘텐츠', 3: '기타'}
                 success_msg = (
                     f"✓ [{self.district_name} 저장 {idx}/{total}] ID {store_id} '{name}' 완료\n"
-                    f"  - 저장된 서브 카테고리: {final_sub_category}\n"
-                    f"  - 타입: {type_names.get(category_type, '기타')} ({category_type})\n"
-                    f"  - 태그 리뷰: {tag_success_count}/{len(tag_reviews)}개 저장"
+                    # f"  - 저장된 서브 카테고리: {final_sub_category}\n"
+                    # f"  - 타입: {type_names.get(category_type, '기타')} ({category_type})\n"
+                    # f"  - 태그 리뷰: {tag_success_count}/{len(tag_reviews)}개 저장"
                 )
                 logger.info(success_msg)
                 return True, success_msg
@@ -722,7 +722,7 @@ class NaverMapDistrictCrawler:
         fail_count = 0
         
         logger.info(f"총 {total}개 {self.district_name} 모범음식점 크롤링 시작")
-        logger.info("=" * 60)
+        # logger.info("=" * 60)
         
         async with async_playwright() as p:
             browser = await p.chromium.launch(
@@ -749,9 +749,9 @@ class NaverMapDistrictCrawler:
                     admdng_nm = store['admdng_nm']
                     
                     logger.info(f"[{self.district_name} 크롤링 {idx}/{total}] ID {store_id}: '{store_name}' (행정동: {admdng_nm}) 크롤링 진행 중...")
-                    logger.info(f"  - API 서브 카테고리: {api_sub_category}")
-                    logger.info(f"  - 지번 주소: {store_address}")
-                    logger.info(f"  - 도로명 주소: {road_address}")
+                    # logger.info(f"  - API 서브 카테고리: {api_sub_category}")
+                    # logger.info(f"  - 지번 주소: {store_address}")
+                    # logger.info(f"  - 도로명 주소: {road_address}")
                     
                     # 네이버 지도에서 검색 (도로명 주소 전달)
                     store_data = await self._search_and_extract(page, store_name, store_address, road_address)
@@ -759,7 +759,7 @@ class NaverMapDistrictCrawler:
                     if store_data:
                         # store_data에서 네이버 서브 카테고리 추출
                         naver_sub_category = store_data[5]  # (name, address, phone, hours, image, sub_category, tags)
-                        logger.info(f"  - 네이버 서브 카테고리: {naver_sub_category}")
+                        # logger.info(f"  - 네이버 서브 카테고리: {naver_sub_category}")
                         logger.info(f"✓ [{self.district_name} 크롤링 {idx}/{total}] ID {store_id} '{store_name}' 크롤링 완료")
                         
                         # 저장 태스크 생성 (백그라운드에서 실행)
@@ -770,7 +770,7 @@ class NaverMapDistrictCrawler:
                         
                         # 마지막 상점이 아니면 딜레이
                         if idx < total:
-                            logger.info(f"[{self.district_name} 대기] {delay}초 대기 중... (저장은 백그라운드에서 진행)")
+                            # logger.info(f"[{self.district_name} 대기] {delay}초 대기 중... (저장은 백그라운드에서 진행)")
                             await asyncio.sleep(delay)
                     else:
                         fail_count += 1
@@ -778,13 +778,13 @@ class NaverMapDistrictCrawler:
                         
                         # 실패해도 딜레이
                         if idx < total:
-                            logger.info(f"[{self.district_name} 대기] {delay}초 대기 중...")
+                            # logger.info(f"[{self.district_name} 대기] {delay}초 대기 중...")
                             await asyncio.sleep(delay)
                 
                 # 모든 크롤링이 끝난 후 저장 태스크들이 완료될 때까지 대기
-                logger.info("=" * 60)
+                # logger.info("=" * 60)
                 logger.info(f"{self.district_name} 모든 크롤링 완료! 저장 작업 완료 대기 중... ({len(save_tasks)}개)")
-                logger.info("=" * 60)
+                # logger.info("=" * 60)
                 
                 if save_tasks:
                     save_results = await asyncio.gather(*save_tasks, return_exceptions=True)
@@ -800,9 +800,9 @@ class NaverMapDistrictCrawler:
                             else:
                                 fail_count += 1
                 
-                logger.info("=" * 60)
+                # logger.info("=" * 60)
                 logger.info(f"{self.district_name} 전체 작업 완료: 성공 {success_count}/{total}, 실패 {fail_count}/{total}")
-                logger.info("=" * 60)
+                # logger.info("=" * 60)
                 
             except Exception as e:
                 logger.error(f"{self.district_name} 크롤링 중 오류: {e}")
@@ -824,7 +824,7 @@ class NaverMapDistrictCrawler:
                 road_keyword = self._extract_road_name(road_parts)
                 if road_keyword:
                     first_keyword = f"{road_keyword} {store_name}"
-                    logger.info(f"🔍 1차 검색: {first_keyword}")
+                    # logger.info(f"🔍 1차 검색: {first_keyword}")
                     result = await self._search_single(page, first_keyword)
                     if result:
                         return result
@@ -834,7 +834,7 @@ class NaverMapDistrictCrawler:
             
             # 2차 시도: 도로명 전체 주소 + 매장명
             second_keyword = f"{road_address} {store_name}"
-            logger.info(f"🔍 2차 검색: {second_keyword}")
+            # logger.info(f"🔍 2차 검색: {second_keyword}")
             result = await self._search_single(page, second_keyword)
             if result:
                 return result
@@ -849,7 +849,7 @@ class NaverMapDistrictCrawler:
         else:
             third_keyword = f"{store_address} {store_name}"
         
-        logger.info(f"🔍 3차 검색: {third_keyword}")
+        # logger.info(f"🔍 3차 검색: {third_keyword}")
         result = await self._search_single(page, third_keyword)
         if result:
             return result
@@ -858,7 +858,7 @@ class NaverMapDistrictCrawler:
         logger.warning(f"✗ 3차 검색 실패")
         
         # 4차 시도: 매장명만
-        logger.info(f"🔍 4차 검색: {store_name}")
+        # logger.info(f"🔍 4차 검색: {store_name}")
         result = await self._search_single(page, store_name)
         if result:
             return result
@@ -867,7 +867,7 @@ class NaverMapDistrictCrawler:
         logger.warning(f"✗ 4차 검색 실패")
         
         # 5차 시도: 지번 주소만
-        logger.info(f"🔍 5차 검색: {store_address}")
+        # logger.info(f"🔍 5차 검색: {store_address}")
         result = await self._search_single(page, store_address)
         if result:
             return result
@@ -877,7 +877,7 @@ class NaverMapDistrictCrawler:
         
         # 6차 시도: 지번 전체 주소 + 매장명
         sixth_keyword = f"{store_address} {store_name}"
-        logger.info(f"🔍 6차 검색: {sixth_keyword}")
+        # logger.info(f"🔍 6차 검색: {sixth_keyword}")
         result = await self._search_single(page, sixth_keyword)
         if result:
             return result
@@ -1006,9 +1006,9 @@ class StoreDetailExtractor:
             tag_reviews = await self._extract_tag_reviews()
             
             logger.info(f"상점 정보 추출 완료: {name}")
-            logger.info(f"  - 주소: {full_address}")
-            logger.info(f"  - 서브 카테고리: {sub_category}")
-            logger.info(f"  - 태그 리뷰: {len(tag_reviews)}개")
+            # logger.info(f"  - 주소: {full_address}")
+            # logger.info(f"  - 서브 카테고리: {sub_category}")
+            # logger.info(f"  - 태그 리뷰: {len(tag_reviews)}개")
             
             return (name, full_address, phone, business_hours, image, sub_category, tag_reviews)
             
@@ -1078,7 +1078,7 @@ class StoreDetailExtractor:
             phone_locator = self.frame.locator('div.O8qbU.nbXkr > div > span.xlx7Q')
             phone = await phone_locator.inner_text(timeout=5000)
             if phone and phone.strip():
-                logger.info(f"전화번호 추출 성공: {phone}")
+                # logger.info(f"전화번호 추출 성공: {phone}")
                 return phone
         except TimeoutError:
             logger.warning(f"기본 전화번호 추출 실패 - 대체 방법 시도")
@@ -1087,20 +1087,20 @@ class StoreDetailExtractor:
         
         # 2차 시도: a.BfF3H 클릭 후 a.place_bluelink에서 클립보드 복사
         try:
-            logger.info("a.BfF3H 버튼 찾는 중...")
+            # logger.info("a.BfF3H 버튼 찾는 중...")
             bf_button = self.frame.locator('a.BfF3H')
             
             if await bf_button.count() > 0:
-                logger.info("a.BfF3H 버튼 클릭 중...")
+                # logger.info("a.BfF3H 버튼 클릭 중...")
                 await bf_button.first.click(timeout=3000)
                 await asyncio.sleep(1)
                 
                 # a.place_bluelink 클릭하여 클립보드에 복사
-                logger.info("a.place_bluelink 버튼 찾는 중...")
+                # logger.info("a.place_bluelink 버튼 찾는 중...")
                 bluelink_button = self.frame.locator('a.place_bluelink')
                 
                 if await bluelink_button.count() > 0:
-                    logger.info("a.place_bluelink 버튼 클릭 중 (클립보드 복사)...")
+                    # logger.info("a.place_bluelink 버튼 클릭 중 (클립보드 복사)...")
                     
                     # 클립보드 권한 허용 및 클릭
                     await bluelink_button.first.click(timeout=3000)
@@ -1112,7 +1112,7 @@ class StoreDetailExtractor:
                         clipboard_text = await self.page.evaluate('navigator.clipboard.readText()')
                         
                         if clipboard_text and clipboard_text.strip():
-                            logger.info(f"클립보드에서 전화번호 추출 성공: {clipboard_text}")
+                            # logger.info(f"클립보드에서 전화번호 추출 성공: {clipboard_text}")
                             return clipboard_text.strip()
                         else:
                             logger.warning("클립보드가 비어있습니다")
@@ -1268,7 +1268,7 @@ class StoreDetailExtractor:
                 except:
                     continue
             
-            logger.info(f"태그 리뷰 {len(tag_reviews)}개 추출 완료")
+            # logger.info(f"태그 리뷰 {len(tag_reviews)}개 추출 완료")
             
         except Exception as e:
             logger.error(f"태그 리뷰 추출 중 오류: {e}")
@@ -1327,17 +1327,17 @@ async def main():
     # 크롤링 실행
     # ========================================
     
-    logger.info("=" * 80)
-    logger.info(f"크롤링 시작 - 총 {len(districts_to_crawl)}개 구")
-    logger.info(f"대상 구: {', '.join(districts_to_crawl)}")
-    logger.info("=" * 80)
+    # logger.info("=" * 80)
+    # logger.info(f"크롤링 시작 - 총 {len(districts_to_crawl)}개 구")
+    # logger.info(f"대상 구: {', '.join(districts_to_crawl)}")
+    # logger.info("=" * 80)
     
     for idx, district_name in enumerate(districts_to_crawl, 1):
         try:
-            logger.info("")
-            logger.info("=" * 80)
+            # logger.info("")
+            # logger.info("=" * 80)
             logger.info(f"[{idx}/{len(districts_to_crawl)}] {district_name} 크롤링 시작")
-            logger.info("=" * 80)
+            # logger.info("=" * 80)
             
             # 크롤러 생성
             crawler = NaverMapDistrictCrawler(
@@ -1348,15 +1348,15 @@ async def main():
             # 해당 구의 API 데이터로 크롤링 시작
             await crawler.crawl_district_api(delay=delay_seconds)
             
-            logger.info("")
-            logger.info("=" * 80)
+            # logger.info("")
+            # logger.info("=" * 80)
             logger.info(f"[{idx}/{len(districts_to_crawl)}] {district_name} 크롤링 완료!")
-            logger.info("=" * 80)
+            # logger.info("=" * 80)
             
             # 다음 구로 넘어가기 전 대기 (마지막 구가 아닌 경우)
             if idx < len(districts_to_crawl):
                 wait_time = 60  # 구 사이 대기 시간 (초)
-                logger.info(f"다음 구 크롤링 전 {wait_time}초 대기 중...")
+                # logger.info(f"다음 구 크롤링 전 {wait_time}초 대기 중...")
                 await asyncio.sleep(wait_time)
                 
         except Exception as e:
@@ -1366,13 +1366,13 @@ async def main():
             
             # 오류 발생 시에도 다음 구 진행 여부 확인
             if idx < len(districts_to_crawl):
-                logger.info(f"다음 구({districts_to_crawl[idx]})로 계속 진행합니다...")
+                # logger.info(f"다음 구({districts_to_crawl[idx]})로 계속 진행합니다...")
                 await asyncio.sleep(30)
     
-    logger.info("")
-    logger.info("=" * 80)
+    # logger.info("")
+    # logger.info("=" * 80)
     logger.info("🎉 모든 구 크롤링 완료!")
-    logger.info("=" * 80)
+    # logger.info("=" * 80)
 
 
 if __name__ == "__main__":
