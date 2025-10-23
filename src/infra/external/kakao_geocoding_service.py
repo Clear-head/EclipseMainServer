@@ -81,13 +81,13 @@ class GeocodingService:
                             
                         else:
                             if self.logger:
-                                self.logger.warning(f"✗ 좌표 변환 실패 ({attempt}번째 시도) - 상태 코드: {response.status}")
+                                self.logger.warning(f"좌표 변환 실패 ({attempt}번째 시도) - 상태 코드: {response.status}")
                             
                             if attempt < max_retries:
                                 await asyncio.sleep(3)
                             else:
                                 if self.logger:
-                                    self.logger.error(f"✗ 최대 재시도 횟수 초과")
+                                    self.logger.error(f"최대 재시도 횟수 초과")
                                 return None, None
                         
             except asyncio.TimeoutError:
@@ -95,12 +95,12 @@ class GeocodingService:
                     await asyncio.sleep(1)
                 else:
                     if self.logger:
-                        self.logger.error(f"✗ 최대 재시도 횟수 초과")
+                        self.logger.error(f"최대 재시도 횟수 초과")
                     return None, None
                     
             except Exception as e:
                 if self.logger:
-                    self.logger.error(f"✗ 좌표 변환 중 오류 ({attempt}번째 시도): {e}")
+                    self.logger.error(f"좌표 변환 중 오류 ({attempt}번째 시도): {e}")
                 
                 if attempt < max_retries:
                     await asyncio.sleep(1)

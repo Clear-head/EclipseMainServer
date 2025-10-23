@@ -103,35 +103,35 @@ class CategoryTypeClassifier:
                                 return 3
                         else:
                             if self.logger:
-                                self.logger.warning(f"✗ 카테고리 분류 API 호출 실패 ({attempt}번째 시도) - 상태 코드: {response.status}")
+                                self.logger.warning(f"카테고리 분류 API 호출 실패 ({attempt}번째 시도) - 상태 코드: {response.status}")
                             
                             if attempt < max_retries:
                                 await asyncio.sleep(2)
                             else:
                                 if self.logger:
-                                    self.logger.error(f"✗ 최대 재시도 횟수({max_retries}회) 초과 - 기본값 3 반환")
+                                    self.logger.error(f"최대 재시도 횟수({max_retries}회) 초과 - 기본값 3 반환")
                                 return 3
                 
             except asyncio.TimeoutError:
                 if self.logger:
-                    self.logger.warning(f"✗ 카테고리 분류 API 시간 초과 ({attempt}번째 시도)")
+                    self.logger.warning(f"카테고리 분류 API 시간 초과 ({attempt}번째 시도)")
                 
                 if attempt < max_retries:
                     await asyncio.sleep(2)
                 else:
                     if self.logger:
-                        self.logger.error(f"✗ 최대 재시도 횟수({max_retries}회) 초과 - 기본값 3 반환")
+                        self.logger.error(f"최대 재시도 횟수({max_retries}회) 초과 - 기본값 3 반환")
                     return 3
                     
             except Exception as e:
                 if self.logger:
-                    self.logger.error(f"✗ 카테고리 분류 중 오류 ({attempt}번째 시도): {e}")
+                    self.logger.error(f"카테고리 분류 중 오류 ({attempt}번째 시도): {e}")
                 
                 if attempt < max_retries:
                     await asyncio.sleep(2)
                 else:
                     if self.logger:
-                        self.logger.error(f"✗ 최대 재시도 횟수({max_retries}회) 초과 - 기본값 3 반환")
+                        self.logger.error(f"최대 재시도 횟수({max_retries}회) 초과 - 기본값 3 반환")
                     return 3
         
         return 3
