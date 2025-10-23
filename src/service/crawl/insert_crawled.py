@@ -8,9 +8,8 @@ from src.infra.database.repository.category_tags_repository import CategoryTagsR
 from src.infra.database.repository.tags_repository import TagsRepository
 from src.logger.logger_handler import get_logger
 
-logger = get_logger(__name__)
-
 async def insert_category(dto: InsertCategoryDto):
+    logger = get_logger(__name__)
     logger.info(f"Inserting category: {dto.name}")
 
     try:
@@ -41,6 +40,7 @@ async def insert_category(dto: InsertCategoryDto):
 
 
 async def insert_category_tags(dto: InsertCategoryTagsDTO):
+    logger = get_logger(__name__)
     logger.info(f"Inserting category tags: {dto}")
 
     try:
@@ -58,6 +58,7 @@ async def insert_category_tags(dto: InsertCategoryTagsDTO):
 
 
 async def insert_tags(name: str, category_type: int):
+    logger = get_logger(__name__)
     logger.info(f"Inserting tags: {name}")
 
     try:

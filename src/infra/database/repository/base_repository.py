@@ -4,10 +4,10 @@ from sqlalchemy.exc import IntegrityError
 from src.infra.database.repository.maria_engine import get_engine
 from src.logger.logger_handler import get_logger
 
-logger = get_logger(__name__)
 
 class BaseRepository:
     def __init__(self):
+        self.logger = get_logger(__name__)
         self.table = None
         self.entity = None
 
@@ -20,11 +20,11 @@ class BaseRepository:
                 await conn.execute(stmt)
 
         except IntegrityError as e:
-            logger.error(f" uuid duplicate error: {e}")
+            self.logger.error(f" uuid duplicate error: {e}")
             return False
 
         except Exception as e:
-            logger.error(f" insert error: {e}")
+            self.logger.error(f" insert error: {e}")
             # raise Exception(f"{__name__} insert error: {e}")
             return False
 
@@ -41,7 +41,7 @@ class BaseRepository:
                 result = [i for i in result.mappings()]
 
                 if not result:
-                    logger.info(f"no item in {self.table} id: {item_id}")
+                    self.logger.info(f"no item in {self.table} id: {item_id}")
                     return []
 
                 for row in result:
@@ -52,7 +52,7 @@ class BaseRepository:
 
 
         except Exception as e:
-            logger.error(f" select from {self.table} : error: {e}")
+            self.logger.error(f" select from {self.table} : error: {e}")
             return []
 
 
@@ -79,7 +79,7 @@ class BaseRepository:
                 result = await conn.execute(stmt)
                 result = [i for i in result.mappings()]
                 if len(result) == 0:
-                    logger.info(f"no item in {self.table} {value}")
+                    self.logger.info(f"no item in {self.table} {value}")
                     return []
 
                 for row in result:
@@ -89,7 +89,7 @@ class BaseRepository:
             return ans
 
         except Exception as e:
-            logger.error(f"select_by {self.table} error {e}")
+            self.logger.error(f"select_by {self.table} error {e}")
             return []
 
     async def update(self, item_id, item):
@@ -99,7 +99,7 @@ class BaseRepository:
                 stmt = self.table.update().values(**item.model_dump()).where(self.table.c.id == item_id)
                 await conn.execute(stmt)
         except Exception as e:
-            logger.error(e)
+            self.logger.error(e)
             raise Exception(f"{__name__} update error")
             # return False
 
@@ -114,7 +114,7 @@ class BaseRepository:
 
 
         except Exception as e:
-            logger.error(f"delete error: {e}")
+            self.logger.error(f"delete error: {e}")
             raise Exception(f"delete error")
 
         return True
