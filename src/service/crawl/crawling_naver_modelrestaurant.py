@@ -7,6 +7,7 @@ import sys, os
 import datetime
 import aiohttp
 from dotenv import load_dotenv
+import xml.etree.ElementTree as ET
 
 # 환경 변수 로드
 load_dotenv(dotenv_path="src/.env")
@@ -24,15 +25,56 @@ from src.infra.database.repository.category_tags_repository import CategoryTagsR
 logger = get_logger('crawling_naver_model')
 
 
-class GangnamAPIService:
-    """강남구 모범음식점 API 서비스"""
+class SeoulDistrictAPIService:
+    """서울시 각 구의 모범음식점 API 서비스"""
+    # 서울시 25개 구의 API 엔드포인트 매핑
+    DISTRICT_ENDPOINTS = {
+        '강남구': f'http://openAPI.gangnam.go.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/GnModelRestaurantDesignate',
+        '강동구': f'http://openAPI.gd.go.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/GdModelRestaurantDesignate',
+        '강북구': f'http://openAPI.gangbuk.go.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/GbModelRestaurantDesignate',
+        '강서구': f'http://openAPI.gangseo.seoul.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/GangseoModelRestaurantDesignate',
+        '관악구': f'http://openAPI.gwanak.go.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/GaModelRestaurantDesignate',
+        '광진구': f'http://openAPI.gwangjin.go.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/GwangjinModelRestaurantDesignate',
+        '구로구': f'http://openAPI.guro.go.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/GuroModelRestaurantDesignate',
+        '금천구': f'http://openAPI.geumcheon.go.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/GeumcheonModelRestaurantDesignate',
+        '노원구': f'http://openAPI.nowon.go.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/NwModelRestaurantDesignate',
+        '도봉구': f'http://openAPI.dobong.go.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/DobongModelRestaurantDesignate',
+        '동대문구': f'http://openAPI.ddm.go.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/DongdeamoonModelRestaurantDesignate',
+        '동작구': f'http://openAPI.dongjak.go.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/DjModelRestaurantDesignate',
+        '마포구': f'http://openAPI.mapo.go.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/MpModelRestaurantDesignate',
+        '서대문구': f'http://openAPI.sdm.go.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/SeodaemunModelRestaurantDesignate',
+        '서초구': f'http://openAPI.seocho.go.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/ScModelRestaurantDesignate',
+        '성동구': f'http://openAPI.sd.go.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/SdModelRestaurantDesignate',
+        '성북구': f'http://openAPI.sb.go.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/SbModelRestaurantDesignate',
+        '송파구': f'http://openAPI.songpa.seoul.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/SpModelRestaurantDesignate',
+        '양천구': f'http://openAPI.yangcheon.go.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/YcModelRestaurantDesignate',
+        '영등포구': f'http://openAPI.ydp.go.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/YdpModelRestaurantDesignate',
+        '용산구': f'http://openAPI.yongsan.go.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/YsModelRestaurantDesignate',
+        '은평구': f'http://openAPI.ep.go.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/EpModelRestaurantDesignate',
+        '종로구': f'http://openAPI.jongno.go.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/JongnoModelRestaurantDesignate',
+        '중구': f'http://openAPI.junggu.seoul.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/JungguModelRestaurantDesignate',
+        '중랑구': f'http://openAPI.jungnang.seoul.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/xml/JungnangModelRestaurantDesignate',
+    }
     
-    def __init__(self):
-        self.base_url = f'http://openAPI.gangnam.go.kr:8088/{os.getenv("SEOUL_DATA_KEY")}/json/GnModelRestaurantDesignate'
+    def __init__(self, district_name: str):
+        """
+        Args:
+            district_name: 구 이름 (예: '강남구', '서초구')
+        """
+        self.district_name = district_name
+        
+        if district_name not in self.DISTRICT_ENDPOINTS:
+            raise ValueError(f"지원하지 않는 구입니다: {district_name}. 지원 가능한 구: {list(self.DISTRICT_ENDPOINTS.keys())}")
+        
+        endpoint = self.DISTRICT_ENDPOINTS[district_name]
+        self.base_url = endpoint
+        
+        logger.info(f"✓ {district_name} API 서비스 초기화 완료")
+    
     
     async def fetch_all_restaurants(self) -> List[dict]:
         """
-        강남구 모범음식점 API에서 모든 데이터 가져오기 (비동기)
+        해당 구의 모범음식점 API에서 모든 데이터 가져오기 (비동기)
         
         Returns:
             List[dict]: 음식점 데이터 리스트
@@ -43,12 +85,21 @@ class GangnamAPIService:
             async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.get(f'{self.base_url}/1/1/') as response:
                     if response.status != 200:
-                        logger.error(f"API 호출 오류: {response.status}")
+                        logger.error(f"{self.district_name} API 호출 오류: {response.status}")
                         return []
                     
-                    data = await response.json()
-                    total_count = data['GnModelRestaurantDesignate']['list_total_count']
-                    logger.info(f"강남구 모범음식점 전체 개수: {total_count}개")
+                    # XML 파싱
+                    xml_text = await response.text()
+                    root = ET.fromstring(xml_text)
+                    
+                    # 전체 개수 추출
+                    total_count_elem = root.find('.//list_total_count')
+                    if total_count_elem is None:
+                        logger.error(f"{self.district_name} API 응답에서 list_total_count를 찾을 수 없습니다")
+                        return []
+                    
+                    total_count = int(total_count_elem.text)
+                    logger.info(f"{self.district_name} 모범음식점 전체 개수: {total_count}개")
                 
                 # 모든 데이터 수집
                 all_data = []
@@ -67,27 +118,41 @@ class GangnamAPIService:
                     if batch_data:
                         all_data.extend(batch_data)
                 
-                logger.info(f"총 {len(all_data)}개 데이터 수집 완료")
+                logger.info(f"{self.district_name} 총 {len(all_data)}개 데이터 수집 완료")
                 return all_data
             
         except Exception as e:
-            logger.error(f"강남구 API 데이터 수집 중 오류: {e}")
+            logger.error(f"{self.district_name} API 데이터 수집 중 오류: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             return []
-    
+
     async def _fetch_batch(self, session, url: str, start: int, end: int) -> List[dict]:
-        """배치 데이터 가져오기"""
+        """배치 데이터 가져오기 (XML 파싱)"""
         try:
-            logger.info(f"API 데이터 수집 중... {start}~{end}")
+            logger.info(f"{self.district_name} API 데이터 수집 중... {start}~{end}")
             async with session.get(url) as response:
                 if response.status == 200:
-                    batch_data = await response.json()
-                    if 'GnModelRestaurantDesignate' in batch_data and 'row' in batch_data['GnModelRestaurantDesignate']:
-                        return batch_data['GnModelRestaurantDesignate']['row']
+                    # XML 파싱
+                    xml_text = await response.text()
+                    root = ET.fromstring(xml_text)
+                    
+                    # row 데이터 추출
+                    rows = []
+                    for row_elem in root.findall('.//row'):
+                        row_data = {}
+                        for child in row_elem:
+                            row_data[child.tag] = child.text or ''
+                        rows.append(row_data)
+                    
+                    return rows
                 else:
-                    logger.error(f"배치 {start}~{end} API 호출 오류: {response.status}")
+                    logger.error(f"{self.district_name} 배치 {start}~{end} API 호출 오류: {response.status}")
             return []
         except Exception as e:
-            logger.error(f"배치 {start}~{end} 수집 중 오류: {e}")
+            logger.error(f"{self.district_name} 배치 {start}~{end} 수집 중 오류: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             return []
     
     def convert_to_store_format(self, api_data: List[dict]) -> List[dict]:
@@ -478,14 +543,22 @@ class AddressParser:
             return "", "", "", full_address
 
 
-class NaverMapGangnamCrawler:
-    """강남구 API 데이터 크롤링 클래스"""
+class NaverMapDistrictCrawler:
+    """서울시 각 구 API 데이터 크롤링 클래스"""
     
-    def __init__(self, headless: bool = False):
+    def __init__(self, district_name: str, headless: bool = False):
+        """
+        Args:
+            district_name: 크롤링할 구 이름 (예: '강남구', '서초구')
+            headless: 헤드리스 모드 사용 여부
+        """
+        self.district_name = district_name
         self.headless = headless
         self.naver_map_url = "https://map.naver.com/v5/search"
         self.geocoding_service = GeocodingService()
         self.category_classifier = CategoryTypeClassifier()
+        
+        logger.info(f"✓ {district_name} 크롤러 초기화 완료")
     
     async def _save_store_data(self, idx: int, total: int, store_data: Tuple, store_name: str, store_id: int, api_sub_category: str):
         """
@@ -513,7 +586,7 @@ class NaverMapGangnamCrawler:
             # 2순위: API 서브 카테고리
             final_sub_category = naver_sub_category or api_sub_category
             
-            logger.info(f"[저장 {idx+1}/{total}] 서브 카테고리 결정:")
+            logger.info(f"[{self.district_name} 저장 {idx+1}/{total}] 서브 카테고리 결정:")
             logger.info(f"  - 네이버 서브 카테고리: {naver_sub_category}")
             logger.info(f"  - API 서브 카테고리: {api_sub_category}")
             logger.info(f"  - 최종 선택 (저장 & 타입 분류): {final_sub_category}")
@@ -555,15 +628,15 @@ class NaverMapGangnamCrawler:
             # 2. 중복 데이터가 있으면 update, 없으면 insert
             if len(existing_categories) == 1:
                 # 기존 데이터 업데이트
-                logger.info(f"[저장 {idx+1}/{total}] 기존 카테고리 발견 - 업데이트 모드: {name}")
+                logger.info(f"[{self.district_name} 저장 {idx+1}/{total}] 기존 카테고리 발견 - 업데이트 모드: {name}")
                 category_id = await update_category(category_dto)
             elif len(existing_categories) == 0:
                 # 새로운 데이터 삽입
-                logger.info(f"[저장 {idx+1}/{total}] 신규 카테고리 - 삽입 모드: {name}")
+                logger.info(f"[{self.district_name} 저장 {idx+1}/{total}] 신규 카테고리 - 삽입 모드: {name}")
                 category_id = await insert_category(category_dto)
             else:
                 # 중복이 2개 이상인 경우 (데이터 무결성 문제)
-                logger.error(f"[저장 {idx+1}/{total}] 중복 카테고리가 {len(existing_categories)}개 발견됨: {name}")
+                logger.error(f"[{self.district_name} 저장 {idx+1}/{total}] 중복 카테고리가 {len(existing_categories)}개 발견됨: {name}")
                 raise Exception(f"중복 카테고리 데이터 무결성 오류: {name}")
             
             if category_id:
@@ -605,7 +678,7 @@ class NaverMapGangnamCrawler:
                 
                 type_names = {0: '음식점', 1: '카페', 2: '콘텐츠', 3: '기타'}
                 success_msg = (
-                    f"✓ [저장 {idx+1}/{total}] ID {store_id} '{name}' 완료\n"
+                    f"✓ [{self.district_name} 저장 {idx+1}/{total}] ID {store_id} '{name}' 완료\n"
                     f"  - 저장된 서브 카테고리: {final_sub_category}\n"
                     f"  - 타입: {type_names.get(category_type, '기타')} ({category_type})\n"
                     f"  - 태그 리뷰: {tag_success_count}/{len(tag_reviews)}개 저장"
@@ -613,31 +686,31 @@ class NaverMapGangnamCrawler:
                 logger.info(success_msg)
                 return True, success_msg
             else:
-                error_msg = f"✗ [저장 {idx+1}/{total}] ID {store_id} '{name}' DB 저장 실패"
+                error_msg = f"✗ [{self.district_name} 저장 {idx+1}/{total}] ID {store_id} '{name}' DB 저장 실패"
                 logger.error(error_msg)
                 return False, error_msg
                 
         except Exception as db_error:
-            error_msg = f"✗ [저장 {idx+1}/{total}] ID {store_id} '{store_name}' DB 저장 중 오류: {db_error}"
+            error_msg = f"✗ [{self.district_name} 저장 {idx+1}/{total}] ID {store_id} '{store_name}' DB 저장 중 오류: {db_error}"
             logger.error(error_msg)
             import traceback
             logger.error(traceback.format_exc())
             return False, error_msg
     
-    async def crawl_gangnam_api(self, delay: int = 20):
+    async def crawl_district_api(self, delay: int = 20):
         """
-        강남구 API에서 데이터를 가져와 크롤링
+        해당 구의 API에서 데이터를 가져와 크롤링
         크롤링과 저장을 분리하여 병렬 처리
         
         Args:
             delay: 크롤링 간 딜레이 (초)
         """
-        # 강남구 API에서 데이터 가져오기 (비동기)
-        api_service = GangnamAPIService()
+        # 해당 구의 API에서 데이터 가져오기 (비동기)
+        api_service = SeoulDistrictAPIService(self.district_name)
         api_data = await api_service.fetch_all_restaurants()
         
         if not api_data:
-            logger.warning("강남구 API에서 데이터를 가져올 수 없습니다.")
+            logger.warning(f"{self.district_name} API에서 데이터를 가져올 수 없습니다.")
             return
         
         # 크롤링용 포맷으로 변환
@@ -647,7 +720,7 @@ class NaverMapGangnamCrawler:
         success_count = 0
         fail_count = 0
         
-        logger.info(f"총 {total}개 강남구 모범음식점 크롤링 시작")
+        logger.info(f"총 {total}개 {self.district_name} 모범음식점 크롤링 시작")
         logger.info("=" * 60)
         
         async with async_playwright() as p:
@@ -673,7 +746,7 @@ class NaverMapGangnamCrawler:
                     api_sub_category = store['sub_category']  # API 서브 카테고리
                     admdng_nm = store['admdng_nm']
                     
-                    logger.info(f"[크롤링 {idx}/{total}] ID {store_id}: '{store_name}' (행정동: {admdng_nm}) 크롤링 진행 중...")
+                    logger.info(f"[{self.district_name} 크롤링 {idx}/{total}] ID {store_id}: '{store_name}' (행정동: {admdng_nm}) 크롤링 진행 중...")
                     logger.info(f"  - API 서브 카테고리: {api_sub_category}")
                     
                     # 네이버 지도에서 검색
@@ -683,7 +756,7 @@ class NaverMapGangnamCrawler:
                         # store_data에서 네이버 서브 카테고리 추출
                         naver_sub_category = store_data[5]  # (name, address, phone, hours, image, sub_category, tags)
                         logger.info(f"  - 네이버 서브 카테고리: {naver_sub_category}")
-                        logger.info(f"✓ [크롤링 {idx}/{total}] ID {store_id} '{store_name}' 크롤링 완료")
+                        logger.info(f"✓ [{self.district_name} 크롤링 {idx}/{total}] ID {store_id} '{store_name}' 크롤링 완료")
                         
                         # 저장 태스크 생성 (백그라운드에서 실행)
                         save_task = asyncio.create_task(
@@ -693,20 +766,20 @@ class NaverMapGangnamCrawler:
                         
                         # 마지막 상점이 아니면 딜레이
                         if idx < total:
-                            logger.info(f"[대기] {delay}초 대기 중... (저장은 백그라운드에서 진행)")
+                            logger.info(f"[{self.district_name} 대기] {delay}초 대기 중... (저장은 백그라운드에서 진행)")
                             await asyncio.sleep(delay)
                     else:
                         fail_count += 1
-                        logger.error(f"✗ [크롤링 {idx}/{total}] ID {store_id} '{store_name}' 크롤링 실패")
+                        logger.error(f"✗ [{self.district_name} 크롤링 {idx}/{total}] ID {store_id} '{store_name}' 크롤링 실패")
                         
                         # 실패해도 딜레이
                         if idx < total:
-                            logger.info(f"[대기] {delay}초 대기 중...")
+                            logger.info(f"[{self.district_name} 대기] {delay}초 대기 중...")
                             await asyncio.sleep(delay)
                 
                 # 모든 크롤링이 끝난 후 저장 태스크들이 완료될 때까지 대기
                 logger.info("=" * 60)
-                logger.info(f"모든 크롤링 완료! 저장 작업 완료 대기 중... ({len(save_tasks)}개)")
+                logger.info(f"{self.district_name} 모든 크롤링 완료! 저장 작업 완료 대기 중... ({len(save_tasks)}개)")
                 logger.info("=" * 60)
                 
                 if save_tasks:
@@ -724,11 +797,11 @@ class NaverMapGangnamCrawler:
                                 fail_count += 1
                 
                 logger.info("=" * 60)
-                logger.info(f"전체 작업 완료: 성공 {success_count}/{total}, 실패 {fail_count}/{total}")
+                logger.info(f"{self.district_name} 전체 작업 완료: 성공 {success_count}/{total}, 실패 {fail_count}/{total}")
                 logger.info("=" * 60)
                 
             except Exception as e:
-                logger.error(f"크롤링 중 오류: {e}")
+                logger.error(f"{self.district_name} 크롤링 중 오류: {e}")
                 import traceback
                 logger.error(traceback.format_exc())
             finally:
@@ -1144,11 +1217,101 @@ class StoreDetailExtractor:
 async def main():
     """메인 함수"""
     
-    # 크롤러 생성
-    crawler = NaverMapGangnamCrawler(headless=False)
+    # ========================================
+    # 🔧 여기서 크롤링할 구를 선택하세요!
+    # ========================================
     
-    # 강남구 API 데이터로 크롤링 시작
-    await crawler.crawl_gangnam_api(delay=30)
+    # 단일 구 크롤링 예시:
+    # district_name = '강남구'
+    # district_name = '서초구'
+    # district_name = '마포구'
+    
+    # 또는 여러 구를 순차적으로 크롤링:
+    districts_to_crawl = [
+        '강남구',
+        '강동구',
+        '강북구',
+        '강서구',
+        '관악구',
+        '광진구',
+        '구로구',
+        '금천구',
+        '노원구',
+        '도봉구',
+        '동대문구',
+        '동작구',
+        '마포구',
+        '서대문구',
+        '서초구',
+        '성동구',
+        '성북구',
+        '송파구',
+        '양천구',
+        '영등포구',
+        '용산구',
+        '은평구',
+        '종로구',
+        '중구',
+        '중랑구'
+    ]
+    
+    # ========================================
+    # 크롤링 설정
+    # ========================================
+    headless_mode = False  # True로 설정하면 브라우저가 보이지 않음
+    delay_seconds = 30     # 크롤링 간 대기 시간 (초)
+    
+    # ========================================
+    # 크롤링 실행
+    # ========================================
+    
+    logger.info("=" * 80)
+    logger.info(f"크롤링 시작 - 총 {len(districts_to_crawl)}개 구")
+    logger.info(f"대상 구: {', '.join(districts_to_crawl)}")
+    logger.info("=" * 80)
+    
+    for idx, district_name in enumerate(districts_to_crawl, 1):
+        try:
+            logger.info("")
+            logger.info("=" * 80)
+            logger.info(f"[{idx}/{len(districts_to_crawl)}] {district_name} 크롤링 시작")
+            logger.info("=" * 80)
+            
+            # 크롤러 생성
+            crawler = NaverMapDistrictCrawler(
+                district_name=district_name,
+                headless=headless_mode
+            )
+            
+            # 해당 구의 API 데이터로 크롤링 시작
+            await crawler.crawl_district_api(delay=delay_seconds)
+            
+            logger.info("")
+            logger.info("=" * 80)
+            logger.info(f"[{idx}/{len(districts_to_crawl)}] {district_name} 크롤링 완료!")
+            logger.info("=" * 80)
+            
+            # 다음 구로 넘어가기 전 대기 (마지막 구가 아닌 경우)
+            if idx < len(districts_to_crawl):
+                wait_time = 60  # 구 사이 대기 시간 (초)
+                logger.info(f"다음 구 크롤링 전 {wait_time}초 대기 중...")
+                await asyncio.sleep(wait_time)
+                
+        except Exception as e:
+            logger.error(f"✗ {district_name} 크롤링 중 오류 발생: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            
+            # 오류 발생 시에도 다음 구 진행 여부 확인
+            if idx < len(districts_to_crawl):
+                logger.info(f"다음 구({districts_to_crawl[idx]})로 계속 진행합니다...")
+                await asyncio.sleep(30)
+    
+    logger.info("")
+    logger.info("=" * 80)
+    logger.info("🎉 모든 구 크롤링 완료!")
+    logger.info("=" * 80)
+
 
 if __name__ == "__main__":
     asyncio.run(main())
