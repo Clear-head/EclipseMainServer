@@ -6,7 +6,7 @@ from src.domain.dto.service.user_login_dto import ToUserLoginDto, GetUserLoginDt
 from src.infra.database.repository.users_repository import UserRepository
 from src.logger.custom_logger import get_logger
 from src.service.auth.jwt import create_jwt_token
-from src.utils.error_handler.auth_error_class import DuplicateUserInfoError, InvalidCredentialsException
+from src.utils.exception_handler.auth_error_class import DuplicateUserInfoError, InvalidCredentialsException
 
 
 class UserService:

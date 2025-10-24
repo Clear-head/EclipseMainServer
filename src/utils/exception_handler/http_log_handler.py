@@ -7,7 +7,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from src.domain.dto.header import JsonHeader
 from src.domain.dto.service.error_response import ErrorResponseDto, ErrorResponseBody
 from src.logger.custom_logger import get_logger
-from src.utils.error_handler.auth_error_class import AuthException
+from src.utils.exception_handler.auth_error_class import AuthException
 
 logger = get_logger(__name__)
 
