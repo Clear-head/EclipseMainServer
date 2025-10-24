@@ -10,16 +10,8 @@ from dotenv import load_dotenv
 # 환경 변수 로드
 load_dotenv(dotenv_path="src/.env")
 
-# 로거는 필요시 import
-try:
-    import sys
-    sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-    from src.logger.logger_handler import get_logger
-    logger = get_logger('category_classifier')
-except:
-    import logging
-    logger = logging.getLogger('category_classifier')
-
+from src.logger.logger_handler import get_logger
+logger = get_logger(__name__)
 
 class CategoryTypeClassifier:
     """LLM을 사용하여 서브 카테고리를 분류하는 클래스"""
@@ -36,7 +28,7 @@ class CategoryTypeClassifier:
         else:
             logger.warning("GitHub API 토큰이 없습니다. 카테고리 분류 기능이 비활성화됩니다.")
     
-    async def classify_category_type(self, sub_category: str, max_retries: int = 5) -> int:
+    async def classify_category_type(self, sub_category: str, max_retries: int = 10) -> int:
         """
         서브 카테고리를 LLM으로 분석하여 타입 결정
         

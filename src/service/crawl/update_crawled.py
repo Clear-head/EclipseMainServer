@@ -6,9 +6,9 @@ from src.infra.database.repository.category_repository import CategoryRepository
 from src.infra.database.repository.category_tags_repository import CategoryTagsRepository
 from src.logger.logger_handler import get_logger
 
-logger = get_logger(__name__)
 async def update_category(dto: InsertCategoryDto) -> str:
     try:
+        logger = get_logger(__name__)
         logger.info(f"Updating category: {dto.name}")
 
         repository = CategoryRepository()
@@ -36,6 +36,7 @@ async def update_category(dto: InsertCategoryDto) -> str:
 
 async def update_category_tags(dto: InsertCategoryTagsDTO) -> int:
     try:
+        logger = get_logger(__name__)
         logger.info(f"Updating category tags")
         repository = CategoryTagsRepository()
         result = await repository.select_by(tag_id=dto.tag_id, category_id=dto.category_id)

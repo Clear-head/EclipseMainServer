@@ -10,16 +10,8 @@ from dotenv import load_dotenv
 # 환경 변수 로드
 load_dotenv(dotenv_path="src/.env")
 
-# 로거는 필요시 import
-try:
-    import sys
-    sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-    from src.logger.logger_handler import get_logger
-    logger = get_logger('kakao_geocoding')
-except:
-    import logging
-    logger = logging.getLogger('kakao_geocoding')
-
+from src.logger.logger_handler import get_logger
+logger = get_logger(__name__)
 
 class GeocodingService:
     """카카오 로컬 API를 사용한 주소 -> 좌표 변환 서비스"""

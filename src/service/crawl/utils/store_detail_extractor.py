@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 from src.logger.logger_handler import get_logger
 
-logger = get_logger('store_detail_extractor')
+logger = get_logger(__name__)
 
 class StoreDetailExtractor:
     """상점 상세 정보 추출 클래스 (공통)"""

@@ -4,15 +4,8 @@
 import os
 from typing import Tuple
 
-# 로거는 필요시 import
-try:
-    import sys
-    sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-    from src.logger.logger_handler import get_logger
-    logger = get_logger('address_parser')
-except:
-    import logging
-    logger = logging.getLogger('address_parser')
+from src.logger.logger_handler import get_logger
+logger = get_logger(__name__)
 
 
 class AddressParser:
