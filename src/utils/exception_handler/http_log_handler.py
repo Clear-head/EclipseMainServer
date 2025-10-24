@@ -15,7 +15,7 @@ def setup_exception_handlers(app: FastAPI):
 
     @app.exception_handler(AuthException)
     async def auth_exception_handler(request: Request, exc: AuthException):
-        logger.warning(f"Auth error: {exc.message} - Path: {request.url.path}")
+        logger.error(f"Auth error: {exc.message} - Path: {request.url.path}")
         logger.error(traceback.format_exc())
 
         return ErrorResponseDto(

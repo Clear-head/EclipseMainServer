@@ -25,7 +25,11 @@ class InvalidTokenException(AuthException):
         super().__init__(message, status_code=401)
 
 
-class ExpiredTokenException(AuthException):
+class ExpiredAccessTokenException(AuthException):
+    def __init__(self, message: str = "토큰이 만료되었습니다."):
+        super().__init__(message, status_code=401)
+
+class ExpiredRefreshTokenException(AuthException):
     def __init__(self, message: str = "토큰이 만료되었습니다."):
         super().__init__(message, status_code=401)
 
