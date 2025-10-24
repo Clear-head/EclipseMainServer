@@ -13,12 +13,6 @@ load_dotenv(dotenv_path="src/.env")
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 from src.logger.logger_handler import get_logger
-from src.domain.dto.insert_category_dto import InsertCategoryDto
-from src.domain.dto.insert_category_tags_dto import InsertCategoryTagsDTO
-from src.service.crawl.insert_crawled import insert_category, insert_category_tags, insert_tags
-from src.service.crawl.update_crawled import update_category, update_category_tags
-from src.infra.database.repository.category_repository import CategoryRepository
-from src.infra.database.repository.category_tags_repository import CategoryTagsRepository
 
 # 외부 API 서비스 import
 from src.infra.external.kakao_geocoding_service import GeocodingService
