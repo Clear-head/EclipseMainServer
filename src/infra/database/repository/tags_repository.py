@@ -15,8 +15,8 @@ class TagsRepository(base_repository.BaseRepository):
     async def insert(self, item):
         return await super().insert(item)
 
-    async def select(self, item):
-        return await super().select(item)
+    async def select(self, item, limit=None):
+        return await super().select(item, limit=limit)
 
     async def update(self, item_id, item):
         return await super().update(item_id, item)

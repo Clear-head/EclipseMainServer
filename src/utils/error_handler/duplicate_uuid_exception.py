@@ -1,2 +1,0 @@
-class DuplicateUUIDException(Exception):
-    pass
