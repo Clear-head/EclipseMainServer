@@ -1,6 +1,7 @@
 import asyncio
 from typing import Tuple
 
+from src.logger.logger_handler import get_logger
 from src.domain.dto.insert_category_dto import InsertCategoryDto
 from src.domain.dto.insert_category_tags_dto import InsertCategoryTagsDTO
 from src.service.crawl.insert_crawled import insert_category, insert_category_tags, insert_tags
@@ -11,11 +12,12 @@ from src.infra.external.kakao_geocoding_service import GeocodingService
 from src.infra.external.category_classifier_service import CategoryTypeClassifier
 from src.service.crawl.utils.address_parser import AddressParser
 
+logger = get_logger(__name__)
+
 class StoreDataSaver:
     """상점 데이터 저장 클래스 (공통)"""
     
-    def __init__(self, logger):
-        self.logger = logger
+    def __init__(self):
         self.geocoding_service = GeocodingService()
         self.category_classifier = CategoryTypeClassifier()
     
@@ -84,7 +86,7 @@ class StoreDataSaver:
             elif len(existing_categories) == 0:
                 category_id = await insert_category(category_dto)
             else:
-                self.logger.error(f"[{log_prefix} 저장 {idx}/{total}] 중복 카테고리가 {len(existing_categories)}개 발견됨: {name}")
+                logger.error(f"[{log_prefix} 저장 {idx}/{total}] 중복 카테고리가 {len(existing_categories)}개 발견됨: {name}")
                 raise Exception(f"중복 카테고리 데이터 무결성 오류: {name}")
             
             if category_id:
@@ -114,23 +116,23 @@ class StoreDataSaver:
                                 if await insert_category_tags(category_tags_dto):
                                     tag_success_count += 1
                             else:
-                                self.logger.error(f"중복 태그가 {len(existing_tags)}개 발견됨")
+                                logger.error(f"중복 태그가 {len(existing_tags)}개 발견됨")
                                 
                     except Exception as tag_error:
-                        self.logger.error(f"태그 저장 중 오류: {tag_name} - {tag_error}")
+                        logger.error(f"태그 저장 중 오류: {tag_name} - {tag_error}")
                         continue
                 
                 success_msg = f"[{log_prefix} 저장 {idx}/{total}] '{name}' 완료"
-                self.logger.info(success_msg)
+                logger.info(success_msg)
                 return True, success_msg
             else:
                 error_msg = f"[{log_prefix} 저장 {idx}/{total}] '{name}' DB 저장 실패"
-                self.logger.error(error_msg)
+                logger.error(error_msg)
                 return False, error_msg
                 
         except Exception as db_error:
             error_msg = f"[{log_prefix} 저장 {idx}/{total}] '{store_name}' DB 저장 중 오류: {db_error}"
-            self.logger.error(error_msg)
+            logger.error(error_msg)
             import traceback
-            self.logger.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
             return False, error_msg

@@ -10,17 +10,17 @@ from dotenv import load_dotenv
 # 환경 변수 로드
 load_dotenv(dotenv_path="src/.env")
 
+from src.logger.logger_handler import get_logger
+logger = get_logger(__name__)
 
 class GeocodingService:
     """카카오 로컬 API를 사용한 주소 -> 좌표 변환 서비스"""
     
-    def __init__(self, logger=None, api_key: str = None):
-        self.logger = logger
+    def __init__(self, api_key: str = None):
         self.api_key = api_key or os.getenv('KAKAO_REST_API_KEY')
         
         if not self.api_key:
-            if self.logger:
-                self.logger.warning("카카오 REST API 키가 없습니다. 좌표 변환 기능이 비활성화됩니다.")
+            logger.warning("카카오 REST API 키가 없습니다. 좌표 변환 기능이 비활성화됩니다.")
         
         self.base_url = "https://dapi.kakao.com/v2/local/search/address.json"
         self.headers = {
@@ -39,13 +39,11 @@ class GeocodingService:
             Tuple[Optional[str], Optional[str]]: (경도, 위도) 또는 (None, None)
         """
         if not self.api_key:
-            if self.logger:
-                self.logger.warning("API 키가 없어 좌표 변환을 건너뜁니다.")
+            logger.warning("API 키가 없어 좌표 변환을 건너뜁니다.")
             return None, None
         
         if not address or not address.strip():
-            if self.logger:
-                self.logger.warning("주소가 비어있습니다.")
+            logger.warning("주소가 비어있습니다.")
             return None, None
         
         params = {
@@ -70,37 +68,31 @@ class GeocodingService:
                                 latitude = str(doc['y'])   # 위도 (문자열)
                                 return longitude, latitude
                             else:
-                                if self.logger:
-                                    self.logger.warning(f"주소에 대한 좌표를 찾을 수 없습니다: {address}")
+                                logger.warning(f"주소에 대한 좌표를 찾을 수 없습니다: {address}")
                                 return None, None
                                 
                         elif response.status == 401:
-                            if self.logger:
-                                self.logger.error("카카오 API 인증 실패. API 키를 확인하세요.")
+                            logger.error("카카오 API 인증 실패. API 키를 확인하세요.")
                             return None, None
                             
                         else:
-                            if self.logger:
-                                self.logger.warning(f"좌표 변환 실패 ({attempt}번째 시도) - 상태 코드: {response.status}")
+                            logger.warning(f"✗ 좌표 변환 실패 ({attempt}번째 시도) - 상태 코드: {response.status}")
                             
                             if attempt < max_retries:
                                 await asyncio.sleep(3)
                             else:
-                                if self.logger:
-                                    self.logger.error(f"최대 재시도 횟수 초과")
+                                logger.error(f"✗ 최대 재시도 횟수 초과")
                                 return None, None
                         
             except asyncio.TimeoutError:
                 if attempt < max_retries:
                     await asyncio.sleep(1)
                 else:
-                    if self.logger:
-                        self.logger.error(f"최대 재시도 횟수 초과")
+                    logger.error(f"✗ 최대 재시도 횟수 초과")
                     return None, None
                     
             except Exception as e:
-                if self.logger:
-                    self.logger.error(f"좌표 변환 중 오류 ({attempt}번째 시도): {e}")
+                logger.error(f"✗ 좌표 변환 중 오류 ({attempt}번째 시도): {e}")
                 
                 if attempt < max_retries:
                     await asyncio.sleep(1)

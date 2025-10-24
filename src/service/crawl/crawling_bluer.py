@@ -6,9 +6,6 @@ from dotenv import load_dotenv
 
 load_dotenv(dotenv_path="src/.env")
 
-from src.infra.external.kakao_geocoding_service import GeocodingService
-from src.infra.external.category_classifier_service import CategoryTypeClassifier
-
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 from src.logger.logger_handler import get_logger
 from src.service.crawl.utils.store_detail_extractor import StoreDetailExtractor
@@ -17,24 +14,20 @@ from src.service.crawl.utils.search_strategy import NaverMapSearchStrategy
 from src.service.crawl.utils.crawling_manager import CrawlingManager
 
 
+
+
 class BluerRestaurantCrawler:
     """Bluer 웹사이트 음식점 크롤링 클래스"""
     
-    def __init__(self, logger, headless: bool = False):
+    def __init__(self, headless: bool = False):
+        self.logger = get_logger(__name__)
         self.headless = headless
-        self.logger = logger
         self.bluer_url = "https://www.bluer.co.kr/search?query=&foodType=&foodTypeDetail=&feature=112&location=&locationDetail=&area=&areaDetail=&ribbonType=&priceRangeMin=0&priceRangeMax=1000&week=&hourMin=0&hourMax=48&year=&evaluate=&sort=&listType=card&isSearchName=false&isBrand=false&isAround=false&isMap=false&zone1=&zone2=&food1=&food2=&zone2Lat=&zone2Lng=&distance=1000&isMapList=false#restaurant-filter-bottom"
+        self.data_saver = StoreDataSaver()
+        self.search_strategy = NaverMapSearchStrategy()
+        self.crawling_manager = CrawlingManager("Bluer")
         
-        # logger를 외부 서비스에도 전달
-        self.geocoding_service = GeocodingService(logger=logger)
-        self.category_classifier = CategoryTypeClassifier(logger=logger)
-        
-        # logger를 유틸리티 클래스에 전달
-        self.data_saver = StoreDataSaver(logger)
-        self.search_strategy = NaverMapSearchStrategy(logger)
-        self.crawling_manager = CrawlingManager("Bluer", logger)
-        
-        logger.info(f"Bluer 크롤러 초기화 완료")
+        self.logger.info(f"✓ Bluer 크롤러 초기화 완료")
     
     async def crawl_all_pages(self, delay: int = 5, naver_delay: int = 20):
         """Bluer 전체 페이지 크롤링"""
@@ -63,11 +56,15 @@ class BluerRestaurantCrawler:
                 current_page = 1
                 
                 while True:
+                    # logger.info(f"=" * 60)
+                    self.logger.info(f"페이지 {current_page} 크롤링 시작")
+                    # logger.info(f"=" * 60)
+                    
                     # 현재 페이지의 음식점 목록 추출
                     restaurants = await self._extract_restaurants_from_page(bluer_page)
                     
                     if restaurants:
-                        self.logger.info(f"페이지 {current_page}에서 {len(restaurants)}개 음식점 발견")
+                        # logger.info(f"페이지 {current_page}에서 {len(restaurants)}개 음식점 발견")
                         all_restaurants.extend(restaurants)
                     else:
                         self.logger.warning(f"페이지 {current_page}에서 음식점을 찾지 못했습니다.")
@@ -76,7 +73,9 @@ class BluerRestaurantCrawler:
                     has_next = await self._click_next_page(bluer_page)
                     
                     if not has_next:
-                        self.logger.info(f"마지막 페이지 도달! 총 {len(all_restaurants)}개 음식점 수집 완료")
+                        # logger.info("=" * 60)
+                        self.logger.info(f"마지막 페이지 도달. 총 {len(all_restaurants)}개 음식점 수집 완료")
+                        # logger.info("=" * 60)
                         break
                     
                     current_page += 1
@@ -106,7 +105,7 @@ class BluerRestaurantCrawler:
         
         # 검색 전략 사용
         async def extract_callback(entry_frame, page):
-            extractor = StoreDetailExtractor(entry_frame, page, self.logger)
+            extractor = StoreDetailExtractor(entry_frame, page)
             return await extractor.extract_all_details()
         
         return await self.search_strategy.search_with_multiple_strategies(
@@ -135,6 +134,7 @@ class BluerRestaurantCrawler:
             await asyncio.sleep(2)
             
             list_items = await page.locator('#list-restaurant > li').all()
+            # logger.info(f"현재 페이지 리스트 아이템 수: {len(list_items)}")
             
             for idx, item in enumerate(list_items, 1):
                 try:
@@ -162,6 +162,7 @@ class BluerRestaurantCrawler:
                     
                     if name:
                         restaurants.append((name, address))
+                        # self.logger.info(f"  [{idx}] {name} - {address}")
                     
                 except Exception as item_error:
                     self.logger.error(f"리스트 아이템 {idx} 추출 중 오류: {item_error}")
@@ -208,6 +209,7 @@ class BluerRestaurantCrawler:
             else:
                 await next_button.click()
             
+            self.logger.info(f"✓ 다음 페이지로 이동 중...")
             await asyncio.sleep(2)
             
             return True
@@ -222,24 +224,23 @@ class BluerRestaurantCrawler:
 
 async def main():
     """메인 함수"""
-    
-    # ========================================
-    # 로거 초기화 (한 번만)
-    # ========================================
-    logger = get_logger('crawling_bluer')
-    
+    logger = get_logger(__name__)
     headless_mode = False
     page_delay = 5
     naver_delay = 30
     
+    logger.info("=" * 80)
     logger.info("Bluer 음식점 크롤링 시작")
+    logger.info("=" * 80)
     
     try:
-        # logger 전달
-        crawler = BluerRestaurantCrawler(logger=logger, headless=headless_mode)
+        crawler = BluerRestaurantCrawler(headless=headless_mode)
         await crawler.crawl_all_pages(delay=page_delay, naver_delay=naver_delay)
         
+        logger.info("")
+        logger.info("=" * 80)
         logger.info("✓ 모든 크롤링 완료!")
+        logger.info("=" * 80)
         
     except Exception as e:
         logger.error(f"크롤링 중 오류 발생: {e}")

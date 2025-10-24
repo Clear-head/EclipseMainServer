@@ -4,6 +4,9 @@
 import os
 from typing import Tuple
 
+from src.logger.logger_handler import get_logger
+logger = get_logger(__name__)
+
 
 class AddressParser:
     """주소 파싱 유틸리티 클래스"""
@@ -149,4 +152,5 @@ class AddressParser:
             return do, si, gu, detail_address
             
         except Exception as e:
+            logger.error(f"주소 파싱 중 오류: {e}")
             return "", "", "", full_address

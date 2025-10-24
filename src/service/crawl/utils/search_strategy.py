@@ -5,14 +5,16 @@
 import asyncio
 from typing import Optional, List
 from playwright.async_api import Page, TimeoutError
+from src.logger.logger_handler import get_logger
+
+logger = get_logger(__name__)
 
 
 class NaverMapSearchStrategy:
     """네이버 지도 검색 전략 클래스"""
     
-    def __init__(self, logger, naver_map_url: str = "https://map.naver.com/v5/search"):
+    def __init__(self, naver_map_url: str = "https://map.naver.com/v5/search"):
         self.naver_map_url = naver_map_url
-        self.logger = logger
     
     @staticmethod
     def extract_road_name(address: str) -> str:
@@ -105,17 +107,17 @@ class NaverMapSearchStrategy:
             if not keyword:  # 빈 키워드는 스킵
                 continue
             
-            self.logger.info(f"  {idx}차 검색 ({strategy_name}): {keyword}")
+            logger.info(f"  {idx}차 검색 ({strategy_name}): {keyword}")
             result = await self._search_single(page, keyword, extractor_callback)
             
             if result:
-                self.logger.info(f"  {idx}차 검색 성공!")
+                logger.info(f"  {idx}차 검색 성공!")
                 return result
             
             await asyncio.sleep(4)
-            self.logger.warning(f"  {idx}차 검색 실패")
+            logger.warning(f"  {idx}차 검색 실패")
         
-        self.logger.error(f"  모든 검색 시도 실패: {store_name}")
+        logger.error(f"  모든 검색 시도 실패: {store_name}")
         return None
     
     def _build_search_strategies(
@@ -191,8 +193,8 @@ class NaverMapSearchStrategy:
             return True  # 검색 성공
             
         except TimeoutError:
-            self.logger.error(f"'{keyword}' 검색 결과를 찾을 수 없습니다.")
+            logger.error(f"'{keyword}' 검색 결과를 찾을 수 없습니다.")
             return None
         except Exception as e:
-            self.logger.error(f"'{keyword}' 검색 중 오류: {e}")
+            logger.error(f"'{keyword}' 검색 중 오류: {e}")
             return None

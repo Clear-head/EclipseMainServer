@@ -17,6 +17,9 @@ def get_logger(name):
         로거 객체
     """
 
+    name = list(name.split('.'))
+    name = '.'.join(name[:3])
+
     log_path = Path(logger_abs_path).parent.parent.joinpath('logs').joinpath(name)
 
     cache_key = (name, log_path)
