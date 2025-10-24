@@ -32,8 +32,8 @@ class CrawlingManager:
         
         Args:
             stores: 크롤링할 매장 목록
-            crawl_func: 크롤링 함수 (store, idx, total) -> store_data
-            save_func: 저장 함수 (idx, total, store_data, store_name) -> (success, msg)
+            crawl_func: 크롤링 함수 (store, idx, total) -> (store_data, actual_name) or None
+            save_func: 저장 함수 (idx, total, store_data_tuple, store_name) -> (success, msg)
             delay: 크롤링 간 딜레이 (초)
             
         Returns:
@@ -45,19 +45,22 @@ class CrawlingManager:
         self.logger.info(f"총 {total}개 {self.source_name} 매장 크롤링 시작")
         
         for idx, store in enumerate(stores, 1):
-            store_name = self._get_store_name(store)
+            initial_store_name = self._get_store_name(store)
             
-            self.logger.info(f"[{self.source_name} 크롤링 {idx}/{total}] '{store_name}' 크롤링 진행 중...")
+            self.logger.info(f"[{self.source_name} 크롤링 {idx}/{total}] '{initial_store_name}' 크롤링 진행 중...")
             
             # 크롤링 실행
-            store_data = await crawl_func(store, idx, total)
+            crawl_result = await crawl_func(store, idx, total)
             
-            if store_data:
-                self.logger.info(f"[{self.source_name} 크롤링 {idx}/{total}] '{store_name}' 크롤링 완료")
+            if crawl_result:
+                # 👇 실제 추출된 이름 사용
+                store_data, actual_name = crawl_result
+                
+                self.logger.info(f"[{self.source_name} 크롤링 {idx}/{total}] '{actual_name}' 크롤링 완료")
                 
                 # 저장 태스크 생성 (백그라운드)
                 save_task = asyncio.create_task(
-                    save_func(idx, total, store_data, store_name)
+                    save_func(idx, total, crawl_result, actual_name)
                 )
                 save_tasks.append(save_task)
                 
@@ -66,7 +69,7 @@ class CrawlingManager:
                     await asyncio.sleep(delay)
             else:
                 self.fail_count += 1
-                self.logger.error(f"[{self.source_name} 크롤링 {idx}/{total}] '{store_name}' 크롤링 실패")
+                self.logger.error(f"[{self.source_name} 크롤링 {idx}/{total}] '{initial_store_name}' 크롤링 실패")
                 
                 # 실패해도 딜레이
                 if idx < total:
@@ -97,11 +100,10 @@ class CrawlingManager:
     def _get_store_name(store) -> str:
         """매장명 추출 (타입에 따라 다름)"""
         if isinstance(store, tuple):
-            # 👇 수정: 튜플의 마지막 요소를 이름으로 사용
             return str(store[-1]) if len(store) > 1 else str(store[0])
         elif isinstance(store, dict):
             return store.get('name', 'Unknown')
         elif isinstance(store, int):
-            return f"장소 {store + 1}"  # 👈 인덱스인 경우 "장소 1" 형태로
+            return f"장소 {store + 1}"
         else:
             return str(store)
