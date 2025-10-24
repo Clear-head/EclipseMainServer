@@ -423,7 +423,3 @@ async def main(favorite_url = 'https://map.naver.com/p/favorite/sSjt-6mGnGEqi8HA
         delay=30,
         output_file=None
     )
-
-
-if __name__ == "__main__":
-    asyncio.run(main())

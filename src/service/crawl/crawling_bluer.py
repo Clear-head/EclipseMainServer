@@ -246,7 +246,3 @@ async def main():
         logger.error(f"크롤링 중 오류 발생: {e}")
         import traceback
         logger.error(traceback.format_exc())
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
