@@ -1,10 +1,9 @@
 from contextlib import asynccontextmanager
-
 from fastapi import FastAPI
 import uvicorn
 from starlette.middleware.cors import CORSMiddleware
-from starlette.responses import RedirectResponse
 
+from src.logger.http_log_handler import setup_exception_handlers
 from src.router.users import user_controller, service_controller
 
 
@@ -12,7 +11,8 @@ from src.router.users import user_controller, service_controller
 async def lifespan(app: FastAPI):
 
     yield
-
+app = FastAPI()
+setup_exception_handlers(app)
 app = FastAPI(lifespan=lifespan)
 app.include_router(user_controller.router)
 app.include_router(service_controller.router)

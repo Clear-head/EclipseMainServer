@@ -21,11 +21,12 @@ class MainService:
         tags = []
 
         request_main_screen_body_categories = []
+        limit = 5
 
         for item in categories:
 
             #   todo: 나중에 리펙토링 하기 여기 성능 문제 발생
-            tag_in_category = await self.category_tags_repo.select_by(category_id=item.id)
+            tag_in_category = await self.category_tags_repo.select_by(category_id=item.id, limit=limit)
             # reviews = await self.reviews_repo.select_by(category_id=item.id)
 
             for tag_item in tag_in_category:

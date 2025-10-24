@@ -1,7 +1,9 @@
+import traceback
+
 from fastapi import APIRouter
 from src.domain.dto.service.user_login_dto import GetUserLoginDto
 from src.domain.dto.service.user_register_dto import RequestRegisterBody
-from src.logger.logger_handler import get_logger
+from src.logger.custom_logger import get_logger
 from src.service.application.user_service import UserService
 
 
@@ -23,7 +25,9 @@ async def user_login(user_info: GetUserLoginDto):
 
     except Exception as e:
         logger.error(f"login failed: {e}")
-        raise Exception(e)
+        print(f"Error type: {type(e).__name__}")
+        print(f"Error message: {str(e)}")
+        traceback.print_exc()
 
 
 #   로그아웃

@@ -2,7 +2,7 @@ from sqlalchemy import insert, select, update, delete
 from sqlalchemy.exc import IntegrityError
 
 from src.infra.database.repository.maria_engine import get_engine
-from src.logger.logger_handler import get_logger
+from src.logger.custom_logger import get_logger
 
 
 class BaseRepository:
