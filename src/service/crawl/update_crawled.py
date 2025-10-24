@@ -1,5 +1,5 @@
-from src.domain.dto.insert_category_dto import InsertCategoryDto
-from src.domain.dto.insert_category_tags_dto import InsertCategoryTagsDTO
+from src.domain.dto.crawled.insert_category_dto import InsertCategoryDto
+from src.domain.dto.crawled.insert_category_tags_dto import InsertCategoryTagsDTO
 from src.domain.entities.category_entity import CategoryEntity
 from src.domain.entities.category_tags_entity import CategoryTagsEntity
 from src.infra.database.repository.category_repository import CategoryRepository

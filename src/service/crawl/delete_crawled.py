@@ -1,5 +1,3 @@
-import asyncio
-
 from src.infra.database.repository.category_repository import CategoryRepository
 from src.infra.database.repository.category_tags_repository import CategoryTagsRepository
 from src.logger.logger_handler import get_logger
@@ -62,7 +60,3 @@ async def before_delete_category(id: str):
     except Exception as ex:
         logger.error(f"before_delete_category: {id} error: {ex}")
         raise Exception(f"{id} delete category tags error") from ex
-
-
-
-asyncio.run(delete_category("7e409879-aa59-46a7-bb42-6de8e98ecb93"))

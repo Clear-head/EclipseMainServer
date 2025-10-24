@@ -1,6 +1,6 @@
 from datetime import datetime
 from pydantic import field_validator, ValidationError
-from src.domain.dto.insert_category_dto import InsertCategoryDto
+from src.domain.dto.crawled.insert_category_dto import InsertCategoryDto
 from src.domain.entities.base_entity import BaseEntity
 from src.utils.uuid_maker import generate_uuid
 
