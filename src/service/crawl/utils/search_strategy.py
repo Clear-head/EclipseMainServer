@@ -5,7 +5,7 @@
 import asyncio
 from typing import Optional, List
 from playwright.async_api import Page, TimeoutError
-from src.logger.logger_handler import get_logger
+from src.logger.custom_logger import get_logger
 
 logger = get_logger(__name__)
 

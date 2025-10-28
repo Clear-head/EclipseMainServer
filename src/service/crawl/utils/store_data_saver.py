@@ -1,7 +1,7 @@
 import asyncio
 from typing import Tuple
 
-from src.logger.logger_handler import get_logger
+from src.logger.custom_logger import get_logger
 from src.domain.dto.crawled.insert_category_dto import InsertCategoryDto
 from src.domain.dto.crawled.insert_category_tags_dto import InsertCategoryTagsDTO
 from src.service.crawl.insert_crawled import insert_category, insert_category_tags, insert_tags

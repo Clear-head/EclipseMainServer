@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 load_dotenv(dotenv_path="src/.env")
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
-from src.logger.logger_handler import get_logger
+from src.logger.custom_logger import get_logger
 
 # 외부 API 서비스 import
 from src.infra.external.kakao_geocoding_service import GeocodingService

@@ -6,7 +6,7 @@ from typing import Optional, Tuple, List
 from playwright.async_api import Page
 from dotenv import load_dotenv
 
-from src.logger.logger_handler import get_logger
+from src.logger.custom_logger import get_logger
 
 logger = get_logger(__name__)
 

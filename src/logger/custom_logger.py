@@ -18,7 +18,7 @@ def get_logger(name):
     """
 
     name = list(name.split('.'))
-    name = '.'.join(name[:3])
+    name = '.'.join(name[:2])
 
     log_path = Path(logger_abs_path).parent.parent.joinpath('logs').joinpath(name)
 
