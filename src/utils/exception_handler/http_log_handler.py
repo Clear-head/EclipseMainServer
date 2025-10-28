@@ -2,10 +2,9 @@ import traceback
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from src.domain.dto.header import JsonHeader
-from src.domain.dto.service.error_response import ErrorResponseDto, ErrorResponseBody
 from src.logger.custom_logger import get_logger
 from src.utils.exception_handler.auth_error_class import AuthException
 
@@ -18,17 +17,19 @@ def setup_exception_handlers(app: FastAPI):
         logger.error(f"Auth error: {exc.message} - Path: {request.url.path}")
         logger.error(traceback.format_exc())
 
-        return ErrorResponseDto(
-            header=JsonHeader(
-                content_type="application/json",
-                jwt=None
-            ),
-            body=ErrorResponseBody(
-                status_code=exc.status_code,
-                message=exc.message
-            )
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={
+                "headers": {
+                    "content_type": "application/json",
+                    "jwt": None
+                },
+                "body": {
+                    "status_code": exc.status_code,
+                    "message": exc.message
+                }
+            }
         )
-
 
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(request: Request, exc: RequestValidationError):
@@ -40,32 +41,37 @@ def setup_exception_handlers(app: FastAPI):
             field = " -> ".join(str(loc) for loc in error["loc"])
             errors.append(f"{field}: {error['msg']}")
 
-        return ErrorResponseDto(
-            header=JsonHeader(
-                content_type="application/json",
-                jwt=None
-            ),
-            body=ErrorResponseBody(
-                status_code=422,
-                message=f"Request format error\n{', '.join(errors)}"
-            )
+        return JSONResponse(
+            status_code=422,
+            content={
+                "headers": {
+                    "content_type": "application/json",
+                    "jwt": None
+                },
+                "body": {
+                    "status_code": 422,
+                    "message": f"Request format error\n{', '.join(errors)}"
+                }
+            }
         )
-
 
     @app.exception_handler(StarletteHTTPException)
     async def http_exception_handler(request: Request, exc: StarletteHTTPException):
         logger.error(f"HTTP error {exc.status_code}: {exc.detail} - Path: {request.url.path}")
         logger.error("\n===================" + traceback.format_exc() + "\n===================")
 
-        return ErrorResponseDto(
-            header=JsonHeader(
-                content_type="application/json",
-                jwt=None
-            ),
-            body=ErrorResponseBody(
-                status_code=exc.status_code,
-                message=exc.detail
-            )
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={
+                "headers": {
+                    "content_type": "application/json",
+                    "jwt": None
+                },
+                "body": {
+                    "status_code": exc.status_code,
+                    "message": exc.detail
+                }
+            }
         )
 
     @app.exception_handler(Exception)
@@ -80,13 +86,16 @@ def setup_exception_handlers(app: FastAPI):
         logger.error(traceback.format_exc())
         logger.error("=" * 60)
 
-        return ErrorResponseDto(
-            header=JsonHeader(
-                content_type="application/json",
-                jwt=None
-            ),
-            body=ErrorResponseBody(
-                status_code=500,
-                message="알수 없는 오류"
-            )
+        return JSONResponse(
+            status_code=500,
+            content={
+                "headers": {
+                    "content_type": "application/json",
+                    "jwt": None
+                },
+                "body": {
+                    "status_code": 500,
+                    "message": "알수 없는 오류"
+                }
+            }
         )

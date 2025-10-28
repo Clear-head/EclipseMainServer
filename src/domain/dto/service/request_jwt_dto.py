@@ -4,9 +4,14 @@ from src.domain.dto.header import JsonHeader
 
 
 class RequestAccessTokenBody(BaseModel):
-    access_token: str
+    token: str
 
 
 class RequestAccessTokenDto(BaseModel):
-    header: JsonHeader
+    headers: JsonHeader
+    body: RequestAccessTokenBody
+
+
+class ResponseAccessTokenBody(BaseModel):
+    headers: JsonHeader
     body: RequestAccessTokenBody

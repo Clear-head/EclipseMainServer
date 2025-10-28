@@ -11,9 +11,8 @@ from src.router.users import user_controller, service_controller
 async def lifespan(app: FastAPI):
 
     yield
-app = FastAPI()
-setup_exception_handlers(app)
 app = FastAPI(lifespan=lifespan)
+setup_exception_handlers(app)
 app.include_router(user_controller.router)
 app.include_router(service_controller.router)
 app.add_middleware(

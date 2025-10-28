@@ -15,7 +15,6 @@ class UserService:
 
 
     async def login(self, id: str, pw: str):
-        # try:
         select_from_id_pw_result = await self.repository.select_by(id=id, password=pw)
 
         #   id,pw 검색 인원 2명 이상
@@ -43,7 +42,7 @@ class UserService:
             )
 
             return ToUserLoginDto(
-                header=headers,
+                headers=headers,
                 body=body
             )
 
@@ -51,6 +50,7 @@ class UserService:
         pass
 
     async def register(self, dto: RequestRegisterBody):
+
         select_from_id_result = await self.repository.select_by(id=id)
 
         if len(select_from_id_result) > 0:
@@ -63,7 +63,7 @@ class UserService:
 
         else:
             return ResponseRegisterDto(
-                header=JsonHeader(
+                headers=JsonHeader(
                     content_type="application/json",
                     jwt=None
                 ),
@@ -72,6 +72,7 @@ class UserService:
                     message="success",
                 )
             )
+
 
 
     async def delete_account(self, id: str):

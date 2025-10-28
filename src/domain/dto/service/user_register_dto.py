@@ -21,7 +21,7 @@ class RequestRegisterBody(BaseEntity):
 
 #   화원가입 요청 틀
 class RequestRegisterDto(BaseModel):
-    header: JsonHeader
+    headers: JsonHeader
     body: RequestRegisterBody
 
 
@@ -30,5 +30,5 @@ class ResponseRegisterBody(BaseModel):
     message: str
 
 class ResponseRegisterDto(BaseModel):
-    header: JsonHeader
+    headers: JsonHeader
     body: ResponseRegisterBody

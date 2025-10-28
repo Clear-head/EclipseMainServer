@@ -41,7 +41,7 @@ class UserRepository(base_repository.BaseRepository):
                 user_entity = self.entity(**result.one())
         except Exception as e:
             self.logger.error(e)
-            return Exception("[UserRepository] select error")
+            raise Exception("[UserRepository] select error") from e
 
         return user_entity
 
