@@ -14,9 +14,14 @@ class BaseRepository:
     async def insert(self, item):
         try:
             engine = await get_engine()
-            async with engine.begin() as conn:
+            entity = self.entity(
+                **item.model_dump(exclude_none=True),
+            )
 
-                stmt = self.table.insert().values(**item.model_dump())
+
+            async with engine.begin() as conn:
+                data = entity.model_dump()
+                stmt = self.table.insert().values(**data)
                 await conn.execute(stmt)
 
         except IntegrityError as e:
@@ -86,7 +91,7 @@ class BaseRepository:
                 result = await conn.execute(stmt)
                 result = [i for i in result.mappings()]
                 if len(result) == 0:
-                    self.logger.info(f"no item in {self.table} {value}")
+                    self.logger.info(f"no item in {self.table}")
                     return []
 
                 for row in result:
