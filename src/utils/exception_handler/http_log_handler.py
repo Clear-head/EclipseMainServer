@@ -55,7 +55,7 @@ def setup_exception_handlers(app: FastAPI):
     @app.exception_handler(StarletteHTTPException)
     async def http_exception_handler(request: Request, exc: StarletteHTTPException):
         logger.error(f"HTTP error {exc.status_code}: {exc.detail} - Path: {request.url.path}")
-        logger.error(traceback.format_exc())
+        logger.error("\n===================" + traceback.format_exc() + "\n===================")
 
         return ErrorResponseDto(
             header=JsonHeader(
