@@ -209,7 +209,7 @@ class BluerRestaurantCrawler:
             else:
                 await next_button.click()
             
-            self.logger.info(f"✓ 다음 페이지로 이동 중...")
+            self.logger.info(f"다음 페이지로 이동 중...")
             await asyncio.sleep(2)
             
             return True
@@ -229,18 +229,18 @@ async def main():
     page_delay = 5
     naver_delay = 30
     
-    logger.info("=" * 80)
+    # logger.info("=" * 80)
     logger.info("Bluer 음식점 크롤링 시작")
-    logger.info("=" * 80)
+    # logger.info("=" * 80)
     
     try:
         crawler = BluerRestaurantCrawler(headless=headless_mode)
         await crawler.crawl_all_pages(delay=page_delay, naver_delay=naver_delay)
         
-        logger.info("")
-        logger.info("=" * 80)
+        # logger.info("")
+        # logger.info("=" * 80)
         logger.info("✓ 모든 크롤링 완료!")
-        logger.info("=" * 80)
+        # logger.info("=" * 80)
         
     except Exception as e:
         logger.error(f"크롤링 중 오류 발생: {e}")
