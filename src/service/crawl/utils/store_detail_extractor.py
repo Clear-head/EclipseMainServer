@@ -69,6 +69,10 @@ class StoreDetailExtractor:
         except:
             return ""
     
+    def _is_postal_code(self, text: str) -> bool:
+        """우편번호인지 확인 (숫자로만 구성되어 있는지)"""
+        return bool(text and re.match(r'^\d+$', text.strip()))
+    
     async def _extract_address(self) -> str:
         """주소 추출 (지번 주소)"""
         try:
@@ -84,17 +88,31 @@ class StoreDetailExtractor:
             await address_button.click()
             await asyncio.sleep(2)
             
-            # 확장된 주소 영역에서 모든 div 추출
-            address_container = self.frame.locator('div.place_section_content > div > div.O8qbU.tQY7D > div > div.Y31Sf')
-            await address_container.wait_for(state='visible', timeout=5000)
+            # 지번 주소 추출 (먼저 nth-child(2) 시도)
+            jibun_address_div = self.frame.locator('div.place_section_content > div > div.O8qbU.tQY7D > div > div.Y31Sf > div:nth-child(2)')
+            await jibun_address_div.wait_for(state='visible', timeout=5000)
             
-            # 모든 하위 div를 순회하며 지번 주소 찾기
-            all_divs = await address_container.locator('> div').all()
+            jibun_address = await jibun_address_div.evaluate('''
+                (element) => {
+                    let text = '';
+                    for (let node of element.childNodes) {
+                        if (node.nodeType === Node.TEXT_NODE) {
+                            text += node.textContent;
+                        }
+                    }
+                    return text.trim();
+                }
+            ''')
             
-            jibun_address = ""
-            
-            for div in all_divs:
-                text = await div.evaluate('''
+            # 우편번호인지 확인
+            if self._is_postal_code(jibun_address):
+                logger.info(f"우편번호 감지됨: {jibun_address}, nth-child(1)로 재시도")
+                
+                # nth-child(1)로 재시도
+                jibun_address_div_alt = self.frame.locator('div.place_section_content > div > div.O8qbU.tQY7D > div > div.Y31Sf > div:nth-child(1)')
+                await jibun_address_div_alt.wait_for(state='visible', timeout=5000)
+                
+                jibun_address = await jibun_address_div_alt.evaluate('''
                     (element) => {
                         let text = '';
                         for (let node of element.childNodes) {
@@ -105,22 +123,6 @@ class StoreDetailExtractor:
                         return text.trim();
                     }
                 ''')
-                
-                # 1. 우편번호 제외: 숫자, 하이픈, 공백만으로 구성된 경우
-                if re.match(r'^[\d\-\s]+$', text):
-                    continue
-                
-                # 2. 도로명 주소 제외: 숫자 + "로" 또는 숫자 + "길" 패턴
-                # (예: "양화로 144", "테헤란로 152")
-                if re.search(r'\d+\s*[로길]', text):
-                    continue
-                
-                # 3. 지번 주소 특징: 한글 + 숫자-숫자 패턴 (예: "서교동 395-73")
-                if text and re.search(r'[가-힣]', text):
-                    # 동/읍/면/리가 포함되고, 번지수 패턴이 있는 경우
-                    if re.search(r'[동읍면리]', text) and re.search(r'\d+(-\d+)?', text):
-                        jibun_address = text
-                        break
             
             # 버튼 닫기
             try:
@@ -129,18 +131,8 @@ class StoreDetailExtractor:
             except:
                 pass
             
-            # 지번 주소를 찾지 못한 경우 기본 주소 시도
-            if not jibun_address:
-                try:
-                    fallback_locator = self.frame.locator('div.place_section_content > div > div.O8qbU.tQY7D > div > a > span.LDgIH')
-                    jibun_address = await fallback_locator.inner_text(timeout=3000)
-                except:
-                    return ""
-            
             return jibun_address
-            
-        except Exception as e:
-            logger.error(f"주소 추출 중 오류: {e}")
+        except:
             # 기본 주소 시도
             try:
                 fallback_locator = self.frame.locator('div.place_section_content > div > div.O8qbU.tQY7D > div > a > span.LDgIH')
