@@ -43,7 +43,7 @@ async def user_logout(get_by_user):
 #   회원가입
 @router.post('/register')
 async def register(dto: RequestRegisterDto):
-    return user_service.register(dto.body)
+    return await user_service.register(dto.body)
 
 
 #   회원탈퇴

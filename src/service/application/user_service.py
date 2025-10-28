@@ -51,13 +51,16 @@ class UserService:
         pass
 
     async def register(self, dto: RequestRegisterBody):
-
         select_from_id_result = await self.repository.select_by(id=id)
+
         if len(select_from_id_result) > 0:
             raise UserAlreadyExistsException()
 
-        if not self.repository.insert(dto):
-            raise InvalidCredentialsException()
+        insert_result = await self.repository.insert(dto)
+
+        if not insert_result:
+            raise Exception("회원 가입 실패")
+
         else:
             return ResponseRegisterDto(
                 header=JsonHeader(

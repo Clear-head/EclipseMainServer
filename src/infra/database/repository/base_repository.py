@@ -14,13 +14,13 @@ class BaseRepository:
     async def insert(self, item):
         try:
             engine = await get_engine()
-
             entity = self.entity(
-                **item.model_dump()
+                **item.model_dump(exclude_none=True),
             )
 
+
             async with engine.begin() as conn:
-                data = entity.model_dump(exclude_none=True)
+                data = entity.model_dump()
                 stmt = self.table.insert().values(**data)
                 await conn.execute(stmt)
 
@@ -91,7 +91,7 @@ class BaseRepository:
                 result = await conn.execute(stmt)
                 result = [i for i in result.mappings()]
                 if len(result) == 0:
-                    self.logger.info(f"no item in {self.table} {value}")
+                    self.logger.info(f"no item in {self.table}")
                     return []
 
                 for row in result:

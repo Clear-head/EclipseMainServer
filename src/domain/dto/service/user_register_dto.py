@@ -3,10 +3,11 @@ from typing import Optional
 from pydantic import BaseModel
 from datetime import datetime
 from src.domain.dto.header import JsonHeader
+from src.domain.entities.base_entity import BaseEntity
 
 
 #   회원가입 요청시 바디
-class RequestRegisterBody(BaseModel):
+class RequestRegisterBody(BaseEntity):
     id: str
     username: str
     password: str

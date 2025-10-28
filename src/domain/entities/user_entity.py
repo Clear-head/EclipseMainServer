@@ -32,8 +32,10 @@ class UserEntity(BaseEntity):
 
     @field_validator("password")
     def validate_password(cls, v):
-        if len(v) < 9:
+        print(f"password: {v}, type: {type(v)}")
+        if len(v) < 8:
             raise WeakPasswordException()
+        return v
 
     @field_validator('phone')
     @classmethod
