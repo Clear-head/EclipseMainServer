@@ -1,7 +1,7 @@
 from typing import Optional
 
 from pydantic import field_validator, EmailStr
-import datetime
+from datetime import datetime
 from src.domain.entities.base_entity import BaseEntity
 from src.utils.exception_handler.auth_error_class import WeakPasswordException
 
