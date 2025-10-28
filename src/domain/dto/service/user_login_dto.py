@@ -18,12 +18,12 @@ class ToUserLoginBody(BaseModel):
 
 #   유저가 로그인 시에 보내는 요청 json 틀
 class GetUserLoginDto(BaseModel):
-    header: JsonHeader
+    headers: JsonHeader
     body: GetUserLoginBody
 
 
 #   유저에게 로그인 시에 보내는 응답 바디
 class ToUserLoginDto(BaseModel):
-    header: JsonHeader
+    headers: JsonHeader
     body: ToUserLoginBody
 

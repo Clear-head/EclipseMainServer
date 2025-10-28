@@ -43,6 +43,6 @@ class TagsRepository(base_repository.BaseRepository):
 
         except Exception as e:
             self.logger.error(e)
-            # raise Exception(f"{__name__} select error")
-            return 0
+            raise Exception(f"{__name__} select error") from e
+            # return 0
 
