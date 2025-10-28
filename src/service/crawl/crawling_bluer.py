@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 load_dotenv(dotenv_path="src/.env")
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
-from src.logger.logger_handler import get_logger
+from src.logger.custom_logger import get_logger
 from src.service.crawl.utils.store_detail_extractor import StoreDetailExtractor
 from src.service.crawl.utils.store_data_saver import StoreDataSaver
 from src.service.crawl.utils.search_strategy import NaverMapSearchStrategy

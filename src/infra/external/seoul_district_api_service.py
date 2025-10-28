@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 load_dotenv(dotenv_path="src/.env")
 
 # 로거는 필요시 import
-from src.logger.logger_handler import get_logger
+from src.logger.custom_logger import get_logger
 logger = get_logger(__name__)
 
 

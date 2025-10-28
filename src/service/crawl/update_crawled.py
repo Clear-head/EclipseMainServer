@@ -4,7 +4,7 @@ from src.domain.entities.category_entity import CategoryEntity
 from src.domain.entities.category_tags_entity import CategoryTagsEntity
 from src.infra.database.repository.category_repository import CategoryRepository
 from src.infra.database.repository.category_tags_repository import CategoryTagsRepository
-from src.logger.logger_handler import get_logger
+from src.logger.custom_logger import get_logger
 
 async def update_category(dto: InsertCategoryDto) -> str:
     try:

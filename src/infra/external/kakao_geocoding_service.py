@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 # 환경 변수 로드
 load_dotenv(dotenv_path="src/.env")
 
-from src.logger.logger_handler import get_logger
+from src.logger.custom_logger import get_logger
 logger = get_logger(__name__)
 
 class GeocodingService:
