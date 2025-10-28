@@ -151,19 +151,43 @@ class StoreDetailExtractor:
         except Exception:
             pass
         
-        # 2차 시도: 클립보드 복사
+        # 2차 시도: 클립보드 복사 (개선된 버전)
         try:
             bf_button = self.frame.locator('a.BfF3H')
             
             if await bf_button.count() > 0:
-                await bf_button.first.click(timeout=3000)
-                await asyncio.sleep(1)
+                # 충분히 대기 후 강제 클릭
+                await asyncio.sleep(1.5)
                 
+                try:
+                    # force 클릭 시도
+                    await bf_button.first.click(force=True, timeout=5000)
+                except:
+                    # JavaScript 클릭 시도
+                    try:
+                        await bf_button.first.evaluate('element => element.click()')
+                    except:
+                        logger.warning("BfF3H 버튼 클릭 실패, 대체 전화번호 건너뜀")
+                        return ""
+                
+                await asyncio.sleep(1.5)
+                
+                # 복사 버튼 클릭
                 bluelink_button = self.frame.locator('a.place_bluelink')
                 
                 if await bluelink_button.count() > 0:
-                    await bluelink_button.first.click(timeout=3000)
-                    await asyncio.sleep(0.5)
+                    try:
+                        # force 클릭 시도
+                        await bluelink_button.first.click(force=True, timeout=5000)
+                    except:
+                        # JavaScript 클릭 시도
+                        try:
+                            await bluelink_button.first.evaluate('element => element.click()')
+                        except:
+                            logger.warning("복사 버튼 클릭 실패")
+                            return ""
+                    
+                    await asyncio.sleep(1)
                     
                     try:
                         clipboard_text = await self.page.evaluate('navigator.clipboard.readText()')
