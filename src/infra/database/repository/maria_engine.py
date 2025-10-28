@@ -28,4 +28,4 @@ async def get_engine() -> AsyncEngine:
 
     except Exception as e:
         print(e)
-        raise Exception(e)
+        raise Exception("engine error: ") from e

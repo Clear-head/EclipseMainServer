@@ -26,12 +26,11 @@ class BaseRepository:
 
         except IntegrityError as e:
             self.logger.error(f" uuid duplicate error: {e}")
-            return False
+            raise e
 
         except Exception as e:
             self.logger.error(f" insert error: {e}")
-            # raise Exception(f"{__name__} insert error: {e}")
-            return False
+            raise e
 
         return True
 
@@ -51,18 +50,18 @@ class BaseRepository:
 
                 if not result:
                     self.logger.info(f"no item in {self.table} id: {item_id}")
-                    return []
 
-                for row in result:
-                    tmp = self.entity(**row)
-                    ans.append(tmp)
+                else:
+                    for row in result:
+                        tmp = self.entity(**row)
+                        ans.append(tmp)
 
                 return ans
 
 
         except Exception as e:
             self.logger.error(f" select from {self.table} : error: {e}")
-            return []
+            raise e
 
 
 
@@ -90,19 +89,18 @@ class BaseRepository:
 
                 result = await conn.execute(stmt)
                 result = [i for i in result.mappings()]
-                if len(result) == 0:
+                if len(result) == 0 or result is None:
                     self.logger.info(f"no item in {self.table}")
-                    return []
-
-                for row in result:
-                    tmp = self.entity(**row)
-                    ans.append(tmp)
+                else:
+                    for row in result:
+                        tmp = self.entity(**row)
+                        ans.append(tmp)
 
             return ans
 
         except Exception as e:
             self.logger.error(f"select_by {self.table} error {e}")
-            return []
+            raise e
 
     async def update(self, item_id, item):
         try:
@@ -111,9 +109,8 @@ class BaseRepository:
                 stmt = self.table.update().values(**item.model_dump()).where(self.table.c.id == item_id)
                 await conn.execute(stmt)
         except Exception as e:
-            self.logger.error(e)
-            raise Exception(f"{__name__} update error")
-            # return False
+            self.logger.error(f"update {self.table} error: {e}")
+            raise e
 
         return True
 
@@ -126,8 +123,8 @@ class BaseRepository:
 
 
         except Exception as e:
-            self.logger.error(f"delete error: {e}")
-            raise Exception(f"delete error")
+            self.logger.error(f"delete {self.table} error: {e}")
+            raise e
 
         return True
 

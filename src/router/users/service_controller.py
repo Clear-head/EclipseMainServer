@@ -36,7 +36,7 @@ async def to_main_screen(dto: RequestMainScreenDTO):
     validate_result = await validate_jwt_token(jwt)
 
     if validate_result == 2:
-        logger.error("ExpiredToken token")
+        logger.error("Expired token")
         raise ExpiredAccessTokenException()
 
     main_service_class = MainScreenService()
@@ -44,6 +44,7 @@ async def to_main_screen(dto: RequestMainScreenDTO):
 
 
 @router.get("/start")
+@router.post("/start")
 async def start_conversation(request: RequestStartMainServiceDTO) -> ResponseStartMainServiceDTO:
 
     jwt = request.headers.jwt
@@ -103,6 +104,7 @@ async def start_conversation(request: RequestStartMainServiceDTO) -> ResponseSta
 
 
 @router.get("/chat")
+@router.post("/chat")
 async def chat(request: RequestChatServiceDTO) -> ResponseChatServiceDTO:
 
     jwt = request.headers.jwt

@@ -18,7 +18,7 @@ logger = get_logger(__name__)
 async def create_jwt_token(username: str) -> tuple:
 
     now = (datetime.now(timezone.utc))
-    access_token_expires = now + timedelta(hours=1)
+    access_token_expires = now + timedelta(seconds=2)
     refresh_token_expires = now + timedelta(hours=15)
 
     now = int(now.timestamp())
@@ -69,11 +69,9 @@ async def validate_jwt_token(jwt_token: str) -> int:
             return 1
 
     except jwt.ExpiredSignatureError as e:
-        print(f"Error type: {type(e).__name__}")
-        print(f"Error message: {str(e)}")
         logger.error(type(e).__name__ + str(e))
         traceback.print_exc()
         return 2
 
     except jwt.InvalidTokenError as e:
-        raise InvalidTokenException()
+        raise InvalidTokenException() from e
