@@ -350,24 +350,38 @@ class NaverMapContentCrawler:
             self.logger.warning(f"스크롤 중 오류 (계속 진행): {e}")
     
     async def _go_to_next_page(self, search_frame_locator) -> bool:
-        """다음 페이지로 이동"""
+        """다음 페이지로 이동 (span 텍스트가 '다음페이지'인 버튼만 선택)"""
         try:
+            # 모든 페이지 버튼 찾기
             next_button_selector = 'a.eUTV2'
-            next_button = search_frame_locator.locator(next_button_selector)
+            next_buttons = await search_frame_locator.locator(next_button_selector).all()
             
-            if await next_button.count() > 0:
-                is_disabled = await next_button.get_attribute('aria-disabled')
-                
-                if is_disabled == 'true':
-                    return False
-                
-                await next_button.click()
-                await asyncio.sleep(2)
-                
-                self.logger.info(f"      다음 페이지로 이동")
-                return True
-            else:
+            if len(next_buttons) == 0:
                 return False
+            
+            # "다음페이지" 텍스트를 가진 버튼 찾기
+            for button in next_buttons:
+                try:
+                    span_text = await button.locator('span').inner_text(timeout=1000)
+                    
+                    if span_text and '다음페이지' in span_text:
+                        # aria-disabled 체크
+                        is_disabled = await button.get_attribute('aria-disabled')
+                        
+                        if is_disabled == 'true':
+                            return False
+                        
+                        # 다음 페이지 클릭
+                        await button.click()
+                        await asyncio.sleep(2)
+                        
+                        self.logger.info(f"      다음 페이지로 이동")
+                        return True
+                except:
+                    continue
+            
+            # "다음페이지" 버튼을 찾지 못함
+            return False
                 
         except Exception as e:
             self.logger.warning(f"다음 페이지 이동 중 오류: {e}")
@@ -389,7 +403,7 @@ async def main():
     logger = get_logger(__name__)
     
     headless_mode = False
-    crawl_delay = 20
+    crawl_delay = 10
     
     logger.info("=" * 80)
     logger.info("네이버 지도 콘텐츠 크롤링 시작")
