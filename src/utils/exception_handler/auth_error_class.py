@@ -57,4 +57,4 @@ class InvalidEmailException(AuthException):
 class DuplicateUserInfoError(AuthException):
     def __init__(self, msg="유저 정보 중복 존재"):
         self.msg = msg
-        super().__init__(self.msg)
+        super().__init__(self.msg, status_code=400)
