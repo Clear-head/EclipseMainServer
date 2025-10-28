@@ -1,12 +1,11 @@
-import traceback
-
 from src.domain.dto.header import JsonHeader
-from src.domain.dto.service.error_response import ErrorResponseDto, ErrorResponseBody
-from src.domain.dto.service.user_login_dto import ToUserLoginDto, GetUserLoginDto, ToUserLoginBody
+from src.domain.dto.service.user_login_dto import ToUserLoginDto, ToUserLoginBody
+from src.domain.dto.service.user_register_dto import RequestRegisterBody, ResponseRegisterDto, ResponseRegisterBody
 from src.infra.database.repository.users_repository import UserRepository
 from src.logger.custom_logger import get_logger
 from src.service.auth.jwt import create_jwt_token
-from src.utils.exception_handler.auth_error_class import DuplicateUserInfoError, InvalidCredentialsException
+from src.utils.exception_handler.auth_error_class import DuplicateUserInfoError, InvalidCredentialsException, \
+    UserAlreadyExistsException
 
 
 class UserService:
@@ -51,8 +50,26 @@ class UserService:
     async def logout(self, id: str):
         pass
 
-    async def register(self, id: str, pw: str):
-        pass
+    async def register(self, dto: RequestRegisterBody):
+
+        select_from_id_result = await self.repository.select_by(id=id)
+        if len(select_from_id_result) > 0:
+            raise UserAlreadyExistsException()
+
+        if not self.repository.insert(dto):
+            raise InvalidCredentialsException()
+        else:
+            return ResponseRegisterDto(
+                header=JsonHeader(
+                    content_type="application/json",
+                    jwt=None
+                ),
+                body=ResponseRegisterBody(
+                    status_code=200,
+                    message="success",
+                )
+            )
+
 
     async def delete_account(self, id: str):
         pass

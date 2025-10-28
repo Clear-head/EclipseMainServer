@@ -4,7 +4,7 @@ from fastapi import APIRouter
 
 from src.domain.dto.service.request_jwt_dto import RequestAccessTokenDto
 from src.domain.dto.service.user_login_dto import GetUserLoginDto
-from src.domain.dto.service.user_register_dto import RequestRegisterBody
+from src.domain.dto.service.user_register_dto import RequestRegisterBody, RequestRegisterDto
 from src.logger.custom_logger import get_logger
 from src.service.application.user_service import UserService
 from src.service.auth.jwt import validate_jwt_token
@@ -42,8 +42,8 @@ async def user_logout(get_by_user):
 
 #   회원가입
 @router.post('/register')
-async def register(dto: RequestRegisterBody):
-    pass
+async def register(dto: RequestRegisterDto):
+    return user_service.register(dto.body)
 
 
 #   회원탈퇴

@@ -1,6 +1,9 @@
+from typing import Optional
+
 from pydantic import field_validator, EmailStr
 import datetime
 from src.domain.entities.base_entity import BaseEntity
+from src.utils.exception_handler.auth_error_class import WeakPasswordException
 
 """
 
@@ -14,18 +17,23 @@ class UserEntity(BaseEntity):
     username: str
     password: str
     nickname: str
-    birth: datetime.datetime
-    phone: str
+    birth: Optional[datetime] = None
+    phone: Optional[str] = None
     email: EmailStr
-    sex: bool
-    address: str
+    sex: Optional[int] = None
+    address: Optional[str] = None
 
     @field_validator('id', "password", "username", "nickname", "email")
     @classmethod
-    def validate_id(cls, v):
+    def validate_null(cls, v):
         if v is None:
             raise ValueError('[UserEntity] null exception')
         return v
+
+    @field_validator("password")
+    def validate_password(cls, v):
+        if len(v) < 9:
+            raise WeakPasswordException()
 
     @field_validator('phone')
     @classmethod
