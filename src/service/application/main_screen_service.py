@@ -6,7 +6,7 @@ from src.infra.database.repository.reviews_repository import ReviewsRepository
 from src.infra.database.repository.tags_repository import TagsRepository
 
 
-class MainService:
+class MainScreenService:
 
     def __init__(self):
         self.category_repo = CategoryRepository()
