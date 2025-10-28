@@ -14,9 +14,14 @@ class BaseRepository:
     async def insert(self, item):
         try:
             engine = await get_engine()
-            async with engine.begin() as conn:
 
-                stmt = self.table.insert().values(**item.model_dump())
+            entity = self.entity(
+                **item.model_dump()
+            )
+
+            async with engine.begin() as conn:
+                data = entity.model_dump(exclude_none=True)
+                stmt = self.table.insert().values(**data)
                 await conn.execute(stmt)
 
         except IntegrityError as e:
