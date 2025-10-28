@@ -227,7 +227,7 @@ async def main():
     logger = get_logger(__name__)
     headless_mode = False
     page_delay = 5
-    naver_delay = 30
+    naver_delay = 10
     
     # logger.info("=" * 80)
     logger.info("Bluer 음식점 크롤링 시작")

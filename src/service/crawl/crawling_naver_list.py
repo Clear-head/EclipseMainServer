@@ -414,6 +414,6 @@ async def main(favorite_url = 'https://map.naver.com/p/favorite/sSjt-6mGnGEqi8HA
     # 즐겨찾기 목록 크롤링
     await crawler.crawl_favorite_list(
         favorite_url=favorite_url,
-        delay=30,
+        delay=10,
         output_file=None
     )
