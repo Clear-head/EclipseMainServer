@@ -228,7 +228,7 @@ class StoreDetailExtractor:
                             return result['choices'][0]['message']['content'].strip()
                         else:
                             if attempt < max_retries:
-                                await asyncio.sleep(2)
+                                await asyncio.sleep(1)
                             else:
                                 return raw_hours
             except:
