@@ -31,5 +31,5 @@ class UserEntity(BaseEntity):
     @classmethod
     def check_password(cls, value):
         if len(value) > 12 or len(value) < 9:
-            return ValueError('[UserEntity] 휴대폰 번호 검증 에러')
+            raise ValueError('[UserEntity] 휴대폰 번호 검증 에러')
         return value
