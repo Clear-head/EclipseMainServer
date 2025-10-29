@@ -35,7 +35,7 @@ class StoreDataSaver:
         Args:
             idx: 현재 인덱스
             total: 전체 개수
-            store_data: 크롤링한 상점 데이터 (name, full_address, phone, business_hours, image, sub_category, tag_reviews)
+            store_data: 크롤링한 상점 데이터 (name, full_address, phone, business_hours, image, sub_category, menu, tag_reviews)
             store_name: 상점명
             log_prefix: 로그 접두사 (예: "강남구")
             
@@ -43,7 +43,8 @@ class StoreDataSaver:
             Tuple[bool, str]: (성공 여부, 로그 메시지)
         """
         try:
-            name, full_address, phone, business_hours, image, sub_category, tag_reviews = store_data
+            # menu 추가
+            name, full_address, phone, business_hours, image, sub_category, menu, tag_reviews = store_data
             
             # 주소 파싱
             do, si, gu, detail_address = AddressParser.parse_address(full_address)
@@ -54,7 +55,7 @@ class StoreDataSaver:
                 self.category_classifier.classify_category_type(sub_category)
             )
             
-            # DTO 생성
+            # DTO 생성 (menu 추가)
             category_dto = InsertCategoryDto(
                 name=name,
                 do=do,
@@ -66,6 +67,7 @@ class StoreDataSaver:
                 phone=phone.replace('-', '') if phone else "",
                 type=category_type,
                 image=image or "",
+                menu=menu or "",  # 메뉴 추가
                 latitude=latitude or "",
                 longitude=longitude or ""
             )

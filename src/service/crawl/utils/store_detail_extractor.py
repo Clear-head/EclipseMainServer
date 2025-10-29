@@ -42,24 +42,160 @@ class StoreDetailExtractor:
         모든 상세 정보 추출
         
         Returns:
-            Tuple: (name, full_address, phone, business_hours, image, sub_category, tag_reviews)
+            Tuple: (name, full_address, phone, business_hours, image, sub_category, menu, tag_reviews)
         """
         try:
             name = await self._extract_title()
+            sub_category = await self._extract_sub_category()
+            
+            # 서브 카테고리로 타입 추정
+            from src.infra.external.category_classifier_service import CategoryTypeClassifier
+            classifier = CategoryTypeClassifier()
+            category_type = await classifier.classify_category_type(sub_category)
+            
             full_address = await self._extract_address()
             phone = await self._extract_phone()
             business_hours = await self._extract_business_hours()
             image = await self._extract_image()
-            sub_category = await self._extract_sub_category()
-            tag_reviews = await self._extract_tag_reviews()
+            
+            # 메뉴 추출 (타입별로 다른 방식)
+            menu = ""
+            if category_type in [0, 1]:
+                # 음식점/카페: 리뷰 탭에서 메뉴 추출
+                await self._open_review_tab()
+                menu_list = await self._extract_menu_items()
+                menu = ", ".join(menu_list) if menu_list else ""
+                
+                # 태그 리뷰도 추출
+                tag_reviews = await self._extract_tag_reviews()
+                
+            elif category_type == 2:
+                # 콘텐츠: 정보 탭에서 편의시설 추출
+                await self._open_information_tab()
+                facility_list = await self._extract_facility_items()
+                menu = ", ".join(facility_list) if facility_list else ""
+                
+                # 리뷰 탭으로 이동하여 태그 추출
+                await self._open_review_tab()
+                tag_reviews = await self._extract_tag_reviews()
+            else:
+                # 기타 타입: 리뷰 탭만
+                await self._open_review_tab()
+                tag_reviews = await self._extract_tag_reviews()
             
             logger.info(f"상점 정보 추출 완료: {name}")
             
-            return (name, full_address, phone, business_hours, image, sub_category, tag_reviews)
+            return (name, full_address, phone, business_hours, image, sub_category, menu, tag_reviews)
             
         except Exception as e:
             logger.error(f"상점 정보 추출 중 오류: {e}")
             return None
+    
+    async def _open_review_tab(self):
+        """리뷰 탭 열기"""
+        try:
+            review_tab = self.frame.locator('a[href*="review"][role="tab"]')
+            if await review_tab.count() > 0:
+                await review_tab.click(timeout=3000)
+                await asyncio.sleep(2)
+                logger.debug("리뷰 탭 열기 성공")
+        except Exception as e:
+            logger.warning(f"리뷰 탭 열기 실패: {e}")
+    
+    async def _open_information_tab(self):
+        """정보 탭 열기 (콘텐츠 타입용)"""
+        try:
+            # href에 /information이 포함된 탭 찾기
+            information_tab = self.frame.locator('a[href*="/information"][role="tab"]')
+            if await information_tab.count() > 0:
+                await information_tab.click(timeout=3000)
+                await asyncio.sleep(2)
+                logger.debug("정보 탭 열기 성공")
+            else:
+                logger.warning("정보 탭을 찾을 수 없음")
+        except Exception as e:
+            logger.warning(f"정보 탭 열기 실패: {e}")
+    
+    async def _extract_facility_items(self) -> List[str]:
+        """
+        정보 탭의 편의시설 정보 추출 (콘텐츠 타입용)
+        
+        Returns:
+            List[str]: 편의시설 항목 리스트
+        """
+        facility_items = []
+        
+        try:
+            # 편의시설 섹션 선택자
+            facility_selector = 'div.place_section.no_margin.no_border.bgt3S > div > div'
+            
+            # 해당 div 내의 모든 span 요소 찾기
+            facility_span_elements = await self.frame.locator(f'{facility_selector} > span').all()
+            
+            for span_element in facility_span_elements:
+                try:
+                    facility_text = await span_element.inner_text(timeout=2000)
+                    if facility_text and facility_text.strip():
+                        facility_items.append(facility_text.strip())
+                except:
+                    continue
+            
+            # span 바로 아래에 없는 경우를 위한 대체 시도
+            if not facility_items:
+                all_spans = await self.frame.locator(f'{facility_selector} span').all()
+                for span_element in all_spans:
+                    try:
+                        facility_text = await span_element.inner_text(timeout=2000)
+                        if facility_text and facility_text.strip():
+                            facility_items.append(facility_text.strip())
+                    except:
+                        continue
+            
+            if facility_items:
+                logger.info(f"편의시설 {len(facility_items)}개 추출: {', '.join(facility_items[:5])}{'...' if len(facility_items) > 5 else ''}")
+            
+        except Exception as e:
+            logger.warning(f"편의시설 추출 중 오류 (무시하고 계속): {e}")
+        
+        return facility_items
+    
+    async def _extract_menu_items(self) -> List[str]:
+        """
+        리뷰 탭의 메뉴 필터에서 메뉴 항목 추출
+        (이미 리뷰 탭이 열려있다고 가정)
+        
+        Returns:
+            List[str]: 메뉴 항목 리스트
+        """
+        menu_items = []
+        
+        try:
+            # 메뉴 필터 요소들 추출
+            # selector: #_tag_filters > div > div:nth-child(1) > div > div > div > div > span:nth-child(N) > a > span:nth-child(1)
+            base_selector = '#_tag_filters > div > div:nth-child(1) > div > div > div > div'
+            
+            # span 요소들 찾기
+            menu_span_elements = await self.frame.locator(f'{base_selector} > span').all()
+            
+            for span_element in menu_span_elements:
+                try:
+                    # span > a > span:nth-child(1) 경로로 메뉴명 추출
+                    menu_name_element = span_element.locator('a > span:nth-child(1)')
+                    
+                    if await menu_name_element.count() > 0:
+                        menu_name = await menu_name_element.inner_text(timeout=2000)
+                        if menu_name and menu_name.strip():
+                            menu_items.append(menu_name.strip())
+                except:
+                    continue
+            
+            if menu_items:
+                logger.info(f"메뉴 {len(menu_items)}개 추출: {', '.join(menu_items[:5])}{'...' if len(menu_items) > 5 else ''}")
+            
+        except Exception as e:
+            logger.warning(f"메뉴 추출 중 오류 (무시하고 계속): {e}")
+        
+        return menu_items
     
     async def _extract_title(self) -> str:
         """매장명 추출"""
@@ -311,14 +447,13 @@ class StoreDetailExtractor:
             return ""
     
     async def _extract_tag_reviews(self) -> List[Tuple[str, int]]:
-        """태그 리뷰 추출"""
+        """
+        태그 리뷰 추출
+        (이미 리뷰 탭이 열려있다고 가정)
+        """
         tag_reviews = []
         
         try:
-            # 리뷰 탭 클릭
-            await self.frame.locator('a[href*="review"][role="tab"]').click()
-            await asyncio.sleep(2)
-            
             # 태그 리뷰 더보기 버튼 클릭
             while True:
                 try:
@@ -339,6 +474,9 @@ class StoreDetailExtractor:
                     tag_reviews.append((review_tag, cleaned_rating))
                 except:
                     continue
+            
+            if tag_reviews:
+                logger.info(f"태그 리뷰 {len(tag_reviews)}개 추출")
             
         except Exception as e:
             logger.error(f"태그 리뷰 추출 중 오류: {e}")
