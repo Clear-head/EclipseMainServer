@@ -1,7 +1,7 @@
 import uuid
-from typing import Dict
+from typing import Dict, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
 from src.domain.dto.header import JsonHeader
 from src.domain.dto.service.haru_service_dto import RequestStartMainServiceDTO, ResponseStartMainServiceDTO, \
@@ -25,8 +25,8 @@ sessions: Dict[str, Dict] = {}
 
 #   메인 화면: 로그인 후 바로 보여지는 화면
 @router.post("/main")
-async def to_main_screen(dto: RequestMainScreenDTO):
-    jwt = dto.headers.jwt
+async def to_main_screen(request: Request):
+    jwt = request.headers.get("jwt")
 
     if jwt is None:
         logger.error("Missing token")

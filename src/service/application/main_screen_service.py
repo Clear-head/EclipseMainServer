@@ -1,5 +1,6 @@
-from src.domain.dto.header import JsonHeader
-from src.domain.dto.service.main_screen_dto import MainScreenCategoryList, ResponseMainScreenBody, ResponseMainScreenDTO
+from starlette.responses import JSONResponse
+
+from src.domain.dto.service.main_screen_dto import MainScreenCategoryList, ResponseMainScreenDTO
 from src.infra.database.repository.category_repository import CategoryRepository
 from src.infra.database.repository.category_tags_repository import CategoryTagsRepository
 from src.infra.database.repository.reviews_repository import ReviewsRepository
@@ -46,12 +47,11 @@ class MainScreenService:
 
             request_main_screen_body_categories.append(tmp)
 
-        return ResponseMainScreenDTO(
-            headers=JsonHeader(
-                content_type="application/json",
-                jwt=""
-            ),
-            body=ResponseMainScreenBody(
-                categories=request_main_screen_body_categories,
-            )
+
+        contents = ResponseMainScreenDTO(
+            categories=request_main_screen_body_categories,
+        )
+
+        return JSONResponse(
+            content=contents.model_dump(),
         )
