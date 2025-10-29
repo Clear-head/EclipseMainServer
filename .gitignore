@@ -27,6 +27,7 @@ share/python-wheels/
 MANIFEST
 src/resources/config/
 logs/
+chroma_db/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
