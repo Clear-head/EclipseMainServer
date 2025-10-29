@@ -1,4 +1,7 @@
-from pydantic import BaseModel
+from datetime import datetime
+from typing import Optional
+
+from pydantic import BaseModel, EmailStr
 from src.domain.dto.header import JsonHeader
 
 
@@ -8,12 +11,23 @@ class GetUserLoginBody(BaseModel):
     password: str
 
 
+class AfterLoginUserInfo(BaseModel):
+    username: str
+    nickname: str
+    birth: Optional[datetime] = None
+    phone: Optional[str] = None
+    email: EmailStr
+    address: Optional[str] = None
+
+
+
 #   로그인 로직 이후 유저에게 보내는 응답 바디
 class ToUserLoginBody(BaseModel):
     status_code: int
     message: str
     token1: str
     token2: str
+    info: AfterLoginUserInfo
 
 
 #   유저가 로그인 시에 보내는 요청 json 틀

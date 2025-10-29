@@ -38,7 +38,8 @@ class UserService:
                 status_code=200,
                 message="success",
                 token1=token1,
-                token2=token2
+                token2=token2,
+                info=select_from_id_pw_result[0]
             )
 
             return ToUserLoginDto(
