@@ -18,6 +18,7 @@ class CategoryEntity(BaseEntity):
     image: str
     latitude: str
     longitude: str
+    menu: str
     last_crawl: datetime
 
 
