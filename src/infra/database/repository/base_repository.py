@@ -130,7 +130,7 @@ class BaseRepository:
 
     from sqlalchemy import select, join, and_
 
-    async def select_with_join(self, user_id, join_table, join_conditions: dict = None, **filters) -> list:
+    async def select_with_join(self, user_id, join_table, dto, join_conditions: dict, **filters) -> list:
         """
             join_conditions 예시: {
                 'category_id': 'id' == self.table.c.category_id == join_table.c.id
@@ -167,7 +167,7 @@ class BaseRepository:
                 if not rows:
                     self.logger.info(f"no items found in {self.table}")
                 else:
-                    ans = [self.entity(**row) for row in rows]
+                    ans = [dto(**row) for row in rows]
 
         except Exception as e:
             self.logger.error(f"select_with_join {self.table} error: {e}")

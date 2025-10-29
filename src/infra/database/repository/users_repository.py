@@ -1,4 +1,6 @@
 from sqlalchemy import select
+from sqlalchemy.util import await_only
+
 from . import base_repository
 from .maria_engine import get_engine
 from ..tables.table_users import users_table
@@ -26,6 +28,8 @@ class UserRepository(base_repository.BaseRepository):
     async def select_by(self, **filters):
         return await super().select_by(**filters)
 
+    async def select_with_join(self, user_id, join_table, dto, join_conditions: dict, **filters) -> list:
+        return await super().select_with_join(user_id, join_table, dto, join_conditions, **filters)
 
     async def get_user_info(self, user_id: str):
         """
@@ -46,24 +50,3 @@ class UserRepository(base_repository.BaseRepository):
         return user_entity
 
 
-# do: 이거 서비스 레이어로 옮기기
-# async def duplicate_check_id(self, user_id: str):
-#     """
-#
-#         아이디 중복 체크
-#
-#     """
-#     result = None
-#     try:
-#         engine = await get_engine()
-#         async with engine.begin() as conn:
-#             stmt = select(self.table.c.id).where(self.table.c.id == user_id)
-#
-#             result = await conn.execute(stmt)
-#             result = result.first()
-#
-#     except Exception as e:
-#         self.logger.error(e)
-#         return Exception("[UserRepository] select error")
-#
-#     return result is not None
