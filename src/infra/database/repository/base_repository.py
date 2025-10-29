@@ -1,4 +1,4 @@
-from sqlalchemy import insert, select, update, delete
+from sqlalchemy import insert, select, update, delete, join, and_
 from sqlalchemy.exc import IntegrityError
 
 from src.infra.database.repository.maria_engine import get_engine
@@ -127,4 +127,51 @@ class BaseRepository:
             raise e
 
         return True
+
+    from sqlalchemy import select, join, and_
+
+    async def select_with_join(self, user_id, join_table, join_conditions: dict = None, **filters) -> list:
+        """
+            join_conditions 예시: {
+                'category_id': 'id' == self.table.c.category_id == join_table.c.id
+            }
+        """
+        ans = []
+        try:
+            engine = await get_engine()
+            async with engine.begin() as conn:
+                join_conditions_list = []
+                for left_col, right_col in join_conditions.items():
+                    if hasattr(self.table.c, left_col) and hasattr(join_table.c, right_col):
+                        join_conditions_list.append(
+                            getattr(self.table.c, left_col) == getattr(join_table.c, right_col)
+                        )
+
+                j = join(self.table, join_table, and_(*join_conditions_list))
+
+                default_stmt = (
+                    select(self.table)
+                    .select_from(j)
+                    .where(self.table.c.id == user_id)
+                )
+
+                for column, value in filters.items():
+                    if hasattr(self.table.c, column):
+                        default_stmt = default_stmt.where(
+                            getattr(self.table.c, column) == value
+                        )
+
+                result = await conn.execute(default_stmt)
+                rows = result.mappings().all()
+
+                if not rows:
+                    self.logger.info(f"no items found in {self.table}")
+                else:
+                    ans = [self.entity(**row) for row in rows]
+
+        except Exception as e:
+            self.logger.error(f"select_with_join {self.table} error: {e}")
+            raise
+
+        return ans
 
