@@ -42,7 +42,8 @@ class StoreDetailExtractor:
         모든 상세 정보 추출
         
         Returns:
-            Tuple: (name, full_address, phone, business_hours, image, sub_category, menu, tag_reviews)
+            Tuple: (name, full_address, phone, business_hours, image, sub_category, menu, tag_reviews, category_type)
+                                                                                                        ↑ 추가
         """
         try:
             name = await self._extract_title()
@@ -85,7 +86,8 @@ class StoreDetailExtractor:
             
             logger.info(f"상점 정보 추출 완료: {name}")
             
-            return (name, full_address, phone, business_hours, image, sub_category, menu, tag_reviews)
+            # category_type 추가 ↓
+            return (name, full_address, phone, business_hours, image, sub_category, menu, tag_reviews, category_type)
             
         except Exception as e:
             logger.error(f"상점 정보 추출 중 오류: {e}")

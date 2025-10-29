@@ -35,7 +35,8 @@ class StoreDataSaver:
         Args:
             idx: 현재 인덱스
             total: 전체 개수
-            store_data: 크롤링한 상점 데이터 (name, full_address, phone, business_hours, image, sub_category, menu, tag_reviews)
+            store_data: 크롤링한 상점 데이터 (name, full_address, phone, business_hours, image, sub_category, menu, tag_reviews, category_type)
+                                                                                                                            ↑ 추가
             store_name: 상점명
             log_prefix: 로그 접두사 (예: "강남구")
             
@@ -43,19 +44,16 @@ class StoreDataSaver:
             Tuple[bool, str]: (성공 여부, 로그 메시지)
         """
         try:
-            # menu 추가
-            name, full_address, phone, business_hours, image, sub_category, menu, tag_reviews = store_data
+            # category_type 추가 ↓
+            name, full_address, phone, business_hours, image, sub_category, menu, tag_reviews, category_type = store_data
             
             # 주소 파싱
             do, si, gu, detail_address = AddressParser.parse_address(full_address)
             
-            # 좌표 변환과 카테고리 분류를 병렬로 실행
-            (longitude, latitude), category_type = await asyncio.gather(
-                self.geocoding_service.get_coordinates(full_address),
-                self.category_classifier.classify_category_type(sub_category)
-            )
+            # 좌표만 변환 (카테고리 분류는 이미 완료됨)
+            longitude, latitude = await self.geocoding_service.get_coordinates(full_address)
             
-            # DTO 생성 (menu 추가)
+            # DTO 생성
             category_dto = InsertCategoryDto(
                 name=name,
                 do=do,
@@ -65,9 +63,9 @@ class StoreDataSaver:
                 sub_category=sub_category,
                 business_hour=business_hours or "",
                 phone=phone.replace('-', '') if phone else "",
-                type=category_type,
+                type=category_type,  # 이미 분류된 타입 사용
                 image=image or "",
-                menu=menu or "",  # 메뉴 추가
+                menu=menu or "",
                 latitude=latitude or "",
                 longitude=longitude or ""
             )
