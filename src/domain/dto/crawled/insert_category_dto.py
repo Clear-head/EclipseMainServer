@@ -12,5 +12,6 @@ class InsertCategoryDto(BaseModel):
     phone: str
     type: int
     image: str
+    menu: str
     latitude: str
     longitude: str
