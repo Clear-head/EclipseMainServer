@@ -18,7 +18,7 @@ logger = get_logger(__name__)
 async def create_jwt_token(username: str) -> tuple:
 
     now = (datetime.now(timezone.utc))
-    access_token_expires = now + timedelta(seconds=2)
+    access_token_expires = now + timedelta(hours=1)
     refresh_token_expires = now + timedelta(hours=15)
 
     now = int(now.timestamp())
