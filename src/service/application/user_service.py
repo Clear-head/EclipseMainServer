@@ -1,5 +1,5 @@
 from src.domain.dto.header import JsonHeader
-from src.domain.dto.service.user_login_dto import ToUserLoginDto, ToUserLoginBody
+from src.domain.dto.service.user_login_dto import ToUserLoginDto, ToUserLoginBody, AfterLoginUserInfo
 from src.domain.dto.service.user_register_dto import RequestRegisterBody, ResponseRegisterDto, ResponseRegisterBody
 from src.infra.database.repository.users_repository import UserRepository
 from src.logger.custom_logger import get_logger
@@ -38,7 +38,15 @@ class UserService:
                 status_code=200,
                 message="success",
                 token1=token1,
-                token2=token2
+                token2=token2,
+                info=AfterLoginUserInfo(
+                    username=select_from_id_pw_result[0].username,
+                    nickname=select_from_id_pw_result[0].nickname,
+                    birth=select_from_id_pw_result[0].birth,
+                    phone=select_from_id_pw_result[0].phone,
+                    email=select_from_id_pw_result[0].email,
+                    address=select_from_id_pw_result[0].address
+                )
             )
 
             return ToUserLoginDto(

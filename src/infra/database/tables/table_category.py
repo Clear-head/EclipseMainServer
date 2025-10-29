@@ -18,5 +18,6 @@ category_table = Table(
     Column("image", Text),
     Column("latitude", String(63), nullable=False),
     Column("longitude", String(63), nullable=False),
+    Column("menu", Text),
     Column("last_crawl", DateTime, nullable=False),
 )

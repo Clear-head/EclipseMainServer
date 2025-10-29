@@ -25,7 +25,6 @@ sessions: Dict[str, Dict] = {}
 
 #   메인 화면: 로그인 후 바로 보여지는 화면
 @router.post("/main")
-@router.get("/main")
 async def to_main_screen(dto: RequestMainScreenDTO):
     jwt = dto.headers.jwt
 
@@ -43,7 +42,6 @@ async def to_main_screen(dto: RequestMainScreenDTO):
     return await main_service_class.to_main()
 
 
-@router.get("/start")
 @router.post("/start")
 async def start_conversation(request: RequestStartMainServiceDTO) -> ResponseStartMainServiceDTO:
 
@@ -75,11 +73,11 @@ async def start_conversation(request: RequestStartMainServiceDTO) -> ResponseSta
     }
 
     # 첫 번째 카테고리에 대한 질문 생성 (인원수와 카테고리 정보 포함)
-    first_category = request.selectedCategories[0]
-    categories_text = ', '.join(request.selectedCategories)
+    first_category = request.body.selectedCategories[0]
+    categories_text = ', '.join(request.body.selectedCategories)
 
     first_message = RESPONSE_MESSAGES["start"]["first_message"].format(
-        people_count=request.peopleCount,
+        people_count=request.body.peopleCount,
         categories_text=categories_text,
         first_category=first_category
     )
@@ -95,7 +93,7 @@ async def start_conversation(request: RequestStartMainServiceDTO) -> ResponseSta
             stage="collecting_details",
             progress={
                 "current": 0,
-                "total": len(request.selectedCategories)
+                "total": len(request.body.selectedCategories)
             }
         )
     )
@@ -118,10 +116,10 @@ async def chat(request: RequestChatServiceDTO) -> ResponseChatServiceDTO:
         raise ExpiredAccessTokenException()
 
     # 세션 확인
-    if request.sessionId not in sessions:
+    if request.body.sessionId not in sessions:
         raise HTTPException(status_code=404, detail="세션을 찾을 수 없습니다.")
 
-    session = sessions[request.sessionId]
+    session = sessions[request.body.sessionId]
 
     # completed 상태 처리 - 대화 완료 후 추가 메시지
     if session.get("stage") == "completed":
@@ -142,7 +140,7 @@ async def chat(request: RequestChatServiceDTO) -> ResponseChatServiceDTO:
             headers=JsonHeader(
                 jwt=request.headers.jwt,
             ),
-            body=handle_modification_mode(session, request.message)
+            body=handle_modification_mode(session, request.body.message)
         )
 
     # 사용자 액션(Next/More 또는 Yes) 응답 처리
@@ -151,7 +149,7 @@ async def chat(request: RequestChatServiceDTO) -> ResponseChatServiceDTO:
             headers=JsonHeader(
                 jwt=request.headers.jwt,
             ),
-            body=handle_user_action_response(session, request.message)
+            body=handle_user_action_response(session, request.body.message)
         )
 
     # 일반 메시지 처리 (태그 생성)
@@ -159,5 +157,5 @@ async def chat(request: RequestChatServiceDTO) -> ResponseChatServiceDTO:
         headers=JsonHeader(
             jwt=request.headers.jwt,
         ),
-        body=handle_user_message(session, request.message)
+        body=handle_user_message(session, request.body.message)
     )
