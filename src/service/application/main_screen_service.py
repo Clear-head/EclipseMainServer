@@ -35,14 +35,19 @@ class MainScreenService:
                 if tag_entity is not None:
                     tags.extend(tag_entity[0].name)
 
+            address = (
+                    (item.do+" " if item.do is not None else "")+
+                    (item.si+" " if item.si is not None else "")+
+                    (item.gu+" " if item.gu is not None else "")+
+                    (item.detail_address if item.detail_address is not None else "")
+            )
+
             tmp = MainScreenCategoryList(
                 id=item.id,
                 image_url=item.image,
-                detail_address=item.detail_address,
+                detail_address=address,
                 sub_category=item.sub_category,
-                phone=item.phone if item.phone is not None else None,
-                title=item.name,
-                tags=tags,
+                title=item.name
             )
 
             request_main_screen_body_categories.append(tmp)

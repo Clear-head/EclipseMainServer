@@ -14,9 +14,7 @@ class MainScreenCategoryList(BaseModel):
     image_url: str
     detail_address: str
     sub_category: str
-    phone: Optional[str]
     # stars: int
-    tags: List[str]
 
 
 #   사용자 응답 형식
