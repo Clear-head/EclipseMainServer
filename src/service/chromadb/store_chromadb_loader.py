@@ -85,19 +85,23 @@ class StoreChromaDBLoader:
         # 지역 (구)
         region = store_entity.gu or ''
         
-        # 태그를 count 기준으로 정렬 (중요도 반영)
+        # 태그를 count 기준으로 정렬
         sorted_tags = sorted(tags, key=lambda x: x['count'], reverse=True)
         
-        # count가 높은 태그일수록 여러 번 반복해서 가중치 부여
-        tag_texts = []
-        for tag in sorted_tags:
-            tag_name = tag['name']
-            tag_count = tag['count']
-            # count가 높을수록 반복 (최대 5번)
-            repeat_count = min(tag_count // 10 + 1, 5)
-            tag_texts.extend([tag_name] * repeat_count)
+        # 2번째로 많은 것부터 최대 10개 (1번째는 제외)
+        if len(sorted_tags) > 1:
+            # 2번째부터 11번째까지 (인덱스 1~10)
+            selected_tags = sorted_tags[1:11]
+        elif len(sorted_tags) == 1:
+            # 태그가 1개뿐이면 빈 리스트
+            selected_tags = []
+        else:
+            # 태그가 없으면 빈 리스트
+            selected_tags = []
         
-        tags_string = ", ".join(tag_texts) if tag_texts else ""
+        # 태그명만 추출 (가중치 없이)
+        tags_list = [tag['name'] for tag in selected_tags]
+        tags_string = ", ".join(tags_list) if tags_list else ""
         
         # 영업시간
         business_hour = store_entity.business_hour or ''
