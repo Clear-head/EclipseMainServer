@@ -1,5 +1,5 @@
 """
-ChromaDB 기반 매장 제안 서비스 (지역 필터링 개선)
+ChromaDB 기반 매장 제안 서비스
 """
 from typing import List, Dict, Optional
 from sentence_transformers import SentenceTransformer
@@ -74,13 +74,13 @@ class StoreSuggestService:
         use_ai_enhancement: bool = True
     ) -> List[Dict]:
         """
-        매장 제안
+        매장 제안 (메타데이터 필터링 → 유사도 검색)
         
         Args:
             personnel: 인원 수 (1, 2, 3, 4, 5+)
             region: 지역 (구 단위, 예: "강남구")
             category_type: 카테고리 타입 ("음식점", "카페", "콘텐츠")
-            user_keyword: 사용자 입력 키워드 (예: "조용한 분위기 좋은")
+            user_keyword: 사용자 입력 키워드
             n_results: 반환할 결과 수
             use_ai_enhancement: AI 쿼리 개선 사용 여부
             
@@ -113,32 +113,52 @@ class StoreSuggestService:
         
         logger.info(f"최종 검색 쿼리: {search_query}")
         
-        # 필터 조건 구성
-        where_filter = {}
+        # ===== 메타데이터 필터 조건 구성 (ChromaDB 문법) =====
+        where_filter = None
+        filter_conditions = []
         
+        # 지역 필터
+        if region:
+            filter_conditions.append({"region": region})
+            logger.info(f"지역 필터 적용: {region}")
+        
+        # 타입 필터
         if category_type:
             type_code = self.convert_type_to_code(category_type)
             if type_code:
-                where_filter["type_code"] = type_code
+                filter_conditions.append({"type_code": type_code})
+                logger.info(f"타입 필터 적용: {category_type} (코드: {type_code})")
+        
+        # 필터 조건이 있으면 $and로 결합
+        if len(filter_conditions) > 1:
+            where_filter = {"$and": filter_conditions}
+        elif len(filter_conditions) == 1:
+            where_filter = filter_conditions[0]
+        
+        logger.info(f"최종 where 필터: {where_filter}")
         
         # 쿼리 임베딩
         query_embedding = self.embedding_model.encode(search_query)
         
-        # 검색 실행 (지역 필터가 있으면 더 많이 가져오기)
-        fetch_count = n_results * 5 if region else n_results
-        
+        # ===== ChromaDB 검색 (메타데이터 필터 + 유사도 검색) =====
         try:
             results = self.store_collection.query(
                 query_embeddings=[query_embedding.tolist()],
-                n_results=fetch_count,
-                where=where_filter if where_filter else None,
+                n_results=n_results,
+                where=where_filter,  # 메타데이터 필터 적용
                 include=["metadatas", "documents", "distances"]
             )
             
             logger.info(f"ChromaDB 검색 결과: {len(results['ids'][0])}개")
             
+            # 디버그: 처음 3개 결과의 메타데이터 출력
+            for i in range(min(3, len(results['ids'][0]))):
+                logger.debug(f"결과 {i+1} 메타데이터: {results['metadatas'][0][i]}")
+            
         except Exception as e:
             logger.error(f"ChromaDB 검색 중 오류: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             return []
         
         # 결과가 없으면 빈 리스트 반환
@@ -146,54 +166,36 @@ class StoreSuggestService:
             logger.warning("검색 결과가 없습니다.")
             return []
         
-        # 결과 포맷팅 및 지역 필터링
+        # 결과 포맷팅
         suggestions = []
         
         for i in range(len(results['ids'][0])):
-            metadata = results['metadatas'][0][i]
-            document = results['documents'][0][i]
-            distance = results['distances'][0][i]
-            store_id = results['ids'][0][i]
-            
-            # 디버그: 문서 내용 로깅
-            if i < 3:  # 처음 3개만 로깅
-                logger.debug(f"문서 {i+1}:\n{document}")
-            
-            # 지역 필터링 (후처리)
-            if region:
-                # document에서 "지역: XX구" 형태로 파싱
-                store_region = ""
-                for line in document.split('\n'):
-                    line = line.strip()
-                    if line.startswith('지역:'):
-                        store_region = line.replace('지역:', '').strip()
-                        break
+            try:
+                metadata = results['metadatas'][0][i]
+                document = results['documents'][0][i]
+                distance = results['distances'][0][i]
+                store_id = results['ids'][0][i]
                 
-                logger.debug(f"매장 {store_id} - 추출된 지역: '{store_region}', 필터 지역: '{region}'")
+                # 유사도 점수 계산 (거리를 점수로 변환)
+                similarity_score = max(0, 1 - distance)
                 
-                # 지역 매칭 (부분 문자열 포함)
-                if not store_region or region not in store_region:
-                    logger.debug(f"매장 {store_id} - 지역 필터링으로 제외됨")
-                    continue
-            
-            # 유사도 점수 계산 (거리를 점수로 변환)
-            similarity_score = max(0, 1 - distance)
-            
-            suggestion = {
-                'store_id': store_id,
-                'type': metadata.get('type'),
-                'similarity_score': round(similarity_score, 4),
-                'distance': round(distance, 4),
-                'document': document,
-                'search_query': search_query  # 개선된 쿼리도 포함
-            }
-            
-            suggestions.append(suggestion)
-            logger.debug(f"매장 {store_id} 추가됨 (유사도: {similarity_score})")
-            
-            # 필요한 개수만큼 채우면 종료
-            if len(suggestions) >= n_results:
-                break
+                suggestion = {
+                    'store_id': metadata.get('store_id'),          # 매장ID (메타데이터)
+                    'region': metadata.get('region'),              # 구 (메타데이터)
+                    'type': metadata.get('type'),                  # 타입 (메타데이터)
+                    'business_hour': metadata.get('business_hour'), # 영업시간 (메타데이터)
+                    'similarity_score': round(similarity_score, 4),
+                    'distance': round(distance, 4),
+                    'document': document,                          # 태그 + 메뉴
+                    'search_query': search_query
+                }
+                
+                suggestions.append(suggestion)
+                
+            except Exception as e:
+                logger.error(f"결과 {i+1} 처리 중 오류: {e}")
+                logger.error(f"메타데이터: {results['metadatas'][0][i]}")
+                continue
         
         logger.info(f"최종 제안 결과: {len(suggestions)}개")
         

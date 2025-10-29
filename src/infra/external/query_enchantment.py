@@ -61,18 +61,19 @@ class QueryEnhancementService:
         prompt = self._build_prompt(personnel, category_type, user_keyword)
         
         payload = {
-            "model": "gpt-4.1",  # gpt-4o → gpt-4.1로 변경
+            "model": "gpt-4.1",
             "messages": [
                 {
                     "role": "system",
                     "content": """당신은 매장 검색을 위한 쿼리 최적화 전문가입니다. 
-사용자의 입력을 매장 검색에 최적화된 자연스러운 한국어 문장으로 변환하세요.
-- 구어체나 띄어쓰기 오류를 수정하세요
-- 핵심 키워드를 유지하면서 자연스러운 문장으로 만드세요
-- 불필요한 조사나 부사는 제거하세요
-- 매장의 분위기, 특징, 목적을 명확히 표현하세요
-- 한 문장으로 간결하게 작성하세요
-- 반드시 한국어로만 답변하세요"""
+사용자의 입력을 검색에 최적화된 간결한 한국어로 변환하세요.
+
+중요 규칙:
+- 핵심 키워드만 간결하게 유지 (과도한 설명 금지)
+- 형용사 형태로 자연스럽게 연결
+- 2-4단어로 구성 (너무 길면 검색 정확도 떨어짐)
+- 구어체나 띄어쓰기 오류만 수정
+- 한국어로만 답변"""
                 },
                 {
                     "role": "user",
@@ -80,7 +81,7 @@ class QueryEnhancementService:
                 }
             ],
             "temperature": 0.3,
-            "max_tokens": 100
+            "max_tokens": 50
         }
         
         for attempt in range(1, max_retries + 1):
@@ -148,7 +149,7 @@ class QueryEnhancementService:
         
         context = ", ".join(context_parts) if context_parts else "제약 없음"
         
-        prompt = f"""다음 사용자 입력을 매장 검색에 최적화된 자연스러운 한국어 검색 문장으로 변환하세요.
+        prompt = f"""다음 사용자 입력을 검색에 최적화된 간결한 한국어로 변환하세요.
 
 <사용자 입력>
 {user_keyword}
@@ -157,28 +158,37 @@ class QueryEnhancementService:
 {context}
 
 <변환 규칙>
-- 1명일 때만 "혼자", "혼밥" 같은 키워드 포함
-- 2명 이상일 때는 인원수 언급 안 함
-- 구어체 → 표준어 변환
-- 띄어쓰기 수정
+1. 핵심 키워드만 유지 (2-4단어)
+2. 1명일 때만 "혼자" 키워드 포함
+3. 형용사 형태로 자연스럽게 연결
+4. 쉼표나 불필요한 조사 제거
 
 <변환 예시>
 입력: "조용하고 분위기좋은곳" (1명)
-출력: 혼자 가기 좋은 조용하고 분위기 좋은
+출력: 혼자 가기 좋은 조용한 곳
 
 입력: "조용하고 분위기좋은곳" (2명 이상)
 출력: 조용하고 분위기 좋은
 
 입력: "혼밥하기좋고 맛있는곳" (1명)
-출력: 혼자 식사하기 좋고 맛있는
+출력: 혼자 식사하기 좋은
 
 입력: "데이트하기딱좋음" (2명)
-출력: 데이트하기 좋은 분위기
+출력: 데이트하기 좋은
 
-입력: "삼겹살, 된장찌개" (2명 이상)
-출력: 삼겹살 된장찌개
+입력: "삼겹살, 저렴한, 된장찌개" (2명 이상, 음식점)
+출력: 저렴한 삼겹살 된장찌개
 
-변환된 검색 문장 (한국어로만):"""
+입력: "쑥라떼, 에끌레어" (2명 이상, 카페)
+출력: 쑥라떼 에끌레어
+
+입력: "커피맛있고 조용한" (2명 이상, 카페)
+출력: 커피 맛있고 조용한
+
+❌ 나쁜 예시: "저렴한 가격에 삼겹살과 된장찌개를 함께 즐길 수 있는 음식점" (너무 김)
+✅ 좋은 예시: "저렴한 삼겹살 된장찌개" (간결함)
+
+변환된 검색어 (2-4단어, 한국어로만):"""
         
         return prompt
     
@@ -195,8 +205,13 @@ class QueryEnhancementService:
         if personnel and personnel == 1:
             query_parts.append("혼자 가기 좋은")
         
-        # 사용자 키워드
+        # 사용자 키워드 (쉼표 제거하고 공백으로)
         if user_keyword and user_keyword.strip():
-            query_parts.append(user_keyword.strip())
+            keywords = user_keyword.strip().replace(",", " ")
+            # 연속된 공백 제거
+            keywords = " ".join(keywords.split())
+            query_parts.append(keywords)
         
-        return " ".join(query_parts) if query_parts else "추천"
+        final_query = " ".join(query_parts) if query_parts else "추천"
+        
+        return final_query

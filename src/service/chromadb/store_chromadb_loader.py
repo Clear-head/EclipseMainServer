@@ -1,7 +1,6 @@
 """
 ChromaDB 데이터 적재 모듈
-매장 정보를 ChromaDB에 저장하는 기능을 제공합니다.
-한국어 임베딩 모델 사용
+매장 정보를 키워드 중심 문서로 저장합니다.
 """
 import chromadb
 from chromadb.config import Settings
@@ -43,7 +42,7 @@ class StoreChromaDBLoader:
         # 컬렉션 생성 (한국어 임베딩 함수 적용)
         self.store_collection = self.client.get_or_create_collection(
             name="stores",
-            metadata={"description": "매장 정보 및 태그 기반 검색용 컬렉션 (한국어 임베딩)"},
+            metadata={"description": "매장 정보 검색용 컬렉션 (한국어 임베딩)"},
             embedding_function=self.embedding_function
         )
         
@@ -69,61 +68,48 @@ class StoreChromaDBLoader:
     
     def create_store_document(self, store_entity, tags: List[Dict]) -> str:
         """
-        매장 데이터를 임베딩용 텍스트 문서로 변환
-        (매장ID, 타입, 지역, 태그, 영업시간, 메뉴만 포함)
+        매장 데이터를 키워드 중심 문서로 변환
+        구, 타입, 영업시간은 문서에서 제외 (메타데이터로 필터링/조회)
         
         Args:
             store_entity: CategoryEntity 객체
             tags: 태그 목록 [{'name': '태그명', 'count': 개수}, ...]
             
         Returns:
-            str: 임베딩용 텍스트 문서
+            str: 키워드 중심 문서 (구, 타입, 매장ID, 영업시간 제외)
         """
-        # 타입을 한글로 변환
-        type_korean = self.convert_type_to_korean(store_entity.type)
-        
-        # 지역 (구)
-        region = store_entity.gu or ''
-        
-        # 태그를 count 기준으로 정렬
+        # 태그 처리: 1등 제외하고 2~11위까지 (상위 10개)
         sorted_tags = sorted(tags, key=lambda x: x['count'], reverse=True)
-        
-        # 2번째로 많은 것부터 최대 10개 (1번째는 제외)
         if len(sorted_tags) > 1:
-            # 2번째부터 11번째까지 (인덱스 1~10)
-            selected_tags = sorted_tags[1:11]
-        elif len(sorted_tags) == 1:
-            # 태그가 1개뿐이면 빈 리스트
-            selected_tags = []
+            selected_tags = sorted_tags[1:11]  # 2~11위
         else:
-            # 태그가 없으면 빈 리스트
             selected_tags = []
         
-        # 태그명만 추출 (가중치 없이)
         tags_list = [tag['name'] for tag in selected_tags]
-        tags_string = ", ".join(tags_list) if tags_list else ""
         
-        # 영업시간
-        business_hour = store_entity.business_hour or ''
+        # 메뉴 전체
+        menu = store_entity.menu if store_entity.menu else ""
+        
+        # 키워드 중심 문서 생성 (구, 타입, 매장ID, 영업시간 제외)
+        doc_parts = []
+        
+        # 태그 (따옴표 제거)
+        if tags_list:
+            tags_clean = " ".join(tags_list).replace('"', '')
+            doc_parts.append(tags_clean)
         
         # 메뉴
-        menu = store_entity.menu or ''
+        if menu:
+            doc_parts.append(menu)
         
-        # 임베딩용 문서 생성 (6가지 필드만)
-        document = f"""
-매장ID: {store_entity.id}
-타입: {type_korean}
-지역: {region}
-태그: {tags_string}
-영업시간: {business_hour}
-메뉴: {menu}
-        """.strip()
+        # 공백으로 연결 (키워드 나열 형태)
+        document = " ".join(doc_parts)
         
         return document
     
     def create_metadata(self, store_entity) -> dict:
         """
-        메타데이터 생성 (매장ID, 타입만 저장)
+        메타데이터 생성 (구, 타입, 매장ID, 영업시간 포함)
         
         Args:
             store_entity: CategoryEntity 객체
@@ -134,10 +120,18 @@ class StoreChromaDBLoader:
         # 타입을 한글로 변환
         type_korean = self.convert_type_to_korean(store_entity.type)
         
+        # 구 (지역)
+        region = store_entity.gu if store_entity.gu else "정보없음"
+        
+        # 영업시간
+        business_hour = store_entity.business_hour if store_entity.business_hour else "정보없음"
+        
         metadata = {
-            "store_id": store_entity.id,
-            "type": type_korean,
-            "type_code": str(store_entity.type)  # 필터링용
+            "store_id": store_entity.id,      # 매장ID
+            "region": region,                 # 구 (필터링용)
+            "type": type_korean,              # 타입 (한글)
+            "type_code": str(store_entity.type),  # 타입 코드 (필터링용)
+            "business_hour": business_hour    # 영업시간
         }
         
         return metadata
@@ -180,7 +174,6 @@ class StoreChromaDBLoader:
             for store in batch:
                 try:
                     store_id = store.id
-                    store_name = store.name
                     
                     # 매장별 태그 정보 조회
                     category_tags = await category_tags_repo.select_by(
@@ -203,8 +196,10 @@ class StoreChromaDBLoader:
                                 'count': count
                             })
                     
-                    # 문서 및 메타데이터 생성
+                    # 문서 생성 (구, 타입, 매장ID, 영업시간 제외)
                     doc = self.create_store_document(store, tag_details)
+                    
+                    # 메타데이터 생성 (구, 타입, 매장ID, 영업시간 포함)
                     metadata = self.create_metadata(store)
                     
                     documents.append(doc)
@@ -286,8 +281,10 @@ class StoreChromaDBLoader:
                         'count': count
                     })
             
-            # 문서 및 메타데이터 생성
+            # 문서 생성 (구, 타입, 매장ID, 영업시간 제외)
             doc = self.create_store_document(store, tag_details)
+            
+            # 메타데이터 생성 (구, 타입, 매장ID, 영업시간 포함)
             metadata = self.create_metadata(store)
             
             # ChromaDB에 추가 (이미 있으면 업데이트)
@@ -318,7 +315,7 @@ class StoreChromaDBLoader:
             # 한국어 임베딩 함수로 새 컬렉션 생성
             self.store_collection = self.client.create_collection(
                 name="stores",
-                metadata={"description": "매장 정보 및 태그 기반 검색용 컬렉션 (한국어 임베딩)"},
+                metadata={"description": "매장 정보 검색용 컬렉션 (한국어 임베딩)"},
                 embedding_function=self.embedding_function
             )
             logger.info("새로운 'stores' 컬렉션 생성 완료")
