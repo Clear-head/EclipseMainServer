@@ -3,12 +3,13 @@
 """
 
 from typing import Dict
-from .prompts import RESPONSE_MESSAGES
-from .utils import extract_tags_by_category, generate_recommendations, parse_recommendations
-from ...domain.dto.service.haru_service_dto import ChatResponseBody
+
+from src.domain.dto.service.haru_service_dto import ResponseChatServiceDTO
+from src.service.application.prompts import RESPONSE_MESSAGES
+from src.service.application.utils import extract_tags_by_category, generate_recommendations, parse_recommendations
 
 
-def handle_user_message(session: Dict, user_message: str) -> ChatResponseBody:
+def handle_user_message(session: Dict, user_message: str) -> ResponseChatServiceDTO:
     """
     사용자 메시지 처리 및 태그 생성
     - 사용자가 입력한 내용에서 LLM을 통해 태그 추출
@@ -30,7 +31,7 @@ def handle_user_message(session: Dict, user_message: str) -> ChatResponseBody:
         # 모든 카테고리 완료 -> 결과 출력 확인 단계로 전환
         session["stage"] = "confirming_results"
         session["waitingForUserAction"] = True  # 결과 출력 Yes 버튼 대기
-        return ChatResponseBody(
+        return ResponseChatServiceDTO(
             status="success",
             message=RESPONSE_MESSAGES["start"]["all_completed"],
             stage="confirming_results",
@@ -71,7 +72,7 @@ def handle_user_message(session: Dict, user_message: str) -> ChatResponseBody:
     # Next/More 버튼 대기 상태로 전환
     session["waitingForUserAction"] = True
 
-    return ChatResponseBody(
+    return ResponseChatServiceDTO(
         status="success",
         message=message,
         stage="collecting_details",
@@ -86,7 +87,7 @@ def handle_user_message(session: Dict, user_message: str) -> ChatResponseBody:
     )
 
 
-def handle_user_action_response(session: Dict, user_response: str) -> ChatResponseBody:
+def handle_user_action_response(session: Dict, user_response: str) -> ResponseChatServiceDTO:
     """
     사용자 버튼 액션 처리 (Next / More / Yes)
 
@@ -124,7 +125,7 @@ def handle_user_action_response(session: Dict, user_response: str) -> ChatRespon
             session["stage"] = "completed"
             session["waitingForUserAction"] = False
 
-            return ChatResponseBody(
+            return ResponseChatServiceDTO(
                 status="success",
                 message=RESPONSE_MESSAGES["start"]["final_result"],
                 stage="completed",
@@ -132,7 +133,7 @@ def handle_user_action_response(session: Dict, user_response: str) -> ChatRespon
             )
         else:
             # 명확하지 않은 응답 - 사용자 액션 대기 상태 유지
-            return ChatResponseBody(
+            return ResponseChatServiceDTO(
                 status="success",
                 message=RESPONSE_MESSAGES["start"]["unclear_result_response"],
                 stage="confirming_results",
@@ -147,7 +148,7 @@ def handle_user_action_response(session: Dict, user_response: str) -> ChatRespon
         return handle_add_more_tags(session)
     else:
         # 명확하지 않은 응답 - 사용자 액션 대기 상태 유지
-        return ChatResponseBody(
+        return ResponseChatServiceDTO(
             status="success",
             message=RESPONSE_MESSAGES["start"]["unclear_response"],
             stage=session["stage"],
@@ -156,7 +157,7 @@ def handle_user_action_response(session: Dict, user_response: str) -> ChatRespon
         )
 
 
-def handle_next_category(session: Dict) -> ChatResponseBody:
+def handle_next_category(session: Dict) -> ResponseChatServiceDTO:
     """
     Next 버튼 처리
 
@@ -181,7 +182,7 @@ def handle_next_category(session: Dict) -> ChatResponseBody:
         # 이미 완료된 상태 -> 결과 출력 확인 단계로
         session["stage"] = "confirming_results"
         session["waitingForUserAction"] = True  # Yes 버튼 대기
-        return ChatResponseBody(
+        return ResponseChatServiceDTO(
             status="success",
             message=RESPONSE_MESSAGES["start"]["all_completed"],
             stage="confirming_results",
@@ -199,7 +200,7 @@ def handle_next_category(session: Dict) -> ChatResponseBody:
         next_category = selected_categories[session["currentCategoryIndex"]]
         next_message = RESPONSE_MESSAGES["start"]["next_category"].format(next_category=next_category)
 
-        return ChatResponseBody(
+        return ResponseChatServiceDTO(
             status="success",
             message=next_message,
             stage="collecting_details",
@@ -213,7 +214,7 @@ def handle_next_category(session: Dict) -> ChatResponseBody:
         session["stage"] = "confirming_results"
         session["waitingForUserAction"] = True  # Yes 버튼 대기
 
-        return ChatResponseBody(
+        return ResponseChatServiceDTO(
             status="success",
             message=RESPONSE_MESSAGES["start"]["all_completed"],
             stage="confirming_results",
@@ -223,7 +224,7 @@ def handle_next_category(session: Dict) -> ChatResponseBody:
         )
 
 
-def handle_modification_mode(session: Dict, user_message: str) -> ChatResponseBody:
+def handle_modification_mode(session: Dict, user_message: str) -> ResponseChatServiceDTO:
     """
     수정 모드 처리 (현재 미사용)
 
@@ -258,7 +259,7 @@ def handle_modification_mode(session: Dict, user_message: str) -> ChatResponseBo
         # 해당 카테고리에 대한 질문 생성
         message = f"좋아! '{selected_category}' 활동에 대해 더 추가하고 싶은 내용이 있나요?"
 
-        return ChatResponseBody(
+        return ResponseChatServiceDTO(
             status="success",
             message=message,
             stage="collecting_details",
@@ -266,7 +267,7 @@ def handle_modification_mode(session: Dict, user_message: str) -> ChatResponseBo
         )
     else:
         # 카테고리를 명확히 선택하지 않은 경우
-        return ChatResponseBody(
+        return ResponseChatServiceDTO(
             status="success",
             message="어떤 활동을 수정하고 싶으신가요? 카테고리명을 말씀해주세요.",
             stage="modification_mode",
@@ -274,7 +275,7 @@ def handle_modification_mode(session: Dict, user_message: str) -> ChatResponseBo
         )
 
 
-def handle_add_more_tags(session: Dict) -> ChatResponseBody:
+def handle_add_more_tags(session: Dict) -> ResponseChatServiceDTO:
     """
     More 버튼 처리
 
@@ -298,7 +299,7 @@ def handle_add_more_tags(session: Dict) -> ChatResponseBody:
         # 이미 완료된 상태 -> 결과 출력 확인 단계로
         session["stage"] = "confirming_results"
         session["waitingForUserAction"] = True  # Yes 버튼 대기
-        return ChatResponseBody(
+        return ResponseChatServiceDTO(
             status="success",
             message=RESPONSE_MESSAGES["start"]["all_completed"],
             stage="confirming_results",
@@ -309,7 +310,7 @@ def handle_add_more_tags(session: Dict) -> ChatResponseBody:
 
     current_category = selected_categories[current_index]
 
-    return ChatResponseBody(
+    return ResponseChatServiceDTO(
         status="success",
         message=RESPONSE_MESSAGES["start"]["add_more"].format(current_category=current_category),
         stage="collecting_details",
