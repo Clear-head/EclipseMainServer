@@ -33,7 +33,7 @@ class NaverMapContentCrawler:
         self.data_saver = StoreDataSaver()
         self.crawling_manager = CrawlingManager("콘텐츠")
         
-        self.logger.info(f"✓ 네이버 지도 콘텐츠 크롤러 초기화 완료")
+        # self.logger.info(f"네이버 지도 콘텐츠 크롤러 초기화 완료")
     
     async def crawl_by_keywords(
         self, 
@@ -63,9 +63,9 @@ class NaverMapContentCrawler:
             try:
                 # 각 키워드별로 검색
                 for keyword_idx, keyword in enumerate(keywords, 1):
-                    self.logger.info(f"=" * 80)
+                    # self.logger.info(f"=" * 80)
                     self.logger.info(f"[키워드 {keyword_idx}/{len(keywords)}] '{keyword}' 크롤링 시작")
-                    self.logger.info(f"=" * 80)
+                    # self.logger.info(f"=" * 80)
                     
                     # 키워드로 검색 및 크롤링
                     await self._search_and_crawl_all(
@@ -80,9 +80,9 @@ class NaverMapContentCrawler:
                     if keyword_idx < len(keywords):
                         await asyncio.sleep(10)
                 
-                self.logger.info(f"=" * 80)
+                # self.logger.info(f"=" * 80)
                 self.logger.info(f"모든 키워드 크롤링 및 저장 완료!")
-                self.logger.info(f"=" * 80)
+                # self.logger.info(f"=" * 80)
                 
             except Exception as e:
                 self.logger.error(f"크롤링 중 오류 발생: {e}")
@@ -215,7 +215,7 @@ class NaverMapContentCrawler:
             if await first_name_element.count() > 0:
                 name = await first_name_element.inner_text(timeout=2000)
                 name = name.strip()
-                self.logger.debug(f"    [{idx+1}/{item_count}] 1차 선택자로 찾음: '{name}'")
+                # self.logger.debug(f"    [{idx+1}/{item_count}] 1차 선택자로 찾음: '{name}'")
         except Exception as e:
             self.logger.debug(f"    [{idx+1}/{item_count}] 1차 선택자 실패: {e}")
         
@@ -228,7 +228,7 @@ class NaverMapContentCrawler:
                 if await name_element.count() > 0:
                     name = await name_element.inner_text(timeout=2000)
                     name = name.strip()
-                    self.logger.debug(f"    [{idx+1}/{item_count}] 2차 선택자로 찾음: '{name}'")
+                    # self.logger.debug(f"    [{idx+1}/{item_count}] 2차 선택자로 찾음: '{name}'")
             except Exception as e:
                 self.logger.debug(f"    [{idx+1}/{item_count}] 2차 선택자 실패: {e}")
         
@@ -241,7 +241,7 @@ class NaverMapContentCrawler:
                 if await third_name_element.count() > 0:
                     name = await third_name_element.inner_text(timeout=2000)
                     name = name.strip()
-                    self.logger.debug(f"    [{idx+1}/{item_count}] 3차 선택자로 찾음: '{name}'")
+                    # self.logger.debug(f"    [{idx+1}/{item_count}] 3차 선택자로 찾음: '{name}'")
             except Exception as e:
                 self.logger.debug(f"    [{idx+1}/{item_count}] 3차 선택자 실패: {e}")
         
@@ -254,7 +254,7 @@ class NaverMapContentCrawler:
                 if await fourth_name_element.count() > 0:
                     name = await fourth_name_element.inner_text(timeout=2000)
                     name = name.strip()
-                    self.logger.debug(f"    [{idx+1}/{item_count}] 4차 선택자로 찾음: '{name}'")
+                    # self.logger.debug(f"    [{idx+1}/{item_count}] 4차 선택자로 찾음: '{name}'")
             except Exception as e:
                 self.logger.debug(f"    [{idx+1}/{item_count}] 4차 선택자 실패: {e}")
         
@@ -407,12 +407,12 @@ class NaverMapContentCrawler:
                 if current_count == prev_count:
                     same_count += 1
                     if same_count >= max_same_count:
-                        self.logger.info(f"      스크롤 완료: 총 {current_count}개 아이템 로드")
+                        # self.logger.info(f"      스크롤 완료: 총 {current_count}개 아이템 로드")
                         break
                 else:
                     same_count = 0
                     if scroll_attempt % 10 == 0:
-                        self.logger.info(f"      스크롤 중... 현재 {current_count}개 로드됨")
+                        # self.logger.info(f"      스크롤 중... 현재 {current_count}개 로드됨")
                 
                 prev_count = current_count
                 
@@ -477,7 +477,7 @@ class NaverMapContentCrawler:
                         except:
                             pass
                         
-                        self.logger.info(f"      다음 페이지로 이동")
+                        # self.logger.info(f"      다음 페이지로 이동")
                         return True
                 except:
                     continue
@@ -517,9 +517,9 @@ async def main():
     headless_mode = False
     crawl_delay = 10
     
-    logger.info("=" * 80)
+    # logger.info("=" * 80)
     logger.info("네이버 지도 콘텐츠 크롤링 시작")
-    logger.info("=" * 80)
+    # logger.info("=" * 80)
     
     try:
         crawler = NaverMapContentCrawler(headless=headless_mode)
@@ -529,16 +529,12 @@ async def main():
             delay=crawl_delay
         )
         
-        logger.info("")
-        logger.info("=" * 80)
-        logger.info("✓ 모든 크롤링 완료!")
-        logger.info("=" * 80)
+        # logger.info("")
+        # logger.info("=" * 80)
+        logger.info("모든 크롤링 완료!")
+        # logger.info("=" * 80)
         
     except Exception as e:
         logger.error(f"크롤링 중 오류 발생: {e}")
         import traceback
         logger.error(traceback.format_exc())
-
-
-if __name__ == '__main__':
-    asyncio.run(main())
