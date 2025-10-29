@@ -411,7 +411,7 @@ class NaverMapContentCrawler:
                         break
                 else:
                     same_count = 0
-                    if scroll_attempt % 10 == 0:
+                    # if scroll_attempt % 10 == 0:
                         # self.logger.info(f"      스크롤 중... 현재 {current_count}개 로드됨")
                 
                 prev_count = current_count
