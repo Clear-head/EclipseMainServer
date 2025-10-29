@@ -61,7 +61,7 @@ class QueryEnhancementService:
         prompt = self._build_prompt(personnel, category_type, user_keyword)
         
         payload = {
-            "model": "gpt-4.1",
+            "model": "gpt-4.1",  # gpt-4o → gpt-4.1로 변경
             "messages": [
                 {
                     "role": "system",
@@ -71,7 +71,8 @@ class QueryEnhancementService:
 - 핵심 키워드를 유지하면서 자연스러운 문장으로 만드세요
 - 불필요한 조사나 부사는 제거하세요
 - 매장의 분위기, 특징, 목적을 명확히 표현하세요
-- 한 문장으로 간결하게 작성하세요"""
+- 한 문장으로 간결하게 작성하세요
+- 반드시 한국어로만 답변하세요"""
                 },
                 {
                     "role": "user",
@@ -138,15 +139,9 @@ class QueryEnhancementService:
         """프롬프트 생성"""
         context_parts = []
         
-        if personnel:
-            if personnel == 1:
-                context_parts.append("혼자 방문")
-            elif personnel == 2:
-                context_parts.append("2명이서 방문")
-            elif personnel <= 4:
-                context_parts.append(f"{personnel}명 소규모 모임")
-            else:
-                context_parts.append(f"{personnel}명 단체 모임")
+        # 1명일 때만 인원수 언급
+        if personnel and personnel == 1:
+            context_parts.append("혼자 방문")
         
         if category_type:
             context_parts.append(f"타입: {category_type}")
@@ -161,20 +156,29 @@ class QueryEnhancementService:
 <상황 정보>
 {context}
 
+<변환 규칙>
+- 1명일 때만 "혼자", "혼밥" 같은 키워드 포함
+- 2명 이상일 때는 인원수 언급 안 함
+- 구어체 → 표준어 변환
+- 띄어쓰기 수정
+
 <변환 예시>
-입력: "조용하고 분위기좋은곳"
+입력: "조용하고 분위기좋은곳" (1명)
+출력: 혼자 가기 좋은 조용하고 분위기 좋은
+
+입력: "조용하고 분위기좋은곳" (2명 이상)
 출력: 조용하고 분위기 좋은
 
-입력: "혼밥하기좋고 맛있는곳"
+입력: "혼밥하기좋고 맛있는곳" (1명)
 출력: 혼자 식사하기 좋고 맛있는
 
-입력: "데이트하기딱좋음"
+입력: "데이트하기딱좋음" (2명)
 출력: 데이트하기 좋은 분위기
 
-입력: "애들데리고가기좋은"
-출력: 아이와 함께 가기 좋은
+입력: "삼겹살, 된장찌개" (2명 이상)
+출력: 삼겹살 된장찌개
 
-변환된 검색 문장:"""
+변환된 검색 문장 (한국어로만):"""
         
         return prompt
     
@@ -187,16 +191,9 @@ class QueryEnhancementService:
         """API 실패 시 기본 쿼리 생성"""
         query_parts = []
         
-        # 인원 수에 따른 키워드
-        if personnel:
-            if personnel == 1:
-                query_parts.append("혼자 가기 좋은")
-            elif personnel == 2:
-                query_parts.append("데이트하기 좋은")
-            elif personnel <= 4:
-                query_parts.append("소규모 모임")
-            else:
-                query_parts.append("단체 모임 넓은")
+        # 1명일 때만 인원수 키워드 추가
+        if personnel and personnel == 1:
+            query_parts.append("혼자 가기 좋은")
         
         # 사용자 키워드
         if user_keyword and user_keyword.strip():
