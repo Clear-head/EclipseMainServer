@@ -55,8 +55,8 @@ class CategoryTypeClassifier:
 <분류 기준>
 - 음식점 (한식, 일식, 중식, 양식, 분식, 치킨, 고기, 회, 뷔페, 술집 등) → 0
 - 카페 (카페, 커피, 디저트, 베이커리, 빵집, 차 등) → 1
-- 콘텐츠 (관광지, 박물관, 미술관, 공원, 놀이공원, 체험관, 전시관, 테마파크 등) → 2
-- 분류하기 힘든 경우 → 3
+- 콘텐츠 (관광지, 박물관, 미술관, 공원, 놀이공원, 체험관, 전시관, 테마파크, 복합문화공간, 공방, 기념물, 놀거리, 동물카페, 운동 등) → 2
+- 분류하기 힘든 경우 (케이크전문, 화장실, 공장, 빌딩, 반려동물호텔, 컴퓨터수리 등) → 3
 
 답변 (숫자만):"""
         
@@ -99,30 +99,30 @@ class CategoryTypeClassifier:
                                 logger.warning(f"유효하지 않은 응답: {category_type_str}, 기본값 3 반환")
                                 return 3
                         else:
-                            logger.warning(f"✗ 카테고리 분류 API 호출 실패 ({attempt}번째 시도) - 상태 코드: {response.status}")
+                            logger.warning(f"카테고리 분류 API 호출 실패 ({attempt}번째 시도) - 상태 코드: {response.status}")
                             
                             if attempt < max_retries:
-                                await asyncio.sleep(2)
+                                await asyncio.sleep(1)
                             else:
-                                logger.error(f"✗ 최대 재시도 횟수({max_retries}회) 초과 - 기본값 3 반환")
+                                logger.error(f"최대 재시도 횟수({max_retries}회) 초과 - 기본값 3 반환")
                                 return 3
                 
             except asyncio.TimeoutError:
-                logger.warning(f"✗ 카테고리 분류 API 시간 초과 ({attempt}번째 시도)")
+                logger.warning(f"카테고리 분류 API 시간 초과 ({attempt}번째 시도)")
                 
                 if attempt < max_retries:
                     await asyncio.sleep(2)
                 else:
-                    logger.error(f"✗ 최대 재시도 횟수({max_retries}회) 초과 - 기본값 3 반환")
+                    logger.error(f"최대 재시도 횟수({max_retries}회) 초과 - 기본값 3 반환")
                     return 3
                     
             except Exception as e:
-                logger.error(f"✗ 카테고리 분류 중 오류 ({attempt}번째 시도): {e}")
+                logger.error(f"카테고리 분류 중 오류 ({attempt}번째 시도): {e}")
                 
                 if attempt < max_retries:
                     await asyncio.sleep(2)
                 else:
-                    logger.error(f"✗ 최대 재시도 횟수({max_retries}회) 초과 - 기본값 3 반환")
+                    logger.error(f"최대 재시도 횟수({max_retries}회) 초과 - 기본값 3 반환")
                     return 3
         
         return 3

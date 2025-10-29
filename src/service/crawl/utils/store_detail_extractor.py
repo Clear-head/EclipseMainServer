@@ -69,6 +69,10 @@ class StoreDetailExtractor:
         except:
             return ""
     
+    def _is_postal_code(self, text: str) -> bool:
+        """우편번호인지 확인 (숫자로만 구성되어 있는지)"""
+        return bool(text and re.match(r'^\d+$', text.strip()))
+    
     async def _extract_address(self) -> str:
         """주소 추출 (지번 주소)"""
         try:
@@ -84,7 +88,7 @@ class StoreDetailExtractor:
             await address_button.click()
             await asyncio.sleep(2)
             
-            # 지번 주소 추출
+            # 지번 주소 추출 (먼저 nth-child(2) 시도)
             jibun_address_div = self.frame.locator('div.place_section_content > div > div.O8qbU.tQY7D > div > div.Y31Sf > div:nth-child(2)')
             await jibun_address_div.wait_for(state='visible', timeout=5000)
             
@@ -99,6 +103,26 @@ class StoreDetailExtractor:
                     return text.trim();
                 }
             ''')
+            
+            # 우편번호인지 확인
+            if self._is_postal_code(jibun_address):
+                logger.info(f"우편번호 감지됨: {jibun_address}, nth-child(1)로 재시도")
+                
+                # nth-child(1)로 재시도
+                jibun_address_div_alt = self.frame.locator('div.place_section_content > div > div.O8qbU.tQY7D > div > div.Y31Sf > div:nth-child(1)')
+                await jibun_address_div_alt.wait_for(state='visible', timeout=5000)
+                
+                jibun_address = await jibun_address_div_alt.evaluate('''
+                    (element) => {
+                        let text = '';
+                        for (let node of element.childNodes) {
+                            if (node.nodeType === Node.TEXT_NODE) {
+                                text += node.textContent;
+                            }
+                        }
+                        return text.trim();
+                    }
+                ''')
             
             # 버튼 닫기
             try:
@@ -127,19 +151,43 @@ class StoreDetailExtractor:
         except Exception:
             pass
         
-        # 2차 시도: 클립보드 복사
+        # 2차 시도: 클립보드 복사 (개선된 버전)
         try:
             bf_button = self.frame.locator('a.BfF3H')
             
             if await bf_button.count() > 0:
-                await bf_button.first.click(timeout=3000)
-                await asyncio.sleep(1)
+                # 충분히 대기 후 강제 클릭
+                await asyncio.sleep(1.5)
                 
+                try:
+                    # force 클릭 시도
+                    await bf_button.first.click(force=True, timeout=5000)
+                except:
+                    # JavaScript 클릭 시도
+                    try:
+                        await bf_button.first.evaluate('element => element.click()')
+                    except:
+                        logger.warning("BfF3H 버튼 클릭 실패, 대체 전화번호 건너뜀")
+                        return ""
+                
+                await asyncio.sleep(1.5)
+                
+                # 복사 버튼 클릭
                 bluelink_button = self.frame.locator('a.place_bluelink')
                 
                 if await bluelink_button.count() > 0:
-                    await bluelink_button.first.click(timeout=3000)
-                    await asyncio.sleep(0.5)
+                    try:
+                        # force 클릭 시도
+                        await bluelink_button.first.click(force=True, timeout=5000)
+                    except:
+                        # JavaScript 클릭 시도
+                        try:
+                            await bluelink_button.first.evaluate('element => element.click()')
+                        except:
+                            logger.warning("복사 버튼 클릭 실패")
+                            return ""
+                    
+                    await asyncio.sleep(1)
                     
                     try:
                         clipboard_text = await self.page.evaluate('navigator.clipboard.readText()')
@@ -228,7 +276,7 @@ class StoreDetailExtractor:
                             return result['choices'][0]['message']['content'].strip()
                         else:
                             if attempt < max_retries:
-                                await asyncio.sleep(2)
+                                await asyncio.sleep(1)
                             else:
                                 return raw_hours
             except:
