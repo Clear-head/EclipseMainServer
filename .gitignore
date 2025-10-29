@@ -210,3 +210,4 @@ marimo/_lsp/
 __marimo__/
 src/service/crawl/test.py
 src/service/chromadb/chroma_test.py
+src/service/suggest/test_suggest.py
