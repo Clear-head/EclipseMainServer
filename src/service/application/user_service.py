@@ -1,6 +1,9 @@
+from pyexpat.errors import messages
+from starlette.responses import JSONResponse
+
 from src.domain.dto.header import JsonHeader
-from src.domain.dto.service.user_login_dto import ToUserLoginDto, ToUserLoginBody, AfterLoginUserInfo
-from src.domain.dto.service.user_register_dto import RequestRegisterBody, ResponseRegisterDto, ResponseRegisterBody
+from src.domain.dto.service.user_login_dto import ToUserLoginDto, AfterLoginUserInfo
+from src.domain.dto.service.user_register_dto import ResponseRegisterDto, RequestRegisterDto
 from src.infra.database.repository.users_repository import UserRepository
 from src.logger.custom_logger import get_logger
 from src.service.auth.jwt import create_jwt_token
@@ -29,17 +32,7 @@ class UserService:
         else:
             token1, token2 = await create_jwt_token(select_from_id_pw_result[0].id)
 
-            headers = JsonHeader(
-                content_type="application/json",
-                jwt=None                #   바디에 토큰 담아서 전달
-            )
-
-            body = ToUserLoginBody(
-                status_code=200,
-                message="success",
-                token1=token1,
-                token2=token2,
-                info=AfterLoginUserInfo(
+            info = AfterLoginUserInfo(
                     username=select_from_id_pw_result[0].username,
                     nickname=select_from_id_pw_result[0].nickname,
                     birth=select_from_id_pw_result[0].birth,
@@ -47,19 +40,23 @@ class UserService:
                     email=select_from_id_pw_result[0].email,
                     address=select_from_id_pw_result[0].address
                 )
+            content = ToUserLoginDto(
+                message="success",
+                token1=token1,
+                token2=token2,
+                info=info
             )
 
-            return ToUserLoginDto(
-                headers=headers,
-                body=body
-            )
+        return JSONResponse(
+            content=content.model_dump()
+        )
 
     async def logout(self, id: str):
         pass
 
-    async def register(self, dto: RequestRegisterBody):
+    async def register(self, dto: RequestRegisterDto):
 
-        select_from_id_result = await self.repository.select_by(id=id)
+        select_from_id_result = await self.repository.select_by(id=dto.id)
 
         if len(select_from_id_result) > 0:
             raise UserAlreadyExistsException()
@@ -70,17 +67,10 @@ class UserService:
             raise Exception("회원 가입 실패")
 
         else:
-            return ResponseRegisterDto(
-                headers=JsonHeader(
-                    content_type="application/json",
-                    jwt=None
-                ),
-                body=ResponseRegisterBody(
-                    status_code=200,
-                    message="success",
-                )
+            msg = ResponseRegisterDto(message="success")
+            return JSONResponse(
+                content=msg.model_dump()
             )
-
 
 
     async def delete_account(self, id: str):

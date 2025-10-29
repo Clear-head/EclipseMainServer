@@ -3,8 +3,8 @@ from fastapi import APIRouter
 from src.domain.dto.header import JsonHeader
 from src.domain.dto.service.request_jwt_dto import RequestAccessTokenDto, RequestAccessTokenBody, \
     ResponseAccessTokenBody
-from src.domain.dto.service.user_login_dto import GetUserLoginDto, ToUserLoginBody, ToUserLoginDto
-from src.domain.dto.service.user_register_dto import RequestRegisterBody, RequestRegisterDto
+from src.domain.dto.service.user_login_dto import GetUserLoginDto
+from src.domain.dto.service.user_register_dto import RequestRegisterDto
 from src.logger.custom_logger import get_logger
 from src.service.application.user_service import UserService
 from src.service.auth.jwt import validate_jwt_token, create_jwt_token
@@ -18,8 +18,8 @@ user_service = UserService()
 #   로그인
 @router.post('/session')
 async def user_login(user_info: GetUserLoginDto):
-    id = user_info.body.id
-    password = user_info.body.password
+    id = user_info.id
+    password = user_info.password
 
     return await user_service.login(id, password)
 
@@ -35,7 +35,7 @@ async def user_logout(get_by_user):
 @router.post('/register')
 async def register(dto: RequestRegisterDto):
     try:
-        return await user_service.register(dto.body)
+        return await user_service.register(dto)
     except Exception as e:
         logger.error(f"register failed: {e}")
         raise e

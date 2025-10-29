@@ -2,12 +2,11 @@ from typing import Optional
 
 from pydantic import BaseModel
 from datetime import datetime
-from src.domain.dto.header import JsonHeader
 from src.domain.entities.base_entity import BaseEntity
 
 
-#   회원가입 요청시 바디
-class RequestRegisterBody(BaseEntity):
+#   회원가입 요청
+class RequestRegisterDto(BaseEntity):
     id: str
     username: str
     password: str
@@ -19,16 +18,5 @@ class RequestRegisterBody(BaseEntity):
     address: Optional[str] = None
 
 
-#   화원가입 요청 틀
-class RequestRegisterDto(BaseModel):
-    headers: JsonHeader
-    body: RequestRegisterBody
-
-
-class ResponseRegisterBody(BaseModel):
-    status_code: int
-    message: str
-
 class ResponseRegisterDto(BaseModel):
-    headers: JsonHeader
-    body: ResponseRegisterBody
+    message: str
