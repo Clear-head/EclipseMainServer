@@ -1,8 +1,6 @@
 from fastapi import APIRouter
-
-from src.domain.dto.header import JsonHeader
-from src.domain.dto.service.request_jwt_dto import RequestAccessTokenDto, RequestAccessTokenBody, \
-    ResponseAccessTokenBody
+from starlette.responses import JSONResponse
+from src.domain.dto.service.request_jwt_dto import RequestAccessTokenDto
 from src.domain.dto.service.user_login_dto import GetUserLoginDto
 from src.domain.dto.service.user_register_dto import RequestRegisterDto
 from src.logger.custom_logger import get_logger
@@ -63,7 +61,7 @@ async def find_user_pw():
 @router.get("/refresh")
 @router.post("/refresh")
 async def to_refresh(dto: RequestAccessTokenDto):
-    jwt = dto.body.token
+    jwt = dto.token
 
     if jwt is None:
         logger.error("Missing token")
@@ -75,18 +73,10 @@ async def to_refresh(dto: RequestAccessTokenDto):
         #       로그아웃 까지
         raise ExpiredRefreshTokenException()
 
-    token1, token2 = await create_jwt_token("refresh")
+    token1, token2 = await create_jwt_token(dto.id)
 
-    headers = JsonHeader(
-        content_type="application/json",
-        jwt=None  # 바디에 토큰 담아서 전달
-    )
-
-    body = RequestAccessTokenBody(
-        token=token1
-    )
-
-    return ResponseAccessTokenBody(
-        headers=headers,
-        body=body
+    return JSONResponse(
+        content={
+            "token": token1
+        }
     )
