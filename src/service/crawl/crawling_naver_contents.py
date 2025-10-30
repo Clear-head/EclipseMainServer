@@ -410,7 +410,7 @@ class NaverMapContentCrawler:
         """
         이름으로 아이템을 찾아 크롤링 (검색 상태 유지)
         
-        ✅ 매번 1페이지부터 찾기 시작
+        ✅ 현재 페이지에 없으면 1페이지부터 전체 순회
         """
         try:
             search_frame = page.frame('searchIframe')
@@ -419,8 +419,35 @@ class NaverMapContentCrawler:
                 self.logger.error("searchIframe을 찾을 수 없습니다.")
                 return None
             
-            # ✅ 매번 1페이지로 리셋
+            # ✅ 1단계: 현재 페이지에서 먼저 찾기
+            items = await search_frame_locator.locator(item_selector).all()
+            
+            for idx, current_item in enumerate(items):
+                try:
+                    current_name = await self._extract_item_name(current_item, idx, len(items))
+                    
+                    if current_name == target_name and current_name not in processed_names:
+                        self.logger.info(f"[{global_idx+1}/{total}] '{target_name}' 발견 (현재 페이지)")
+                        
+                        # 크롤링 실행
+                        result = await self._execute_crawling(
+                            page, current_item, target_name, global_idx, total, 
+                            processed_names, idx
+                        )
+                        
+                        if result:
+                            return result
+                        else:
+                            return None
+                except:
+                    continue
+            
+            # ✅ 2단계: 현재 페이지에 없으면 1페이지부터 전체 순회
+            self.logger.info(f"[{global_idx+1}/{total}] '{target_name}' 현재 페이지에 없음, 전체 검색 시작")
+            
+            # 1페이지로 이동
             await self._go_to_first_page(search_frame_locator, search_frame)
+            await asyncio.sleep(1)
             
             current_page = 1
             max_pages = 50
@@ -438,47 +465,15 @@ class NaverMapContentCrawler:
                         if current_name == target_name and current_name not in processed_names:
                             self.logger.info(f"[{global_idx+1}/{total}] '{target_name}' 발견 (페이지 {current_page})")
                             
-                            # 클릭 요소 찾기
-                            click_element = await self._find_click_element(current_item, idx)
+                            # 크롤링 실행
+                            result = await self._execute_crawling(
+                                page, current_item, target_name, global_idx, total, 
+                                processed_names, idx
+                            )
                             
-                            if not click_element:
-                                self.logger.error(f"[{global_idx+1}/{total}] '{target_name}' 클릭 요소 없음")
-                                return None
-                            
-                            # 사람처럼 클릭
-                            await self.human_actions.human_like_click(click_element)
-                            await asyncio.sleep(3)
-                            
-                            # entryIframe 대기
-                            try:
-                                await page.wait_for_selector('iframe#entryIframe', timeout=10000)
-                                entry_frame = page.frame_locator('iframe#entryIframe')
-                                await asyncio.sleep(3)
-                                
-                                # 상세 정보 추출
-                                extractor = StoreDetailExtractor(entry_frame, page)
-                                store_data = await extractor.extract_all_details()
-                                
-                                if store_data:
-                                    actual_name = store_data[0]
-                                    
-                                    # 처리 완료 표시
-                                    processed_names.add(current_name)
-                                    
-                                    # 리소스 정리
-                                    await OptimizedBrowserManager.clear_page_resources(page)
-                                    
-                                    # ✅ 검색 결과로 돌아가기 (뒤로 가기)
-                                    await page.go_back()
-                                    await asyncio.sleep(2)
-                                    
-                                    return (store_data, actual_name)
-                                else:
-                                    self.logger.error(f"[{global_idx+1}/{total}] '{target_name}' 정보 추출 실패")
-                                    return None
-                                    
-                            except TimeoutError:
-                                self.logger.error(f"[{global_idx+1}/{total}] '{target_name}' entryIframe 타임아웃")
+                            if result:
+                                return result
+                            else:
                                 return None
                     
                     except Exception as e:
@@ -504,6 +499,67 @@ class NaverMapContentCrawler:
             self.logger.error(f"[{global_idx+1}/{total}] '{target_name}' 크롤링 중 오류: {e}")
             import traceback
             self.logger.error(traceback.format_exc())
+            return None
+
+    async def _execute_crawling(
+        self,
+        page: Page,
+        current_item,
+        target_name: str,
+        global_idx: int,
+        total: int,
+        processed_names: set,
+        idx: int
+    ):
+        """
+        실제 크롤링 실행 (중복 코드 제거)
+        """
+        try:
+            # 클릭 요소 찾기
+            click_element = await self._find_click_element(current_item, idx)
+            
+            if not click_element:
+                self.logger.error(f"[{global_idx+1}/{total}] '{target_name}' 클릭 요소 없음")
+                return None
+            
+            # 사람처럼 클릭
+            await self.human_actions.human_like_click(click_element)
+            await asyncio.sleep(3)
+            
+            # entryIframe 대기
+            try:
+                await page.wait_for_selector('iframe#entryIframe', timeout=10000)
+                entry_frame = page.frame_locator('iframe#entryIframe')
+                await asyncio.sleep(3)
+                
+                # 상세 정보 추출
+                extractor = StoreDetailExtractor(entry_frame, page)
+                store_data = await extractor.extract_all_details()
+                
+                if store_data:
+                    actual_name = store_data[0]
+                    
+                    # 처리 완료 표시
+                    processed_names.add(target_name)
+                    
+                    # 리소스 정리
+                    await OptimizedBrowserManager.clear_page_resources(page)
+                    
+                    # ✅ 검색 결과로 돌아가기 (뒤로 가기)
+                    await page.go_back()
+                    await asyncio.sleep(2)
+                    
+                    return (store_data, actual_name)
+                else:
+                    self.logger.error(f"[{global_idx+1}/{total}] '{target_name}' 정보 추출 실패")
+                    return None
+                    
+            except TimeoutError:
+                self.logger.error(f"[{global_idx+1}/{total}] '{target_name}' entryIframe 타임아웃")
+                return None
+        
+        except Exception as e:
+            self.logger.error(f"[{global_idx+1}/{total}] '{target_name}' 크롤링 실행 중 오류: {e}")
             return None
     
     async def _go_to_first_page(self, search_frame_locator, search_frame):
