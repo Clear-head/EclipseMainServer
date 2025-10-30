@@ -15,7 +15,7 @@ class UserService:
 
 
     async def login(self, id: str, pw: str):
-        select_from_id_pw_result = await self.repository.select_by(id=id, password=pw)
+        select_from_id_pw_result = await self.repository.select(id=id, password=pw)
 
         #   id,pw 검색 인원 2명 이상
         if len(select_from_id_pw_result) > 1:
@@ -53,7 +53,7 @@ class UserService:
 
     async def register(self, dto: RequestRegisterDto):
 
-        select_from_id_result = await self.repository.select_by(id=dto.id)
+        select_from_id_result = await self.repository.select(id=dto.id)
 
         #   중복 체크
         if len(select_from_id_result) > 0:

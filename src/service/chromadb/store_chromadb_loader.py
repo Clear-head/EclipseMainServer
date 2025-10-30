@@ -170,7 +170,7 @@ class StoreChromaDBLoader:
         tags_repo = TagsRepository()
         
         # 전체 매장 데이터 조회
-        stores = await category_repo.select_by()
+        stores = await category_repo.select()
         total_stores = len(stores)
         
         logger.info(f"총 {total_stores}개 매장 데이터 조회 완료")
@@ -195,7 +195,7 @@ class StoreChromaDBLoader:
                     store_id = store.id
                     
                     # 매장별 태그 정보 조회
-                    category_tags = await category_tags_repo.select_by(
+                    category_tags = await category_tags_repo.select(
                         category_id=store_id
                     )
                     
@@ -203,7 +203,7 @@ class StoreChromaDBLoader:
                     tag_details = []
                     for ct in category_tags:
                         tag_id = ct.tag_id if hasattr(ct, 'tag_id') else ct['tag_id']
-                        tags = await tags_repo.select_by(id=tag_id)
+                        tags = await tags_repo.select(id=tag_id)
                         
                         if tags and len(tags) > 0:
                             tag = tags[0]
@@ -273,7 +273,7 @@ class StoreChromaDBLoader:
             tags_repo = TagsRepository()
             
             # 매장 데이터 조회
-            stores = await category_repo.select_by(id=store_id)
+            stores = await category_repo.select(id=store_id)
             if not stores or len(stores) == 0:
                 logger.error(f"매장 ID '{store_id}'를 찾을 수 없습니다.")
                 return False
@@ -281,14 +281,14 @@ class StoreChromaDBLoader:
             store = stores[0]
             
             # 태그 정보 조회
-            category_tags = await category_tags_repo.select_by(
+            category_tags = await category_tags_repo.select(
                 category_id=store_id
             )
             
             tag_details = []
             for ct in category_tags:
                 tag_id = ct.tag_id if hasattr(ct, 'tag_id') else ct['tag_id']
-                tags = await tags_repo.select_by(id=tag_id)
+                tags = await tags_repo.select(id=tag_id)
                 
                 if tags and len(tags) > 0:
                     tag = tags[0]

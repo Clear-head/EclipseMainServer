@@ -218,7 +218,7 @@ class StoreSuggestService:
         
         for store_id in store_ids:
             try:
-                stores = await category_repo.select_by(id=store_id)
+                stores = await category_repo.select(id=store_id)
                 if stores and len(stores) > 0:
                     store = stores[0]
                     store_dict = {
