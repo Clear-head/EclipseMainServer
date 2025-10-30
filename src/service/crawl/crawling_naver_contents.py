@@ -1,6 +1,7 @@
 """
-네이버 지도 콘텐츠(놀거리) 검색 크롤링 모듈 (메모리 최적화 + 봇 우회 + 병렬 처리)
-목록 클릭 방식
+네이버 지도 콘텐츠(놀거리) 검색 크롤링 모듈 (이름 기반 매칭 + 최적화)
+브라우저 재시작 시 순서가 바뀌어도 이름으로 찾아서 크롤링
+검색 상태 유지로 불필요한 스크롤 제거
 """
 import asyncio
 from playwright.async_api import async_playwright, TimeoutError, Page
@@ -22,7 +23,7 @@ from src.service.crawl.utils.crawling_manager import CrawlingManager
 
 
 class NaverMapContentCrawler:
-    """네이버 지도 콘텐츠(놀거리) 검색 크롤링 클래스 (목록 클릭 방식)"""
+    """네이버 지도 콘텐츠(놀거리) 검색 크롤링 클래스 (이름 기반 매칭)"""
     
     CONTENT_KEYWORDS = [
         "서울 미술관",
@@ -46,7 +47,7 @@ class NaverMapContentCrawler:
         self.fail_count = 0
     
     async def crawl_by_keywords(self, keywords: list = None, delay: int = 20):
-        """키워드 목록으로 병렬 크롤링 (목록 클릭 방식)"""
+        """키워드 목록으로 크롤링 (이름 기반 매칭)"""
         keywords = keywords or self.CONTENT_KEYWORDS
         
         async with async_playwright() as p:
@@ -54,7 +55,7 @@ class NaverMapContentCrawler:
             
             try:
                 self.logger.info(f"\n{'='*70}")
-                self.logger.info(f"📊 총 {len(keywords)}개 키워드 크롤링 시작 (병렬 처리 + 목록 클릭)")
+                self.logger.info(f"📊 총 {len(keywords)}개 키워드 크롤링 시작 (이름 기반 매칭)")
                 self.logger.info(f"{'='*70}\n")
                 
                 for keyword_idx, keyword in enumerate(keywords, 1):
@@ -88,21 +89,23 @@ class NaverMapContentCrawler:
     
     async def _crawl_keyword_by_pages(self, browser, keyword: str, delay: int):
         """
-        키워드별로 페이지 단위로 크롤링
-        각 페이지마다 배치 처리
+        키워드별로 배치 단위로 크롤링 (이름 기반)
+        
+        1. 전체 아이템의 이름 목록을 먼저 수집
+        2. 배치 단위로 브라우저 재시작
+        3. 이름으로 아이템을 찾아서 크롤링
         """
-        # 1단계: 전체 페이지 수 및 아이템 개수 파악
-        total_items, total_pages = await self._get_total_items_count(browser, keyword)
+        # ✅ 1단계: 전체 아이템의 이름 목록 수집
+        total_items, total_pages, name_list = await self._get_total_items_with_names(browser, keyword)
         
         if total_items == 0:
             self.logger.warning(f"'{keyword}' 결과 없음")
             return
         
         self.logger.info(f"✅ '{keyword}' 총 {total_items}개 ({total_pages}페이지)")
+        self.logger.info(f"   📋 수집된 이름: {len(name_list)}개\n")
         
-        # 2단계: 배치 단위로 페이지 크롤링
-        items_processed = 0
-        
+        # ✅ 2단계: 배치 단위로 크롤링
         for batch_start in range(0, total_items, self.RESTART_INTERVAL):
             batch_end = min(batch_start + self.RESTART_INTERVAL, total_items)
             
@@ -111,14 +114,14 @@ class NaverMapContentCrawler:
             
             self.logger.info(f"\n🔄 [{keyword}] 배치 {batch_num}/{total_batches}: {batch_start+1}~{batch_end}/{total_items}")
             
-            # 새 컨텍스트 생성
+            # 새 컨텍스트 생성 (브라우저 재시작)
             context = await OptimizedBrowserManager.create_stealth_context(browser)
             page = await context.new_page()
             
             try:
-                # 배치 처리 (목록 클릭 방식)
-                items_processed = await self._process_batch_with_click(
-                    page, keyword, batch_start, batch_end, total_items, delay
+                # 배치 처리 (CrawlingManager 사용)
+                await self._process_batch_with_crawling_manager(
+                    page, keyword, batch_start, batch_end, name_list, total_items, delay
                 )
                 
             except Exception as e:
@@ -135,18 +138,20 @@ class NaverMapContentCrawler:
                     self.logger.info(f"🛌 배치 완료, {rest_time:.0f}초 휴식...\n")
                     await asyncio.sleep(rest_time)
     
-    async def _get_total_items_count(self, browser, keyword: str) -> tuple:
+    async def _get_total_items_with_names(self, browser, keyword: str) -> tuple:
         """
-        전체 아이템 개수 및 페이지 수 파악
+        전체 아이템 개수, 페이지 수, 이름 목록 수집
         
         Returns:
-            Tuple[int, int]: (전체 아이템 수, 전체 페이지 수)
+            Tuple[int, int, List[str]]: (전체 아이템 수, 전체 페이지 수, 이름 목록)
         """
         context = await browser.new_context()
         page = await context.new_page()
         
+        name_list = []
+        
         try:
-            self.logger.info(f"  '{keyword}' 전체 개수 확인 중...")
+            self.logger.info(f"  📋 '{keyword}' 전체 이름 목록 수집 중...")
             
             await page.goto(self.naver_map_url, wait_until='domcontentloaded')
             await asyncio.sleep(3)
@@ -167,25 +172,39 @@ class NaverMapContentCrawler:
             search_frame = page.frame('searchIframe')
             
             if not search_frame:
-                return 0, 0
+                return 0, 0, []
             
             await asyncio.sleep(3)
             
-            # 페이지별로 스크롤하여 전체 개수 파악
+            # 페이지별로 스크롤하여 전체 이름 수집
             total_items = 0
             page_num = 1
+            item_selector = '#_pcmap_list_scroll_container > ul > li'
             
             while True:
                 # 현재 페이지 스크롤
-                item_count = await SearchResultScroller.scroll_current_page(
+                await SearchResultScroller.scroll_current_page(
                     search_frame_locator=search_frame_locator,
                     search_frame=search_frame
                 )
                 
+                # 현재 페이지의 모든 아이템 가져오기
+                items = await search_frame_locator.locator(item_selector).all()
+                item_count = len(items)
+                
                 if item_count == 0:
                     break
                 
-                total_items += item_count
+                # 각 아이템의 이름 추출
+                for idx, item in enumerate(items):
+                    try:
+                        name = await self._extract_item_name(item, idx, item_count)
+                        name_list.append(name)
+                        total_items += 1
+                    except Exception as e:
+                        self.logger.warning(f"페이지 {page_num}, 아이템 {idx} 이름 추출 실패: {e}")
+                        name_list.append(f"아이템 {total_items + 1}")
+                        total_items += 1
                 
                 # 다음 페이지 확인
                 has_next = await PageNavigator.go_to_next_page_naver(
@@ -199,28 +218,34 @@ class NaverMapContentCrawler:
                 page_num += 1
                 await asyncio.sleep(2)
             
-            return total_items, page_num
+            self.logger.info(f"  ✅ 총 {total_items}개 이름 수집 완료 ({page_num}페이지)")
+            return total_items, page_num, name_list
             
         except Exception as e:
-            self.logger.error(f"'{keyword}' 전체 개수 확인 중 오류: {e}")
-            return 0, 0
+            self.logger.error(f"'{keyword}' 이름 목록 수집 중 오류: {e}")
+            import traceback
+            self.logger.error(traceback.format_exc())
+            return 0, 0, []
         finally:
             await context.close()
     
-    async def _process_batch_with_click(
+    async def _process_batch_with_crawling_manager(
         self,
         page: Page,
         keyword: str,
         batch_start: int,
         batch_end: int,
+        name_list: list,
         total: int,
         delay: int
     ):
         """
-        배치 단위 병렬 크롤링 (목록 클릭 방식)
+        배치 단위 크롤링 (CrawlingManager 사용 + 검색 상태 유지)
+        
+        ✅ 한 번 검색 후 상태 유지하며 매장별로 크롤링
         """
         try:
-            # 네이버 지도 검색
+            # ✅ 네이버 지도 검색 (한 번만)
             await page.goto(self.naver_map_url, wait_until='domcontentloaded')
             await asyncio.sleep(3)
             
@@ -244,98 +269,44 @@ class NaverMapContentCrawler:
             
             await asyncio.sleep(3)
             
-            # batch_start 위치까지 페이지 이동 및 스크롤
-            current_idx = 0
-            current_page = 1
+            # ✅ 전체 페이지 미리 로드 (한 번만)
+            await self._load_all_pages(search_frame_locator, search_frame)
             
-            while current_idx < batch_end:
-                # 현재 페이지 스크롤
-                await SearchResultScroller.scroll_current_page(
-                    search_frame_locator=search_frame_locator,
-                    search_frame=search_frame
-                )
-                
-                # 현재 페이지의 아이템 개수
-                item_selector = '#_pcmap_list_scroll_container > ul > li'
-                items = await search_frame_locator.locator(item_selector).all()
-                items_in_page = len(items)
-                
-                # 이 페이지에서 크롤링할 아이템 범위 계산
-                page_start = max(0, batch_start - current_idx)
-                page_end = min(items_in_page, batch_end - current_idx)
-                
-                # 크롤링할 아이템이 이 페이지에 있으면
-                if page_start < items_in_page and current_idx < batch_end:
-                    # 이 페이지의 아이템 리스트 생성
-                    batch_items = []
-                    
-                    # ========================================
-                    # 🔥 수정: 아이템명 미리 추출
-                    # ========================================
-                    for idx in range(page_start, page_end):
-                        if current_idx + idx >= batch_start and current_idx + idx < batch_end:
-                            try:
-                                # 아이템 요소 가져오기
-                                item = items[idx]
-                                
-                                # 아이템 이름 추출
-                                item_name = await self._extract_item_name(item, idx, items_in_page)
-                                
-                                batch_items.append({
-                                    'page_idx': idx,
-                                    'global_idx': current_idx + idx,
-                                    'page_num': current_page,
-                                    'name': item_name  # ✅ 이름 추가!
-                                })
-                            except Exception as e:
-                                self.logger.warning(f"아이템 {idx} 이름 추출 실패: {e}")
-                                # 실패해도 계속 진행 (이름 없이)
-                                batch_items.append({
-                                    'page_idx': idx,
-                                    'global_idx': current_idx + idx,
-                                    'page_num': current_page,
-                                    'name': f"아이템 {current_idx + idx + 1}"
-                                })
-                    
-                    if batch_items:
-                        # ========================================
-                        # 🔥 병렬 처리: CrawlingManager 사용
-                        # ========================================
-                        crawling_manager = CrawlingManager("콘텐츠")
-                        
-                        await crawling_manager.execute_crawling_with_save(
-                            stores=batch_items,
-                            crawl_func=lambda item, i, t: self._crawl_single_item_from_list(
-                                page, search_frame_locator, item_selector, item, total
-                            ),
-                            save_func=self._save_wrapper_with_total(total),
-                            delay=delay
-                        )
-                        
-                        # 성공/실패 카운트 업데이트
-                        self.success_count += crawling_manager.success_count
-                        self.fail_count += crawling_manager.fail_count
-                
-                # 현재 인덱스 업데이트
-                current_idx += items_in_page
-                
-                # 다음 페이지로 이동 (필요한 경우)
-                if current_idx < batch_end:
-                    has_next = await PageNavigator.go_to_next_page_naver(
-                        search_frame_locator=search_frame_locator,
-                        search_frame=search_frame
-                    )
-                    
-                    if not has_next:
-                        self.logger.warning(f"다음 페이지 없음 (현재: {current_idx}/{batch_end})")
-                        break
-                    
-                    current_page += 1
-                    await asyncio.sleep(3)
-                else:
-                    break
+            item_selector = '#_pcmap_list_scroll_container > ul > li'
             
-            return current_idx
+            # 이 배치에서 처리할 이름들
+            batch_names = name_list[batch_start:batch_end]
+            
+            # 이미 처리한 이름들 (중복 방지)
+            processed_names = set()
+            
+            # 매장 정보 리스트 생성 (CrawlingManager용)
+            stores = []
+            for idx, target_name in enumerate(batch_names):
+                stores.append({
+                    'name': target_name,
+                    'global_idx': batch_start + idx
+                })
+            
+            # ✅ CrawlingManager로 크롤링 + 저장
+            crawling_manager = CrawlingManager("콘텐츠")
+            
+            await crawling_manager.execute_crawling_with_save(
+                stores=stores,
+                crawl_func=lambda store, idx, total_stores: self._crawl_single_item_wrapper(
+                    page, search_frame_locator, item_selector, store, total, processed_names
+                ),
+                save_func=lambda idx, total_stores, store_data_tuple, store_name: self._save_wrapper(
+                    idx, store_data_tuple, batch_start, total  # ✅ idx와 batch_start 전달
+                ),
+                delay=delay
+            )
+            
+            # 성공/실패 카운트 업데이트
+            self.success_count += crawling_manager.success_count
+            self.fail_count += crawling_manager.fail_count
+            
+            return batch_end
             
         except Exception as e:
             self.logger.error(f"배치 처리 중 오류: {e}")
@@ -343,100 +314,217 @@ class NaverMapContentCrawler:
             self.logger.error(traceback.format_exc())
             return 0
     
-    async def _crawl_single_item_from_list(
+    async def _load_all_pages(self, search_frame_locator, search_frame):
+        """
+        전체 페이지 미리 로드 (한 번만)
+        
+        모든 페이지를 순회하며 스크롤하여 전체 DOM 로드
+        """
+        try:
+            self.logger.info("  📄 전체 페이지 로드 중...")
+            
+            current_page = 1
+            
+            while True:
+                # 현재 페이지 스크롤
+                await SearchResultScroller.scroll_current_page(
+                    search_frame_locator=search_frame_locator,
+                    search_frame=search_frame
+                )
+                
+                # 다음 페이지 확인
+                has_next = await PageNavigator.go_to_next_page_naver(
+                    search_frame_locator=search_frame_locator,
+                    search_frame=search_frame
+                )
+                
+                if not has_next:
+                    break
+                
+                current_page += 1
+                await asyncio.sleep(2)
+            
+            # ✅ 1페이지로 돌아가기
+            await self._go_to_first_page(search_frame_locator, search_frame)
+            
+            self.logger.info(f"  ✅ {current_page}페이지 로드 완료\n")
+            
+        except Exception as e:
+            self.logger.warning(f"전체 페이지 로드 중 오류 (계속 진행): {e}")
+    
+    async def _crawl_single_item_wrapper(
         self,
         page: Page,
         search_frame_locator,
         item_selector: str,
-        item_info: dict,
-        total: int
+        store: dict,
+        total: int,
+        processed_names: set
     ):
         """
-        목록에서 단일 아이템 클릭하여 크롤링 (병렬용)
+        CrawlingManager용 크롤링 래퍼
         
-        Args:
-            page: 메인 페이지
-            search_frame_locator: 검색 iframe locator
-            item_selector: 아이템 선택자
-            item_info: 아이템 정보 (page_idx, global_idx 포함)
-            total: 전체 개수
-            
-        Returns:
-            Tuple: (store_data, name) 또는 None
+        ✅ 검색 상태를 유지하며 매장 크롤링
         """
-        page_idx = item_info['page_idx']
-        global_idx = item_info['global_idx']
+        target_name = store['name']
+        global_idx = store['global_idx']
         
+        return await self._crawl_single_item_by_name(
+            page=page,
+            search_frame_locator=search_frame_locator,
+            item_selector=item_selector,
+            target_name=target_name,
+            global_idx=global_idx,
+            total=total,
+            processed_names=processed_names
+        )
+    
+    async def _save_wrapper(
+        self, 
+        idx: int,  # ✅ CrawlingManager가 전달하는 배치 내 인덱스 (1부터 시작)
+        store_data_tuple, 
+        batch_start: int,  # ✅ 배치 시작 인덱스
+        total: int
+    ) -> tuple:
+        """CrawlingManager용 저장 래퍼"""
+        if store_data_tuple is None:
+            return (False, "크롤링 실패")
+        
+        store_data, actual_name = store_data_tuple
+        
+        # ✅ 전체 인덱스 계산: batch_start + idx
+        global_idx = batch_start + idx
+        
+        return await self.data_saver.save_store_data(
+            idx=global_idx,  # ✅ 실제 인덱스 전달
+            total=total,
+            store_data=store_data,
+            store_name=actual_name,
+            log_prefix="콘텐츠"
+        )
+    
+    async def _crawl_single_item_by_name(
+        self,
+        page: Page,
+        search_frame_locator,
+        item_selector: str,
+        target_name: str,
+        global_idx: int,
+        total: int,
+        processed_names: set
+    ):
+        """
+        이름으로 아이템을 찾아 크롤링 (검색 상태 유지)
+        
+        ✅ 매번 1페이지부터 찾기 시작
+        """
         try:
-            # 매번 목록 새로 가져오기 (DOM 변경 대응)
-            items = await search_frame_locator.locator(item_selector).all()
+            search_frame = page.frame('searchIframe')
             
-            if page_idx >= len(items):
-                self.logger.error(f"[{global_idx+1}/{total}] 인덱스 범위 초과: {page_idx}/{len(items)}")
+            if not search_frame:
+                self.logger.error("searchIframe을 찾을 수 없습니다.")
                 return None
             
-            item = items[page_idx]
+            # ✅ 매번 1페이지로 리셋
+            await self._go_to_first_page(search_frame_locator, search_frame)
             
-            # 아이템 이름 추출
-            name = await self._extract_item_name(item, page_idx, len(items))
+            current_page = 1
+            max_pages = 50
             
-            # 클릭 요소 찾기
-            click_element = await self._find_click_element(item, page_idx)
-            
-            if not click_element:
-                self.logger.error(f"[{global_idx+1}/{total}] '{name}' 클릭 요소 없음")
-                return None
-            
-            # 사람처럼 클릭
-            await self.human_actions.human_like_click(click_element)
-            await asyncio.sleep(3)
-            
-            # entryIframe 대기
-            try:
-                await page.wait_for_selector('iframe#entryIframe', timeout=10000)
-                entry_frame = page.frame_locator('iframe#entryIframe')
-                await asyncio.sleep(3)
+            while current_page <= max_pages:
+                # 현재 페이지의 모든 아이템 가져오기
+                items = await search_frame_locator.locator(item_selector).all()
                 
-                # 상세 정보 추출
-                extractor = StoreDetailExtractor(entry_frame, page)
-                store_data = await extractor.extract_all_details()
+                # 현재 페이지에서 타겟 이름 찾기
+                for idx, current_item in enumerate(items):
+                    try:
+                        current_name = await self._extract_item_name(current_item, idx, len(items))
+                        
+                        # 타겟 이름 발견 & 아직 처리 안 했으면
+                        if current_name == target_name and current_name not in processed_names:
+                            self.logger.info(f"[{global_idx+1}/{total}] '{target_name}' 발견 (페이지 {current_page})")
+                            
+                            # 클릭 요소 찾기
+                            click_element = await self._find_click_element(current_item, idx)
+                            
+                            if not click_element:
+                                self.logger.error(f"[{global_idx+1}/{total}] '{target_name}' 클릭 요소 없음")
+                                return None
+                            
+                            # 사람처럼 클릭
+                            await self.human_actions.human_like_click(click_element)
+                            await asyncio.sleep(3)
+                            
+                            # entryIframe 대기
+                            try:
+                                await page.wait_for_selector('iframe#entryIframe', timeout=10000)
+                                entry_frame = page.frame_locator('iframe#entryIframe')
+                                await asyncio.sleep(3)
+                                
+                                # 상세 정보 추출
+                                extractor = StoreDetailExtractor(entry_frame, page)
+                                store_data = await extractor.extract_all_details()
+                                
+                                if store_data:
+                                    actual_name = store_data[0]
+                                    
+                                    # 처리 완료 표시
+                                    processed_names.add(current_name)
+                                    
+                                    # 리소스 정리
+                                    await OptimizedBrowserManager.clear_page_resources(page)
+                                    
+                                    # ✅ 검색 결과로 돌아가기 (뒤로 가기)
+                                    await page.go_back()
+                                    await asyncio.sleep(2)
+                                    
+                                    return (store_data, actual_name)
+                                else:
+                                    self.logger.error(f"[{global_idx+1}/{total}] '{target_name}' 정보 추출 실패")
+                                    return None
+                                    
+                            except TimeoutError:
+                                self.logger.error(f"[{global_idx+1}/{total}] '{target_name}' entryIframe 타임아웃")
+                                return None
+                    
+                    except Exception as e:
+                        continue
                 
-                if store_data:
-                    actual_name = store_data[0]
-                    
-                    # 리소스 정리
-                    await OptimizedBrowserManager.clear_page_resources(page)
-                    
-                    return (store_data, actual_name)
-                else:
-                    self.logger.error(f"[{global_idx+1}/{total}] '{name}' 정보 추출 실패")
-                    return None
-                    
-            except TimeoutError:
-                self.logger.error(f"[{global_idx+1}/{total}] '{name}' entryIframe 타임아웃")
-                return None
+                # 다음 페이지로 이동
+                has_next = await PageNavigator.go_to_next_page_naver(
+                    search_frame_locator=search_frame_locator,
+                    search_frame=search_frame
+                )
                 
+                if not has_next:
+                    break
+                
+                current_page += 1
+                await asyncio.sleep(2)
+            
+            # 끝까지 찾았는데 없음
+            self.logger.error(f"[{global_idx+1}/{total}] '{target_name}' 아이템을 찾을 수 없음")
+            return None
+            
         except Exception as e:
-            self.logger.error(f"[{global_idx+1}/{total}] 크롤링 중 오류: {e}")
+            self.logger.error(f"[{global_idx+1}/{total}] '{target_name}' 크롤링 중 오류: {e}")
+            import traceback
+            self.logger.error(traceback.format_exc())
             return None
     
-    def _save_wrapper_with_total(self, total: int):
-        """저장 래퍼 팩토리"""
-        async def wrapper(idx: int, _, store_data_tuple, store_name: str):
-            if store_data_tuple is None:
-                return (False, "크롤링 실패")
+    async def _go_to_first_page(self, search_frame_locator, search_frame):
+        """페이지네이션을 1페이지로 이동"""
+        try:
+            pagination_selector = 'div.zRM9F > a'
+            first_page_button = search_frame_locator.locator(pagination_selector).filter(has_text="1").first
             
-            store_data, actual_name = store_data_tuple
-            
-            return await self.data_saver.save_store_data(
-                idx=idx,
-                total=total,
-                store_data=store_data,
-                store_name=actual_name,
-                log_prefix="콘텐츠"
-            )
+            if await first_page_button.count() > 0:
+                await first_page_button.click()
+                await asyncio.sleep(2)
+                self.logger.debug("  📄 1페이지로 이동")
         
-        return wrapper
+        except Exception as e:
+            self.logger.debug(f"1페이지 이동 실패: {e}")
     
     async def _extract_item_name(self, item, idx: int, item_count: int) -> str:
         """아이템 이름 추출 (4가지 선택자 시도)"""
@@ -476,7 +564,6 @@ class NaverMapContentCrawler:
             except:
                 continue
         
-        # 모두 실패하면 아이템 전체 반환
         return item
 
 
@@ -485,7 +572,7 @@ async def main():
     logger = get_logger(__name__)
     
     logger.info("="*70)
-    logger.info("🚀 네이버 지도 콘텐츠 크롤러 시작 (병렬 처리 + 목록 클릭)")
+    logger.info("🚀 네이버 지도 콘텐츠 크롤러 시작 (이름 기반 매칭)")
     logger.info("="*70)
     
     try:
