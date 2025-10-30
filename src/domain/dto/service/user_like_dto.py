@@ -9,7 +9,12 @@ from pydantic import BaseModel, Field
 
 """
 
-class RequestUserLikeDTO(BaseModel):
+class RequestGetUserLikeDTO(BaseModel):
+    user_id: str
+
+
+class RequestSetUserLikeDTO(BaseModel):
+    category_id: str
     user_id: str
 
 

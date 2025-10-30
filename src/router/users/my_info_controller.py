@@ -1,8 +1,7 @@
 from fastapi import APIRouter, Request
 from starlette.responses import JSONResponse
 
-from src.domain.dto.service.user_like_dto import RequestUserLikeDTO, ResponseUserLikeDTO, ResponseUserReviewDTO
-from src.infra.database.repository.user_history_repository import UserHistoryRepository
+from src.domain.dto.service.user_like_dto import RequestGetUserLikeDTO, RequestSetUserLikeDTO
 from src.logger.custom_logger import get_logger
 from src.service.application.my_info_service import UserInfoService
 from src.service.auth.jwt import validate_jwt_token
@@ -13,8 +12,19 @@ logger = get_logger(__name__)
 
 user_info = UserInfoService()
 
-@router.get("/my-like")
-async def my_like(request: Request) -> JSONResponse:
+
+@router.post("/set-my-like")
+async def set_my_like(dto: RequestSetUserLikeDTO):
+    return JSONResponse(status_code=200, content=await user_info.set_my_like(dto, True))
+
+
+@router.delete("/set-my-like")
+async def set_my_like(dto: RequestSetUserLikeDTO):
+    return JSONResponse(status_code=200, content=await user_info.set_my_like(dto, False))
+
+
+@router.post("/get-my-like")
+async def my_like(request_data: RequestGetUserLikeDTO, request: Request) -> JSONResponse:
     jwt = request.headers.get("jwt")
 
     if jwt is None:
@@ -27,7 +37,6 @@ async def my_like(request: Request) -> JSONResponse:
         logger.error("Expired token")
         raise ExpiredAccessTokenException()
 
-    request_data = RequestUserLikeDTO(user_id=request.user.id)
     like_list = await user_info.get_user_like(request_data.user_id)
     return JSONResponse(content=like_list.model_dump())
 
