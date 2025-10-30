@@ -70,7 +70,7 @@ class StoreDetailExtractor:
                 # 태그 리뷰도 추출
                 tag_reviews = await self._extract_tag_reviews()
                 
-            elif category_type == 2:
+            elif category_type >= 2:
                 # 콘텐츠: 정보 탭에서 편의시설 추출
                 await self._open_information_tab()
                 facility_list = await self._extract_facility_items()
@@ -79,10 +79,6 @@ class StoreDetailExtractor:
                 asyncio.sleep(1)
                 
                 # 리뷰 탭으로 이동하여 태그 추출
-                await self._open_review_tab()
-                tag_reviews = await self._extract_tag_reviews()
-            else:
-                # 기타 타입: 리뷰 탭만
                 await self._open_review_tab()
                 tag_reviews = await self._extract_tag_reviews()
             
