@@ -87,27 +87,39 @@ class StoreChromaDBLoader:
         
         tags_list = [tag['name'] for tag in selected_tags]
         
-        # 메뉴 전체
-        menu = store_entity.menu if store_entity.menu else ""
+        # 메뉴/키워드
+        menu_or_keywords = store_entity.menu if store_entity.menu else ""
         
         # 자연스러운 한국어 문장 생성
         doc_parts = []
         
         # 태그를 문장으로 변환
         if tags_list:
-            tags_clean = [tag.replace('"', '') for tag in tags_list]
-            tags_sentence = f"이 매장은 {', '.join(tags_clean[:-1])} 및 {tags_clean[-1]}의 특징을 가지고 있습니다." if len(tags_clean) > 1 else f"이 매장은 {tags_clean[0]}의 특징을 가지고 있습니다."
+            tags_clean = [tag.replace('"', '').strip() for tag in tags_list]
+            if len(tags_clean) > 1:
+                tags_sentence = f"이 장소는 {', '.join(tags_clean[:-1])}, {tags_clean[-1]}의 특징을 가지고 있습니다."
+            else:
+                tags_sentence = f"이 장소는 {tags_clean[0]}의 특징을 가지고 있습니다."
             doc_parts.append(tags_sentence)
         
-        # 메뉴를 문장으로 변환
-        if menu:
-            menu_items = [item.strip() for item in menu.split(',') if item.strip()]
-            if menu_items:
-                if len(menu_items) > 1:
-                    menu_sentence = f"주요 메뉴는 {', '.join(menu_items[:-1])} 및 {menu_items[-1]} 등이 있습니다."
-                else:
-                    menu_sentence = f"주요 메뉴는 {menu_items[0]} 등이 있습니다."
-                doc_parts.append(menu_sentence)
+        # type에 따라 메뉴/키워드 문장 다르게 생성
+        if menu_or_keywords:
+            items = [item.strip() for item in menu_or_keywords.split(',') if item.strip()]
+            
+            if items:
+                # 타입별로 다른 표현 사용
+                if store_entity.type == 2:  # 콘텐츠
+                    if len(items) > 1:
+                        keyword_sentence = f"주요 키워드는 {', '.join(items[:-1])}, {items[-1]} 등입니다."
+                    else:
+                        keyword_sentence = f"주요 키워드는 {items[0]} 등입니다."
+                else:  # 음식점(0), 카페(1)
+                    if len(items) > 1:
+                        keyword_sentence = f"주요 메뉴는 {', '.join(items[:-1])}, {items[-1]} 등이 있습니다."
+                    else:
+                        keyword_sentence = f"주요 메뉴는 {items[0]} 등이 있습니다."
+                
+                doc_parts.append(keyword_sentence)
         
         # 문장들을 공백으로 연결
         document = " ".join(doc_parts)
