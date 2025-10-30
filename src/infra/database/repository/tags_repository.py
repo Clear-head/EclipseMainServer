@@ -27,6 +27,9 @@ class TagsRepository(base_repository.BaseRepository):
     async def select_by(self, **filters):
         return await super().select_by(**filters)
 
+    async def select_with_join(self, user_id, join_table, dto, join_conditions: dict, **filters) -> list:
+        return await super().select_with_join(user_id, join_table, dto, join_conditions, **filters)
+
     async def select_last_id(self, category_type):
         try:
             engine = await get_engine()
