@@ -7,6 +7,7 @@ from src.domain.dto.header import JsonHeader
 
 #   대화 시작 요청 모델
 class RequestStartMainServiceDTO(BaseModel):
+    play_address: str
     peopleCount: int  # 함께할 인원 수
     selectedCategories: List[str]  # 선택한 활동 카테고리 (예: ["카페", "음식점"])
 

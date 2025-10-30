@@ -73,7 +73,7 @@ async def to_detail(category_id: str, request: Request):
 """
 
 @router.post("/start")
-async def start_conversation(request: RequestStartMainServiceDTO):
+async def start_conversation(data: RequestStartMainServiceDTO, request: Request):
 
     # jwt = request.headers.jwt
     # if jwt is None:
@@ -90,8 +90,9 @@ async def start_conversation(request: RequestStartMainServiceDTO):
 
     # 세션 데이터 초기화
     sessions[session_id] = {
-        "peopleCount": request.peopleCount,
-        "selectedCategories": request.selectedCategories,
+        "play_address": data.play_address,
+        "peopleCount": data.peopleCount,
+        "selectedCategories": data.selectedCategories,
         "collectedTags": {},  # 카테고리별 태그 저장
         "currentCategoryIndex": 0,  # 현재 질문 중인 카테고리
         "conversationHistory": [],  # 대화 히스토리
@@ -103,11 +104,11 @@ async def start_conversation(request: RequestStartMainServiceDTO):
     }
 
     # 첫 번째 카테고리에 대한 질문 생성 (인원수와 카테고리 정보 포함)
-    first_category = request.selectedCategories[0]
-    categories_text = ', '.join(request.selectedCategories)
+    first_category = data.selectedCategories[0]
+    categories_text = ', '.join(data.selectedCategories)
 
     first_message = RESPONSE_MESSAGES["start"]["first_message"].format(
-        people_count=request.peopleCount,
+        people_count=data.peopleCount,
         categories_text=categories_text,
         first_category=first_category
     )
@@ -119,7 +120,7 @@ async def start_conversation(request: RequestStartMainServiceDTO):
         stage="collecting_details",
         progress={
             "current": 0,
-            "total": len(request.selectedCategories)
+            "total": len(data.selectedCategories)
         }
     )
 
