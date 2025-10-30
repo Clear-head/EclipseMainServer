@@ -54,11 +54,9 @@ class NaverMapFavoriteCrawler:
                     self.logger.warning("크롤링할 장소가 없습니다.")
                     return
                 
-                self.logger.info(f"\n{'='*70}")
-                self.logger.info(f"📊 총 {total}개 장소 크롤링 시작 (병렬 처리)")
-                self.logger.info(f"   배치 크기: {self.RESTART_INTERVAL}개")
-                self.logger.info(f"   예상 배치 수: {(total + self.RESTART_INTERVAL - 1) // self.RESTART_INTERVAL}개")
-                self.logger.info(f"{'='*70}\n")
+                self.logger.info(f"총 {total}개 장소 크롤링 시작 (병렬 처리)")
+                self.logger.info(f"배치 크기: {self.RESTART_INTERVAL}개")
+                self.logger.info(f"예상 배치 수: {(total + self.RESTART_INTERVAL - 1) // self.RESTART_INTERVAL}개")
                 
                 # 2단계: 배치 단위로 병렬 크롤링
                 for batch_start in range(0, total, self.RESTART_INTERVAL):
@@ -66,9 +64,7 @@ class NaverMapFavoriteCrawler:
                     batch_num = batch_start // self.RESTART_INTERVAL + 1
                     total_batches = (total + self.RESTART_INTERVAL - 1) // self.RESTART_INTERVAL
                     
-                    self.logger.info(f"\n{'='*70}")
-                    self.logger.info(f"🔄 배치 {batch_num}/{total_batches}: {batch_start+1}~{batch_end}/{total} 처리 시작")
-                    self.logger.info(f"{'='*70}\n")
+                    self.logger.info(f"배치 {batch_num}/{total_batches}: {batch_start+1}~{batch_end}/{total} 처리 시작")
                     
                     # 새 컨텍스트 생성
                     context = await OptimizedBrowserManager.create_stealth_context(browser)
@@ -82,7 +78,7 @@ class NaverMapFavoriteCrawler:
                         )
                         
                     except Exception as e:
-                        self.logger.error(f"❌ 배치 {batch_start+1}~{batch_end} 처리 중 오류: {e}")
+                        self.logger.error(f"배치 {batch_start+1}~{batch_end} 처리 중 오류: {e}")
                         import traceback
                         self.logger.error(traceback.format_exc())
                     finally:
@@ -93,21 +89,19 @@ class NaverMapFavoriteCrawler:
                         if batch_end < total:
                             import random
                             rest_time = random.uniform(20, 40)
-                            self.logger.info(f"\n🛌 배치 {batch_num} 완료! {rest_time:.0f}초 휴식 후 다음 배치 시작...\n")
+                            self.logger.info(f"배치 {batch_num} 완료! {rest_time:.0f}초 휴식 후 다음 배치 시작...\n")
                             await asyncio.sleep(rest_time)
                 
                 # 3단계: 최종 결과 출력
-                self.logger.info(f"\n{'='*70}")
-                self.logger.info(f"✅ 전체 크롤링 완료!")
-                self.logger.info(f"   총 처리: {total}개")
-                self.logger.info(f"   성공: {self.success_count}개")
-                self.logger.info(f"   실패: {self.fail_count}개")
+                self.logger.info(f"전체 크롤링 완료!")
+                self.logger.info(f"총 처리: {total}개")
+                self.logger.info(f"성공: {self.success_count}개")
+                self.logger.info(f"실패: {self.fail_count}개")
                 if total > 0:
-                    self.logger.info(f"   성공률: {self.success_count/total*100:.1f}%")
-                self.logger.info(f"{'='*70}\n")
+                    self.logger.info(f"성공률: {self.success_count/total*100:.1f}%")
                 
             except Exception as e:
-                self.logger.error(f"💥 크롤링 중 치명적 오류: {e}")
+                self.logger.error(f"크롤링 중 치명적 오류: {e}")
                 import traceback
                 self.logger.error(traceback.format_exc())
             finally:
@@ -119,7 +113,7 @@ class NaverMapFavoriteCrawler:
         page = await context.new_page()
         
         try:
-            self.logger.info("📋 전체 장소 개수 확인 중...")
+            self.logger.info("전체 장소 개수 확인 중...")
             
             await page.goto(favorite_url, wait_until='domcontentloaded', timeout=60000)
             await asyncio.sleep(10)
@@ -143,7 +137,7 @@ class NaverMapFavoriteCrawler:
                 item_selector=place_selector
             )
             
-            self.logger.info(f"✅ 총 {count}개 장소 확인 완료\n")
+            self.logger.info(f"총 {count}개 장소 확인 완료\n")
             
             return count
             
@@ -177,7 +171,7 @@ class NaverMapFavoriteCrawler:
         """
         try:
             # 페이지 로드 및 iframe 설정
-            self.logger.debug("🌐 즐겨찾기 페이지 로드 중...")
+            self.logger.debug("즐겨찾기 페이지 로드 중...")
             await page.goto(favorite_url, wait_until='domcontentloaded', timeout=60000)
             await asyncio.sleep(10)
             
@@ -186,14 +180,14 @@ class NaverMapFavoriteCrawler:
             list_frame = page.frame('myPlaceBookmarkListIframe')
             
             if not list_frame:
-                self.logger.error("❌ myPlaceBookmarkListIframe을 찾을 수 없습니다.")
+                self.logger.error("myPlaceBookmarkListIframe을 찾을 수 없습니다.")
                 return
             
             await asyncio.sleep(3)
             
             place_selector = await self._find_place_selector(list_frame_locator, list_frame)
             if not place_selector:
-                self.logger.error("❌ 장소 선택자를 찾을 수 없습니다.")
+                self.logger.error("장소 선택자를 찾을 수 없습니다.")
                 return
             
             # batch_end까지 스크롤
@@ -224,10 +218,10 @@ class NaverMapFavoriteCrawler:
             self.fail_count += crawling_manager.fail_count
             
             batch_num = batch_start // self.RESTART_INTERVAL + 1
-            self.logger.info(f"✅ 배치 {batch_num} ({batch_start+1}~{batch_end}) 완료!")
+            self.logger.info(f"배치 {batch_num} ({batch_start+1}~{batch_end}) 완료!")
             
         except Exception as e:
-            self.logger.error(f"❌ 배치 처리 중 오류: {e}")
+            self.logger.error(f"배치 처리 중 오류: {e}")
             import traceback
             self.logger.error(traceback.format_exc())
     
@@ -250,7 +244,7 @@ class NaverMapFavoriteCrawler:
             places = await list_frame_locator.locator(place_selector).all()
             
             if idx >= len(places):
-                self.logger.error(f"❌ 인덱스 범위 초과: {idx}/{len(places)}")
+                self.logger.error(f"인덱스 범위 초과: {idx}/{len(places)}")
                 return None
             
             place = places[idx]
@@ -262,13 +256,13 @@ class NaverMapFavoriteCrawler:
             
             # 폐업 팝업 체크
             if await self._check_and_close_popup(list_frame_locator, place_name):
-                self.logger.warning(f"⚠️ '{place_name}' 폐업 또는 접근 불가")
+                self.logger.warning(f"'{place_name}' 폐업 또는 접근 불가")
                 return None
             
             # entry iframe
             entry_frame = await self._get_entry_frame(page)
             if not entry_frame:
-                self.logger.error(f"❌ '{place_name}' entry iframe 없음")
+                self.logger.error(f"'{place_name}' entry iframe 없음")
                 return None
             
             # 상세 정보 추출
@@ -280,11 +274,11 @@ class NaverMapFavoriteCrawler:
                 await OptimizedBrowserManager.clear_page_resources(page)
                 return (store_data, place_name)
             else:
-                self.logger.error(f"❌ '{place_name}' 정보 추출 실패")
+                self.logger.error(f"'{place_name}' 정보 추출 실패")
                 return None
                 
         except Exception as e:
-            self.logger.error(f"❌ 크롤링 중 오류: {e}")
+            self.logger.error(f"크롤링 중 오류: {e}")
             return None
     
     async def _save_wrapper(self, idx: int, total: int, store_data_tuple, place_name: str):
@@ -320,12 +314,12 @@ class NaverMapFavoriteCrawler:
             try:
                 elements = await list_frame_locator.locator(selector).all()
                 if len(elements) > 0:
-                    self.logger.debug(f"✅ 선택자 발견: {selector}")
+                    self.logger.debug(f"선택자 발견: {selector}")
                     return selector
             except:
                 continue
         
-        self.logger.error("❌ 장소 목록 선택자를 찾을 수 없습니다.")
+        self.logger.error("장소 목록 선택자를 찾을 수 없습니다.")
         return None
     
     async def _extract_place_name(self, place, idx: int) -> str:
@@ -401,9 +395,9 @@ async def main(favorite_url='https://map.naver.com/p/favorite/YOUR_URL'):
     """메인 함수"""
     logger = get_logger(__name__)
     
-    logger.info("="*70)
-    logger.info("🚀 네이버 지도 즐겨찾기 크롤러 시작 (병렬 처리)")
-    logger.info("="*70)
+
+    logger.info("네이버 지도 즐겨찾기 크롤러 시작 (병렬 처리)")
+
     
     crawler = NaverMapFavoriteCrawler(headless=False)
     
@@ -412,6 +406,5 @@ async def main(favorite_url='https://map.naver.com/p/favorite/YOUR_URL'):
         delay=15
     )
     
-    logger.info("="*70)
-    logger.info("🏁 크롤러 종료")
-    logger.info("="*70)
+
+    logger.info("크롤러 종료")

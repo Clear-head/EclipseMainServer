@@ -54,31 +54,25 @@ class NaverMapContentCrawler:
             browser = await OptimizedBrowserManager.create_optimized_browser(p, self.headless)
             
             try:
-                self.logger.info(f"\n{'='*70}")
-                self.logger.info(f"📊 총 {len(keywords)}개 키워드 크롤링 시작 (이름 기반 매칭)")
-                self.logger.info(f"{'='*70}\n")
+                self.logger.info(f"총 {len(keywords)}개 키워드 크롤링 시작 (이름 기반 매칭)")
                 
                 for keyword_idx, keyword in enumerate(keywords, 1):
-                    self.logger.info(f"\n{'='*70}")
                     self.logger.info(f"[키워드 {keyword_idx}/{len(keywords)}] '{keyword}' 크롤링 시작")
-                    self.logger.info(f"{'='*70}\n")
                     
                     # 키워드별로 페이지 단위 처리
                     await self._crawl_keyword_by_pages(browser, keyword, delay)
                     
-                    self.logger.info(f"✅ [키워드 {keyword_idx}/{len(keywords)}] '{keyword}' 완료\n")
+                    self.logger.info(f"[키워드 {keyword_idx}/{len(keywords)}] '{keyword}' 완료\n")
                     
                     if keyword_idx < len(keywords):
                         import random
                         rest_time = random.uniform(40, 60)
-                        self.logger.info(f"🛌 키워드 완료, {rest_time:.0f}초 휴식...\n")
+                        self.logger.info(f"키워드 완료, {rest_time:.0f}초 휴식...\n")
                         await asyncio.sleep(rest_time)
                 
-                self.logger.info(f"\n{'='*70}")
-                self.logger.info(f"✅ 모든 키워드 크롤링 완료!")
-                self.logger.info(f"   성공: {self.success_count}개")
-                self.logger.info(f"   실패: {self.fail_count}개")
-                self.logger.info(f"{'='*70}\n")
+                self.logger.info(f"모든 키워드 크롤링 완료!")
+                self.logger.info(f"성공: {self.success_count}개")
+                self.logger.info(f"실패: {self.fail_count}개")
                 
             except Exception as e:
                 self.logger.error(f"크롤링 중 오류: {e}")
@@ -102,8 +96,8 @@ class NaverMapContentCrawler:
             self.logger.warning(f"'{keyword}' 결과 없음")
             return
         
-        self.logger.info(f"✅ '{keyword}' 총 {total_items}개 ({total_pages}페이지)")
-        self.logger.info(f"   📋 수집된 이름: {len(name_list)}개\n")
+        self.logger.info(f"'{keyword}' 총 {total_items}개 ({total_pages}페이지)")
+        self.logger.info(f"수집된 이름: {len(name_list)}개\n")
         
         # ✅ 2단계: 배치 단위로 크롤링
         for batch_start in range(0, total_items, self.RESTART_INTERVAL):
@@ -112,7 +106,7 @@ class NaverMapContentCrawler:
             batch_num = batch_start // self.RESTART_INTERVAL + 1
             total_batches = (total_items + self.RESTART_INTERVAL - 1) // self.RESTART_INTERVAL
             
-            self.logger.info(f"\n🔄 [{keyword}] 배치 {batch_num}/{total_batches}: {batch_start+1}~{batch_end}/{total_items}")
+            self.logger.info(f"[{keyword}] 배치 {batch_num}/{total_batches}: {batch_start+1}~{batch_end}/{total_items}")
             
             # 새 컨텍스트 생성 (브라우저 재시작)
             context = await OptimizedBrowserManager.create_stealth_context(browser)
@@ -135,7 +129,7 @@ class NaverMapContentCrawler:
                 if batch_end < total_items:
                     import random
                     rest_time = random.uniform(20, 40)
-                    self.logger.info(f"🛌 배치 완료, {rest_time:.0f}초 휴식...\n")
+                    self.logger.info(f"배치 완료, {rest_time:.0f}초 휴식...\n")
                     await asyncio.sleep(rest_time)
     
     async def _get_total_items_with_names(self, browser, keyword: str) -> tuple:
@@ -151,7 +145,7 @@ class NaverMapContentCrawler:
         name_list = []
         
         try:
-            self.logger.info(f"  📋 '{keyword}' 전체 이름 목록 수집 중...")
+            self.logger.info(f"'{keyword}' 전체 이름 목록 수집 중...")
             
             await page.goto(self.naver_map_url, wait_until='domcontentloaded')
             await asyncio.sleep(3)
@@ -218,7 +212,7 @@ class NaverMapContentCrawler:
                 page_num += 1
                 await asyncio.sleep(2)
             
-            self.logger.info(f"  ✅ 총 {total_items}개 이름 수집 완료 ({page_num}페이지)")
+            self.logger.info(f"총 {total_items}개 이름 수집 완료 ({page_num}페이지)")
             return total_items, page_num, name_list
             
         except Exception as e:
@@ -321,7 +315,7 @@ class NaverMapContentCrawler:
         모든 페이지를 순회하며 스크롤하여 전체 DOM 로드
         """
         try:
-            self.logger.info("  📄 전체 페이지 로드 중...")
+            self.logger.info("전체 페이지 로드 중...")
             
             current_page = 1
             
@@ -347,7 +341,7 @@ class NaverMapContentCrawler:
             # ✅ 1페이지로 돌아가기
             await self._go_to_first_page(search_frame_locator, search_frame)
             
-            self.logger.info(f"  ✅ {current_page}페이지 로드 완료\n")
+            self.logger.info(f"{current_page}페이지 로드 완료\n")
             
         except Exception as e:
             self.logger.warning(f"전체 페이지 로드 중 오류 (계속 진행): {e}")
@@ -521,7 +515,7 @@ class NaverMapContentCrawler:
             if await first_page_button.count() > 0:
                 await first_page_button.click()
                 await asyncio.sleep(2)
-                self.logger.debug("  📄 1페이지로 이동")
+                self.logger.debug("1페이지로 이동")
         
         except Exception as e:
             self.logger.debug(f"1페이지 이동 실패: {e}")
@@ -571,9 +565,7 @@ async def main():
     """메인 함수"""
     logger = get_logger(__name__)
     
-    logger.info("="*70)
-    logger.info("🚀 네이버 지도 콘텐츠 크롤러 시작 (이름 기반 매칭)")
-    logger.info("="*70)
+    logger.info("네이버 지도 콘텐츠 크롤러 시작 (이름 기반 매칭)")
     
     try:
         crawler = NaverMapContentCrawler(headless=False)
@@ -583,9 +575,7 @@ async def main():
             delay=15
         )
         
-        logger.info("="*70)
-        logger.info("🏁 크롤러 종료")
-        logger.info("="*70)
+        logger.info("크롤러 종료")
         
     except Exception as e:
         logger.error(f"크롤링 중 오류: {e}")

@@ -56,11 +56,9 @@ class NaverMapDistrictCrawler:
         stores = api_service.convert_to_store_format(api_data)
         total = len(stores)
         
-        self.logger.info(f"\n{'='*70}")
-        self.logger.info(f"📊 {self.district_name} 총 {total}개 매장 크롤링 시작 (병렬 처리)")
-        self.logger.info(f"   배치 크기: {self.RESTART_INTERVAL}개")
-        self.logger.info(f"   예상 배치 수: {(total + self.RESTART_INTERVAL - 1) // self.RESTART_INTERVAL}개")
-        self.logger.info(f"{'='*70}\n")
+        self.logger.info(f"{self.district_name} 총 {total}개 매장 크롤링 시작 (병렬 처리)")
+        self.logger.info(f"배치 크기: {self.RESTART_INTERVAL}개")
+        self.logger.info(f"예상 배치 수: {(total + self.RESTART_INTERVAL - 1) // self.RESTART_INTERVAL}개")
         
         # 2단계: 배치 단위로 병렬 크롤링
         async with async_playwright() as p:
@@ -74,9 +72,7 @@ class NaverMapDistrictCrawler:
                     batch_num = batch_start // self.RESTART_INTERVAL + 1
                     total_batches = (total + self.RESTART_INTERVAL - 1) // self.RESTART_INTERVAL
                     
-                    self.logger.info(f"\n{'='*70}")
-                    self.logger.info(f"🔄 [{self.district_name}] 배치 {batch_num}/{total_batches}: {batch_start+1}~{batch_end}/{total}")
-                    self.logger.info(f"{'='*70}\n")
+                    self.logger.info(f"[{self.district_name}] 배치 {batch_num}/{total_batches}: {batch_start+1}~{batch_end}/{total}")
                     
                     # 새 컨텍스트 생성
                     context = await OptimizedBrowserManager.create_stealth_context(browser)
@@ -98,18 +94,16 @@ class NaverMapDistrictCrawler:
                         if batch_end < total:
                             import random
                             rest_time = random.uniform(20, 40)
-                            self.logger.info(f"\n🛌 배치 {batch_num} 완료, {rest_time:.0f}초 휴식...\n")
+                            self.logger.info(f"배치 {batch_num} 완료, {rest_time:.0f}초 휴식...\n")
                             await asyncio.sleep(rest_time)
                 
                 # 최종 결과
-                self.logger.info(f"\n{'='*70}")
-                self.logger.info(f"✅ {self.district_name} 크롤링 완료!")
-                self.logger.info(f"   총 처리: {total}개")
-                self.logger.info(f"   성공: {self.success_count}개")
-                self.logger.info(f"   실패: {self.fail_count}개")
+                self.logger.info(f"{self.district_name} 크롤링 완료!")
+                self.logger.info(f"총 처리: {total}개")
+                self.logger.info(f"성공: {self.success_count}개")
+                self.logger.info(f"실패: {self.fail_count}개")
                 if total > 0:
-                    self.logger.info(f"   성공률: {self.success_count/total*100:.1f}%")
-                self.logger.info(f"{'='*70}\n")
+                    self.logger.info(f"성공률: {self.success_count/total*100:.1f}%")
                 
             except Exception as e:
                 self.logger.error(f"{self.district_name} 크롤링 중 오류: {e}")
@@ -221,16 +215,12 @@ async def main():
     headless_mode = False
     delay_seconds = 15
     
-    logger.info("="*70)
-    logger.info("🚀 서울시 구청 API 크롤러 시작 (병렬 처리)")
-    logger.info(f"   대상 구: 총 {len(districts_to_crawl)}개")
-    logger.info("="*70)
+    logger.info("서울시 구청 API 크롤러 시작 (병렬 처리)")
+    logger.info(f"대상 구: 총 {len(districts_to_crawl)}개")
     
     for idx, district_name in enumerate(districts_to_crawl, 1):
         try:
-            logger.info(f"\n{'='*70}")
             logger.info(f"[{idx}/{len(districts_to_crawl)}] {district_name} 시작")
-            logger.info(f"{'='*70}\n")
             
             crawler = NaverMapDistrictCrawler(
                 district_name=district_name,
@@ -239,19 +229,17 @@ async def main():
             
             await crawler.crawl_district_api(delay=delay_seconds)
             
-            logger.info(f"\n{'='*70}")
-            logger.info(f"✅ [{idx}/{len(districts_to_crawl)}] {district_name} 완료")
-            logger.info(f"{'='*70}\n")
+            logger.info(f"[{idx}/{len(districts_to_crawl)}] {district_name} 완료")
             
             # 다음 구로 넘어가기 전 대기
             if idx < len(districts_to_crawl):
                 import random
                 wait_time = random.uniform(40, 60)
-                logger.info(f"🛌 다음 구 크롤링 전 {wait_time:.0f}초 대기...\n")
+                logger.info(f"다음 구 크롤링 전 {wait_time:.0f}초 대기...\n")
                 await asyncio.sleep(wait_time)
                 
         except Exception as e:
-            logger.error(f"❌ {district_name} 크롤링 중 오류: {e}")
+            logger.error(f"{district_name} 크롤링 중 오류: {e}")
             import traceback
             logger.error(traceback.format_exc())
             
@@ -259,6 +247,4 @@ async def main():
                 logger.info(f"다음 구({districts_to_crawl[idx]})로 계속 진행합니다...\n")
                 await asyncio.sleep(30)
     
-    logger.info("="*70)
     logger.info("🏁 모든 구 크롤링 완료!")
-    logger.info("="*70)
