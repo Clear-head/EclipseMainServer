@@ -93,6 +93,7 @@ class StoreDataSaver:
                 # 태그 리뷰 저장 (중복 체크 포함)
                 tag_success_count = 0
                 for tag_name, tag_count in tag_reviews:
+                    tag_name = tag_name.replace('"','')
                     try:
                         tag_id = await insert_tags(tag_name, category_type)
                         
