@@ -154,10 +154,10 @@ class StoreDetailExtractor:
                         continue
             
             if facility_items:
-                logger.info(f"편의시설 {len(facility_items)}개 추출: {', '.join(facility_items[:5])}{'...' if len(facility_items) > 5 else ''}")
+                logger.info(f"대표키워드 {len(facility_items)}개 추출: {', '.join(facility_items[:5])}{'...' if len(facility_items) > 5 else ''}")
             
         except Exception as e:
-            logger.warning(f"편의시설 추출 중 오류 (무시하고 계속): {e}")
+            logger.warning(f"대표키워드 추출 중 오류 (무시하고 계속): {e}")
         
         return facility_items
     

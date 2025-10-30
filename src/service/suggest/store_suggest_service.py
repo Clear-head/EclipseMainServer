@@ -33,7 +33,7 @@ class StoreSuggestService:
         
         # 한국어 임베딩 모델 로드
         logger.info("한국어 임베딩 모델 로딩 중...")
-        self.embedding_model = SentenceTransformer("jhgan/ko-sroberta-multitask")
+        self.embedding_model = SentenceTransformer("intfloat/multilingual-e5-large")
         
         # 쿼리 개선 서비스 초기화
         self.query_enhancer = QueryEnhancementService()

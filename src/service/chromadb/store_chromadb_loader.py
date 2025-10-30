@@ -33,9 +33,9 @@ class StoreChromaDBLoader:
         )
         
         # 한국어 임베딩 모델 설정
-        logger.info("한국어 임베딩 모델 로딩 중: jhgan/ko-sroberta-multitask")
+        logger.info("한국어 임베딩 모델 로딩 중: intfloat/multilingual-e5-large")
         self.embedding_function = embedding_functions.SentenceTransformerEmbeddingFunction(
-            model_name="jhgan/ko-sroberta-multitask"
+            model_name="intfloat/multilingual-e5-large"
         )
         logger.info("한국어 임베딩 모델 로딩 완료")
         
@@ -337,7 +337,7 @@ class StoreChromaDBLoader:
                 "collection_name": self.store_collection.name,
                 "total_documents": count,
                 "metadata": self.store_collection.metadata,
-                "embedding_model": "jhgan/ko-sroberta-multitask"
+                "embedding_model": "intfloat/multilingual-e5-large"
             }
             
             return info
