@@ -36,7 +36,6 @@ class StoreDataSaver:
             idx: 현재 인덱스
             total: 전체 개수
             store_data: 크롤링한 상점 데이터 (name, full_address, phone, business_hours, image, sub_category, menu, tag_reviews, category_type)
-                                                                                                                            ↑ 추가
             store_name: 상점명
             log_prefix: 로그 접두사 (예: "강남구")
             
@@ -44,7 +43,6 @@ class StoreDataSaver:
             Tuple[bool, str]: (성공 여부, 로그 메시지)
         """
         try:
-            # category_type 추가 ↓
             name, full_address, phone, business_hours, image, sub_category, menu, tag_reviews, category_type = store_data
             
             # 주소 파싱
@@ -63,7 +61,7 @@ class StoreDataSaver:
                 sub_category=sub_category,
                 business_hour=business_hours or "",
                 phone=phone.replace('-', '') if phone else "",
-                type=category_type,  # 이미 분류된 타입 사용
+                type=category_type,
                 image=image or "",
                 menu=menu or "",
                 latitude=latitude or "",
@@ -72,7 +70,8 @@ class StoreDataSaver:
             
             # category 저장 (중복 체크 포함)
             category_repository = CategoryRepository()
-            existing_categories = await category_repository.select_by(
+            # select_by() → select()로 변경
+            existing_categories = await category_repository.select(
                 name=name,
                 type=category_type,
                 detail_address=detail_address
@@ -105,7 +104,8 @@ class StoreDataSaver:
                             )
                             
                             category_tags_repository = CategoryTagsRepository()
-                            existing_tags = await category_tags_repository.select_by(
+                            # select_by() → select()로 변경
+                            existing_tags = await category_tags_repository.select(
                                 tag_id=tag_id,
                                 category_id=category_id
                             )
