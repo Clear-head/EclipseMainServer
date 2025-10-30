@@ -247,4 +247,4 @@ async def main():
                 logger.info(f"다음 구({districts_to_crawl[idx]})로 계속 진행합니다...\n")
                 await asyncio.sleep(30)
     
-    logger.info("🏁 모든 구 크롤링 완료!")
+    logger.info("모든 구 크롤링 완료!")
