@@ -76,6 +76,8 @@ class StoreDetailExtractor:
                 facility_list = await self._extract_facility_items()
                 menu = ", ".join(facility_list) if facility_list else ""
                 
+                asyncio.sleep(1)
+                
                 # 리뷰 탭으로 이동하여 태그 추출
                 await self._open_review_tab()
                 tag_reviews = await self._extract_tag_reviews()
