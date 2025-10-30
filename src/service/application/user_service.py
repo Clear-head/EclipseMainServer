@@ -55,6 +55,7 @@ class UserService:
 
         select_from_id_result = await self.repository.select_by(id=dto.id)
 
+        #   중복 체크
         if len(select_from_id_result) > 0:
             raise UserAlreadyExistsException()
 
