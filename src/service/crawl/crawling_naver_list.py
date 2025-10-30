@@ -1,132 +1,311 @@
-import json
+"""
+네이버 지도 즐겨찾기 목록 크롤링 모듈 (메모리 최적화 + 봇 우회 + 병렬 처리)
+배치 단위로 컨텍스트를 재생성하여 메모리 누수 방지
+"""
 import asyncio
 from playwright.async_api import async_playwright, TimeoutError, Page
-import re
-from typing import Optional, List, Tuple
 import sys, os
-import datetime
-import aiohttp
 from dotenv import load_dotenv
 
-# 환경 변수 로드
 load_dotenv(dotenv_path="src/.env")
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
 from src.logger.custom_logger import get_logger
 
-# 외부 API 서비스 import
-from src.infra.external.kakao_geocoding_service import GeocodingService
-from src.infra.external.category_classifier_service import CategoryTypeClassifier
-
-# 유틸리티 import
-from src.service.crawl.utils.address_parser import AddressParser
+# 공통 모듈 import
+from src.service.crawl.utils.optimized_browser_manager import OptimizedBrowserManager
+from src.service.crawl.utils.human_like_actions import HumanLikeActions
+from src.service.crawl.utils.scroll_helper import FavoriteListScroller
 from src.service.crawl.utils.store_detail_extractor import StoreDetailExtractor
 from src.service.crawl.utils.store_data_saver import StoreDataSaver
-from src.service.crawl.utils.crawling_manager import CrawlingManager  # 추가
+from src.service.crawl.utils.crawling_manager import CrawlingManager
+
 
 class NaverMapFavoriteCrawler:
-    """네이버 지도 즐겨찾기 목록 크롤링을 위한 클래스"""
+    """네이버 지도 즐겨찾기 목록 크롤링 클래스 (메모리 최적화 + 병렬 처리)"""
+    
+    RESTART_INTERVAL = 30  # 30개마다 컨텍스트 재시작
     
     def __init__(self, headless: bool = False):
         self.logger = get_logger(__name__)
         self.headless = headless
-        self.geocoding_service = GeocodingService()
-        self.category_classifier = CategoryTypeClassifier()
         self.data_saver = StoreDataSaver()
-        self.crawling_manager = CrawlingManager("즐겨찾기")  # 추가
-        
-    async def _save_store_data(self, idx: int, total: int, store_data: Tuple, place_name: str):
-        """공통 저장 로직 호출"""
-        return await self.data_saver.save_store_data(
-            idx=idx,
-            total=total,
-            store_data=store_data,
-            store_name=place_name,
-            log_prefix="즐겨찾기"
-        )
-        
-    async def crawl_favorite_list(self, favorite_url: str, delay: int = 20, output_file: str = None):
+        self.human_actions = HumanLikeActions()
+        self.success_count = 0
+        self.fail_count = 0
+    
+    async def crawl_favorite_list(self, favorite_url: str, delay: int = 20):
         """
-        네이버 지도 즐겨찾기 목록에서 장소들을 크롤링
-        크롤링과 저장을 분리하여 병렬 처리
+        네이버 지도 즐겨찾기 목록에서 장소들을 병렬 크롤링
+        배치 단위로 컨텍스트를 재생성하여 메모리 누수 방지
         
         Args:
             favorite_url: 즐겨찾기 URL
-            delay: 각 장소 크롤링 사이의 대기 시간(초)
-            output_file: 결과 저장 파일 (선택)
+            delay: 각 장소 크롤링 사이의 기본 대기 시간(초)
         """
         async with async_playwright() as p:
-            browser = await p.chromium.launch(
-                headless=self.headless,
-                args=['--enable-features=ClipboardAPI']
-            )
-            
-            context = await browser.new_context(
-                permissions=['clipboard-read', 'clipboard-write']
-            )
-            page = await context.new_page()
+            browser = await OptimizedBrowserManager.create_optimized_browser(p, self.headless)
             
             try:
-                # 즐겨찾기 페이지로 이동
-                await page.goto(favorite_url, wait_until='domcontentloaded', timeout=60000)
-                await asyncio.sleep(10)
-                
-                # myPlaceBookmarkListIframe 대기
-                try:
-                    await page.wait_for_selector('iframe#myPlaceBookmarkListIframe', timeout=30000)
-                except Exception as e:
-                    self.logger.error(f"iframe을 찾을 수 없습니다: {e}")
-                    html = await page.content()
-                    with open('debug_main_page.html', 'w', encoding='utf-8') as f:
-                        f.write(html)
-                    return
-                
-                # iframe 가져오기
-                list_frame_locator = page.frame_locator('iframe#myPlaceBookmarkListIframe')
-                list_frame = page.frame('myPlaceBookmarkListIframe')
-                
-                if not list_frame:
-                    self.logger.error("myPlaceBookmarkListIframe을 찾을 수 없습니다.")
-                    return
-                
-                await asyncio.sleep(3)
-                
-                # 장소 선택자 찾기
-                place_selector = await self._find_place_selector(list_frame_locator, list_frame)
-                if not place_selector:
-                    return
-                
-                # 스크롤하여 모든 장소 로드
-                await self._scroll_to_load_all_places(list_frame_locator, place_selector)
-                
-                # 최종 장소 개수 확인
-                places = await list_frame_locator.locator(place_selector).all()
-                total = len(places)
+                # 1단계: 전체 장소 개수 파악
+                total = await self._get_total_place_count(browser, favorite_url)
                 
                 if total == 0:
                     self.logger.warning("크롤링할 장소가 없습니다.")
                     return
                 
-                # 장소 정보를 리스트로 변환 (인덱스와 함께)
-                place_indices = list(range(total))
+                self.logger.info(f"\n{'='*70}")
+                self.logger.info(f"📊 총 {total}개 장소 크롤링 시작 (병렬 처리)")
+                self.logger.info(f"   배치 크기: {self.RESTART_INTERVAL}개")
+                self.logger.info(f"   예상 배치 수: {(total + self.RESTART_INTERVAL - 1) // self.RESTART_INTERVAL}개")
+                self.logger.info(f"{'='*70}\n")
                 
-                # CrawlingManager를 사용한 병렬 처리
-                await self.crawling_manager.execute_crawling_with_save(
-                    stores=place_indices,
-                    crawl_func=lambda idx, i, t: self._crawl_single_place(
-                        page, list_frame_locator, place_selector, idx, t
-                    ),
-                    save_func=self._save_wrapper,
-                    delay=delay
-                )
+                # 2단계: 배치 단위로 병렬 크롤링
+                for batch_start in range(0, total, self.RESTART_INTERVAL):
+                    batch_end = min(batch_start + self.RESTART_INTERVAL, total)
+                    batch_num = batch_start // self.RESTART_INTERVAL + 1
+                    total_batches = (total + self.RESTART_INTERVAL - 1) // self.RESTART_INTERVAL
+                    
+                    self.logger.info(f"\n{'='*70}")
+                    self.logger.info(f"🔄 배치 {batch_num}/{total_batches}: {batch_start+1}~{batch_end}/{total} 처리 시작")
+                    self.logger.info(f"{'='*70}\n")
+                    
+                    # 새 컨텍스트 생성
+                    context = await OptimizedBrowserManager.create_stealth_context(browser)
+                    page = await context.new_page()
+                    
+                    try:
+                        # 배치 병렬 크롤링 실행
+                        await self._process_batch_parallel(
+                            page, favorite_url, 
+                            batch_start, batch_end, total, delay
+                        )
+                        
+                    except Exception as e:
+                        self.logger.error(f"❌ 배치 {batch_start+1}~{batch_end} 처리 중 오류: {e}")
+                        import traceback
+                        self.logger.error(traceback.format_exc())
+                    finally:
+                        await context.close()
+                        await asyncio.sleep(3)
+                        
+                        # 배치 간 긴 휴식
+                        if batch_end < total:
+                            import random
+                            rest_time = random.uniform(20, 40)
+                            self.logger.info(f"\n🛌 배치 {batch_num} 완료! {rest_time:.0f}초 휴식 후 다음 배치 시작...\n")
+                            await asyncio.sleep(rest_time)
+                
+                # 3단계: 최종 결과 출력
+                self.logger.info(f"\n{'='*70}")
+                self.logger.info(f"✅ 전체 크롤링 완료!")
+                self.logger.info(f"   총 처리: {total}개")
+                self.logger.info(f"   성공: {self.success_count}개")
+                self.logger.info(f"   실패: {self.fail_count}개")
+                if total > 0:
+                    self.logger.info(f"   성공률: {self.success_count/total*100:.1f}%")
+                self.logger.info(f"{'='*70}\n")
                 
             except Exception as e:
-                self.logger.error(f"즐겨찾기 크롤링 중 오류: {e}")
+                self.logger.error(f"💥 크롤링 중 치명적 오류: {e}")
                 import traceback
                 self.logger.error(traceback.format_exc())
             finally:
-                await context.close()
                 await browser.close()
+    
+    async def _get_total_place_count(self, browser, favorite_url: str) -> int:
+        """전체 장소 개수만 빠르게 파악"""
+        context = await browser.new_context()
+        page = await context.new_page()
+        
+        try:
+            self.logger.info("📋 전체 장소 개수 확인 중...")
+            
+            await page.goto(favorite_url, wait_until='domcontentloaded', timeout=60000)
+            await asyncio.sleep(10)
+            
+            list_frame_locator = page.frame_locator('iframe#myPlaceBookmarkListIframe')
+            list_frame = page.frame('myPlaceBookmarkListIframe')
+            
+            if not list_frame:
+                self.logger.error("myPlaceBookmarkListIframe을 찾을 수 없습니다.")
+                return 0
+            
+            await asyncio.sleep(3)
+            
+            place_selector = await self._find_place_selector(list_frame_locator, list_frame)
+            if not place_selector:
+                return 0
+            
+            # 스크롤하여 전체 로드
+            count = await FavoriteListScroller.scroll_to_load_all(
+                frame_locator=list_frame_locator,
+                item_selector=place_selector
+            )
+            
+            self.logger.info(f"✅ 총 {count}개 장소 확인 완료\n")
+            
+            return count
+            
+        except Exception as e:
+            self.logger.error(f"전체 개수 확인 중 오류: {e}")
+            import traceback
+            self.logger.error(traceback.format_exc())
+            return 0
+        finally:
+            await context.close()
+    
+    async def _process_batch_parallel(
+        self, 
+        page: Page, 
+        favorite_url: str,
+        batch_start: int, 
+        batch_end: int, 
+        total: int, 
+        delay: int
+    ):
+        """
+        배치 단위 병렬 크롤링
+        
+        Args:
+            page: Playwright Page 객체
+            favorite_url: 즐겨찾기 URL
+            batch_start: 배치 시작 인덱스
+            batch_end: 배치 종료 인덱스
+            total: 전체 장소 수
+            delay: 기본 대기 시간
+        """
+        try:
+            # 페이지 로드 및 iframe 설정
+            self.logger.debug("🌐 즐겨찾기 페이지 로드 중...")
+            await page.goto(favorite_url, wait_until='domcontentloaded', timeout=60000)
+            await asyncio.sleep(10)
+            
+            await page.wait_for_selector('iframe#myPlaceBookmarkListIframe', timeout=30000)
+            list_frame_locator = page.frame_locator('iframe#myPlaceBookmarkListIframe')
+            list_frame = page.frame('myPlaceBookmarkListIframe')
+            
+            if not list_frame:
+                self.logger.error("❌ myPlaceBookmarkListIframe을 찾을 수 없습니다.")
+                return
+            
+            await asyncio.sleep(3)
+            
+            place_selector = await self._find_place_selector(list_frame_locator, list_frame)
+            if not place_selector:
+                self.logger.error("❌ 장소 선택자를 찾을 수 없습니다.")
+                return
+            
+            # batch_end까지 스크롤
+            await FavoriteListScroller.scroll_to_index(
+                frame_locator=list_frame_locator,
+                item_selector=place_selector,
+                target_index=batch_end
+            )
+            
+            # ========================================
+            # 🔥 병렬 처리: CrawlingManager 사용
+            # ========================================
+            batch_items = list(range(batch_start, batch_end))
+            
+            crawling_manager = CrawlingManager("즐겨찾기")
+            
+            await crawling_manager.execute_crawling_with_save(
+                stores=batch_items,
+                crawl_func=lambda idx, i, t: self._crawl_single_place_parallel(
+                    page, list_frame_locator, place_selector, idx, total
+                ),
+                save_func=self._save_wrapper,
+                delay=delay
+            )
+            
+            # 성공/실패 카운트 업데이트
+            self.success_count += crawling_manager.success_count
+            self.fail_count += crawling_manager.fail_count
+            
+            batch_num = batch_start // self.RESTART_INTERVAL + 1
+            self.logger.info(f"✅ 배치 {batch_num} ({batch_start+1}~{batch_end}) 완료!")
+            
+        except Exception as e:
+            self.logger.error(f"❌ 배치 처리 중 오류: {e}")
+            import traceback
+            self.logger.error(traceback.format_exc())
+    
+    async def _crawl_single_place_parallel(
+        self,
+        page: Page,
+        list_frame_locator,
+        place_selector: str,
+        idx: int,
+        total: int
+    ):
+        """
+        단일 장소 크롤링 (병렬용)
+        
+        Returns:
+            Tuple: (store_data, place_name) 또는 None
+        """
+        try:
+            # 매번 목록 새로 가져오기
+            places = await list_frame_locator.locator(place_selector).all()
+            
+            if idx >= len(places):
+                self.logger.error(f"❌ 인덱스 범위 초과: {idx}/{len(places)}")
+                return None
+            
+            place = places[idx]
+            place_name = await self._extract_place_name(place, idx)
+            
+            # 사람처럼 클릭
+            await self.human_actions.human_like_click(place)
+            await asyncio.sleep(3)
+            
+            # 폐업 팝업 체크
+            if await self._check_and_close_popup(list_frame_locator, place_name):
+                self.logger.warning(f"⚠️ '{place_name}' 폐업 또는 접근 불가")
+                return None
+            
+            # entry iframe
+            entry_frame = await self._get_entry_frame(page)
+            if not entry_frame:
+                self.logger.error(f"❌ '{place_name}' entry iframe 없음")
+                return None
+            
+            # 상세 정보 추출
+            extractor = StoreDetailExtractor(entry_frame, page)
+            store_data = await extractor.extract_all_details()
+            
+            if store_data:
+                # 리소스 정리
+                await OptimizedBrowserManager.clear_page_resources(page)
+                return (store_data, place_name)
+            else:
+                self.logger.error(f"❌ '{place_name}' 정보 추출 실패")
+                return None
+                
+        except Exception as e:
+            self.logger.error(f"❌ 크롤링 중 오류: {e}")
+            return None
+    
+    async def _save_wrapper(self, idx: int, total: int, store_data_tuple, place_name: str):
+        """
+        저장 래퍼 (CrawlingManager용)
+        
+        Args:
+            store_data_tuple: (store_data, place_name) 튜플 또는 None
+        """
+        if store_data_tuple is None:
+            return (False, "크롤링 실패")
+        
+        store_data, actual_name = store_data_tuple
+        
+        return await self.data_saver.save_store_data(
+            idx=idx,
+            total=total,
+            store_data=store_data,
+            store_name=actual_name,
+            log_prefix="즐겨찾기"
+        )
     
     async def _find_place_selector(self, list_frame_locator, list_frame):
         """장소 선택자 찾기"""
@@ -141,96 +320,18 @@ class NaverMapFavoriteCrawler:
             try:
                 elements = await list_frame_locator.locator(selector).all()
                 if len(elements) > 0:
-                    # logger.info(f"선택자 발견: {selector} - {len(elements)}개 요소")
+                    self.logger.debug(f"✅ 선택자 발견: {selector}")
                     return selector
-            except Exception as e:
-                self.logger.debug(f"선택자 없음: {selector} - {e}")
+            except:
                 continue
         
-        # 선택자를 찾지 못한 경우
-        html_content = await list_frame.content()
-        with open('debug_iframe.html', 'w', encoding='utf-8') as f:
-            f.write(html_content)
-        self.logger.error("장소 목록 선택자를 찾을 수 없습니다. debug_iframe.html 파일을 확인하세요.")
+        self.logger.error("❌ 장소 목록 선택자를 찾을 수 없습니다.")
         return None
-    
-    async def _crawl_single_place(
-        self, 
-        page: Page, 
-        list_frame_locator, 
-        place_selector: str, 
-        idx: int, 
-        total: int
-    ):
-        """
-        단일 장소 크롤링
-        
-        Args:
-            page: 메인 페이지
-            list_frame_locator: 리스트 iframe locator
-            place_selector: 장소 선택자
-            idx: 장소 인덱스 (0부터 시작)
-            total: 전체 장소 수
-        
-        Returns:
-            Tuple: (store_data, place_name) 또는 None
-        """
-        try:
-            # 매번 목록을 다시 가져와야 함 (DOM이 변경되기 때문)
-            places = await list_frame_locator.locator(place_selector).all()
-            
-            if idx >= len(places):
-                self.logger.error(f"장소 인덱스가 범위를 벗어났습니다: {idx}/{len(places)}")
-                return None
-            
-            place = places[idx]
-            
-            # 장소명 미리 가져오기 (로깅용)
-            place_name = await self._extract_place_name(place, idx)
-            
-            # 장소 클릭
-            await self._click_place(place)
-            await asyncio.sleep(3)
-            
-            # 폐업 팝업 체크
-            if await self._check_and_close_popup(list_frame_locator, place_name):
-                self.logger.warning(f"'{place_name}' 폐업 또는 접근 불가")
-                return None
-            
-            # entry iframe 가져오기 (메인 페이지에서)
-            entry_frame = await self._get_entry_frame(page)
-            
-            if not entry_frame:
-                self.logger.error(f"entry iframe을 찾을 수 없습니다.")
-                return None
-            
-            # 상세 정보 추출
-            extractor = StoreDetailExtractor(entry_frame, page)
-            store_data = await extractor.extract_all_details()
-            
-            if store_data:
-                return (store_data, place_name)
-            else:
-                self.logger.error(f"상점 정보 추출 실패: {place_name}")
-                return None
-                
-        except Exception as e:
-            self.logger.error(f"크롤링 중 오류: {e}")
-            import traceback
-            self.logger.error(traceback.format_exc())
-            return None
     
     async def _extract_place_name(self, place, idx: int) -> str:
         """장소명 추출"""
         try:
-            name_selectors = [
-                'div.name', 
-                'span.name', 
-                '.place_name', 
-                'a.name', 
-                '.item_name', 
-                'span'
-            ]
+            name_selectors = ['div.name', 'span.name', '.place_name', 'a.name', '.item_name', 'span']
             
             for name_sel in name_selectors:
                 try:
@@ -244,21 +345,8 @@ class NaverMapFavoriteCrawler:
         except:
             return f"장소 {idx+1}"
     
-    async def _click_place(self, place):
-        """장소 클릭"""
-        try:
-            clickable = place.locator('div, li[role="button"]').first
-            await clickable.click(timeout=5000)
-        except:
-            await place.click(timeout=5000)
-    
     async def _check_and_close_popup(self, list_frame_locator, place_name: str) -> bool:
-        """
-        폐업 팝업 체크 및 닫기
-        
-        Returns:
-            bool: 팝업이 있었으면 True, 없으면 False
-        """
+        """폐업 팝업 체크 및 닫기"""
         popup_selectors = [
             'body > div:nth-child(4) > div._show_62e0u_8',
             'div._show_62e0u_8',
@@ -275,123 +363,28 @@ class NaverMapFavoriteCrawler:
                 is_visible = await popup_element.is_visible(timeout=1000)
                 
                 if is_visible:
-                    self.logger.warning(f"'{place_name}' 폐업 팝업 감지! (셀렉터: {popup_selector})")
                     is_popup_found = True
                     break
-            except Exception as e:
-                self.logger.debug(f"셀렉터 '{popup_selector}' 실패: {e}")
+            except:
                 continue
         
         if is_popup_found:
-            # 확인 버튼 클릭
             button_selectors = [
-                'body > div:nth-child(4) > div > div._popup_62e0u_1._at_pc_62e0u_21._show_62e0u_8 > div._popup_buttons_62e0u_85 > button'
+                'body > div:nth-child(4) > div > div._popup_62e0u_1._at_pc_62e0u_21._show_62e0u_8 > div._popup_buttons_62e0u_85 > button',
+                'div._popup_buttons_62e0u_85 > button',
             ]
             
-            button_clicked = False
             for button_selector in button_selectors:
                 try:
                     popup_button = list_frame_locator.locator(button_selector).first
                     if await popup_button.is_visible(timeout=1000):
                         await popup_button.click(timeout=2000)
                         await asyncio.sleep(0.5)
-                        button_clicked = True
                         break
-                except Exception as e:
-                    self.logger.debug(f"버튼 셀렉터 '{button_selector}' 실패: {e}")
+                except:
                     continue
-            
-            if not button_clicked:
-                self.logger.error("팝업 닫기 버튼을 찾을 수 없습니다")
         
         return is_popup_found
-    
-    async def _save_wrapper(self, idx: int, total: int, store_data_tuple, place_name: str):
-        """
-        저장 래퍼 함수
-        
-        Args:
-            store_data_tuple: (store_data, place_name) 튜플
-        """
-        if store_data_tuple is None:
-            return (False, "크롤링 실패")
-        
-        store_data, actual_place_name = store_data_tuple
-        
-        return await self.data_saver.save_store_data(
-            idx=idx,
-            total=total,
-            store_data=store_data,
-            store_name=actual_place_name,
-            log_prefix="즐겨찾기"
-        )
-    
-    async def _scroll_to_load_all_places(self, frame_locator, place_selector: str):
-        """
-        iframe 내부를 스크롤하여 모든 장소를 로드
-        
-        Args:
-            frame_locator: iframe locator
-            place_selector: 장소 선택자
-        """
-        # logger.info("스크롤 시작...")
-        
-        scroll_container_selectors = [
-            '#app > div > div:nth-child(3)',
-            '#app > div > div:nth-child(3) > div',
-            'div[class*="scroll"]',
-            'div[style*="overflow"]',
-        ]
-        
-        prev_count = 0
-        same_count = 0
-        max_same_count = 3
-        
-        for scroll_attempt in range(500):
-            try:
-                # 현재 장소 개수
-                places = await frame_locator.locator(place_selector).all()
-                current_count = len(places)
-                
-                # if scroll_attempt % 10 == 0:  # 10회마다 로그
-                #     logger.info(f"스크롤 {scroll_attempt + 1}회: {current_count}개 장소 발견")
-                
-                # 개수가 같으면 카운트 증가
-                if current_count == prev_count:
-                    same_count += 1
-                    if same_count >= max_same_count:
-                        # logger.info(f"스크롤 완료: 총 {current_count}개 장소")
-                        break
-                else:
-                    same_count = 0
-                
-                prev_count = current_count
-                
-                # 마지막 요소로 스크롤
-                if current_count > 0:
-                    last_place = frame_locator.locator(place_selector).nth(current_count - 1)
-                    try:
-                        await last_place.scroll_into_view_if_needed(timeout=3000)
-                    except:
-                        pass
-                
-                # 스크롤 컨테이너에서 직접 스크롤 시도
-                for container_selector in scroll_container_selectors:
-                    try:
-                        await frame_locator.locator(container_selector).evaluate(
-                            'element => element.scrollTop = element.scrollHeight'
-                        )
-                        break
-                    except:
-                        continue
-                
-                await asyncio.sleep(2)
-                
-            except Exception as e:
-                self.logger.warning(f"스크롤 중 오류: {e}")
-                break
-        
-        # logger.info("스크롤 완료")
     
     async def _get_entry_frame(self, page: Page):
         """상세 정보 iframe 가져오기"""
@@ -401,19 +394,24 @@ class NaverMapFavoriteCrawler:
             await asyncio.sleep(3)
             return entry_frame
         except TimeoutError:
-            self.logger.error("entryIframe을 찾을 수 없습니다.")
             return None
 
 
-async def main(favorite_url = 'https://map.naver.com/p/favorite/sSjt-6mGnGEqi8HA:2D_MP7QkdZtDuASbcBgfEqXAYqV5Tw/folder/723cd582cd1e43dcac5234ad055c7494/pc/place/1477750254?c=10.15,0,0,0,dh&placePath=/home?from=map&fromPanelNum=2&timestamp=202510210943&locale=ko&svcName=map_pcv5'):
+async def main(favorite_url='https://map.naver.com/p/favorite/YOUR_URL'):
     """메인 함수"""
     logger = get_logger(__name__)
-    # 크롤러 생성
+    
+    logger.info("="*70)
+    logger.info("🚀 네이버 지도 즐겨찾기 크롤러 시작 (병렬 처리)")
+    logger.info("="*70)
+    
     crawler = NaverMapFavoriteCrawler(headless=False)
     
-    # 즐겨찾기 목록 크롤링
     await crawler.crawl_favorite_list(
         favorite_url=favorite_url,
-        delay=10,
-        output_file=None
+        delay=15
     )
+    
+    logger.info("="*70)
+    logger.info("🏁 크롤러 종료")
+    logger.info("="*70)
