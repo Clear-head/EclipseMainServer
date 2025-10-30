@@ -1,12 +1,12 @@
 import uuid
 from typing import Dict
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
+from starlette.responses import JSONResponse
 
-from src.domain.dto.header import JsonHeader
-from src.domain.dto.service.haru_service_dto import RequestStartMainServiceDTO, ResponseStartMainServiceDTO, \
-    StartResponseBody, RequestChatServiceDTO, ChatResponseBody, ResponseChatServiceDTO
-from src.domain.dto.service.main_screen_dto import RequestMainScreenDTO
+
+from src.domain.dto.service.haru_service_dto import (RequestStartMainServiceDTO, ResponseStartMainServiceDTO
+, RequestChatServiceDTO, ResponseChatServiceDTO)
 from src.logger.custom_logger import get_logger
 from src.service.application.ai_service_handler import handle_modification_mode, handle_user_message, \
     handle_user_action_response
@@ -25,8 +25,29 @@ sessions: Dict[str, Dict] = {}
 
 #   메인 화면: 로그인 후 바로 보여지는 화면
 @router.post("/main")
-async def to_main_screen(dto: RequestMainScreenDTO):
-    jwt = dto.headers.jwt
+async def to_main_screen(request: Request):
+    # jwt = request.headers.get("jwt")
+    #
+    # if jwt is None:
+    #     logger.error("Missing token")
+    #     raise MissingTokenException()
+    #
+    # validate_result = await validate_jwt_token(jwt)
+    #
+    # if validate_result == 2:
+    #     logger.error("Expired token")
+    #     raise ExpiredAccessTokenException()
+
+    main_service_class = MainScreenService()
+
+    content = await main_service_class.to_main()
+    return JSONResponse(
+        content=content.model_dump()
+    )
+
+@router.get("/detail/{category_id}")
+async def to_detail(category_id: str, request: Request):
+    jwt = request.headers.get("jwt")
 
     if jwt is None:
         logger.error("Missing token")
@@ -39,29 +60,38 @@ async def to_main_screen(dto: RequestMainScreenDTO):
         raise ExpiredAccessTokenException()
 
     main_service_class = MainScreenService()
-    return await main_service_class.to_main()
+    content = await main_service_class.get_category_detail(category_id)
+    return JSONResponse(
+        content=content.model_dump()
+    )
 
+
+"""
+
+    하루랑 채팅
+
+"""
 
 @router.post("/start")
-async def start_conversation(request: RequestStartMainServiceDTO) -> ResponseStartMainServiceDTO:
+async def start_conversation(request: RequestStartMainServiceDTO):
 
-    jwt = request.headers.jwt
-    if jwt is None:
-        logger.error("Missing token")
-        raise MissingTokenException()
-
-    validate_result = await validate_jwt_token(jwt)
-    if validate_result == 2:
-        logger.error("ExpiredToken token")
-        raise ExpiredAccessTokenException()
+    # jwt = request.headers.jwt
+    # if jwt is None:
+    #     logger.error("Missing token")
+    #     raise MissingTokenException()
+    #
+    # validate_result = await validate_jwt_token(jwt)
+    # if validate_result == 2:
+    #     logger.error("ExpiredToken token")
+    #     raise ExpiredAccessTokenException()
 
     # 세션 ID 생성
     session_id = str(uuid.uuid4())
 
     # 세션 데이터 초기화
     sessions[session_id] = {
-        "peopleCount": request.body.peopleCount,
-        "selectedCategories": request.body.selectedCategories,
+        "peopleCount": request.peopleCount,
+        "selectedCategories": request.selectedCategories,
         "collectedTags": {},  # 카테고리별 태그 저장
         "currentCategoryIndex": 0,  # 현재 질문 중인 카테고리
         "conversationHistory": [],  # 대화 히스토리
@@ -73,89 +103,79 @@ async def start_conversation(request: RequestStartMainServiceDTO) -> ResponseSta
     }
 
     # 첫 번째 카테고리에 대한 질문 생성 (인원수와 카테고리 정보 포함)
-    first_category = request.body.selectedCategories[0]
-    categories_text = ', '.join(request.body.selectedCategories)
+    first_category = request.selectedCategories[0]
+    categories_text = ', '.join(request.selectedCategories)
 
     first_message = RESPONSE_MESSAGES["start"]["first_message"].format(
-        people_count=request.body.peopleCount,
+        people_count=request.peopleCount,
         categories_text=categories_text,
         first_category=first_category
     )
 
     response = ResponseStartMainServiceDTO(
-        headers=JsonHeader(
-            jwt=request.headers.jwt,
-        ),
-        body=StartResponseBody(
-            status="success",
-            sessionId=session_id,
-            message=first_message,
-            stage="collecting_details",
-            progress={
-                "current": 0,
-                "total": len(request.body.selectedCategories)
-            }
-        )
+        status="success",
+        sessionId=session_id,
+        message=first_message,
+        stage="collecting_details",
+        progress={
+            "current": 0,
+            "total": len(request.selectedCategories)
+        }
     )
 
-    return response
+    return JSONResponse(
+        content=response.model_dump()
+    )
 
 
 @router.get("/chat")
 @router.post("/chat")
-async def chat(request: RequestChatServiceDTO) -> ResponseChatServiceDTO:
+async def chat(request: RequestChatServiceDTO):
 
-    jwt = request.headers.jwt
-    if jwt is None:
-        logger.error("Missing token")
-        raise MissingTokenException()
-
-    validate_result = await validate_jwt_token(jwt)
-    if validate_result == 2:
-        logger.error("ExpiredToken token")
-        raise ExpiredAccessTokenException()
+    # jwt = request.headers.jwt
+    # if jwt is None:
+    #     logger.error("Missing token")
+    #     raise MissingTokenException()
+    #
+    # validate_result = await validate_jwt_token(jwt)
+    # if validate_result == 2:
+    #     logger.error("ExpiredToken token")
+    #     raise ExpiredAccessTokenException()
 
     # 세션 확인
-    if request.body.sessionId not in sessions:
+    if request.sessionId not in sessions:
         raise HTTPException(status_code=404, detail="세션을 찾을 수 없습니다.")
 
-    session = sessions[request.body.sessionId]
+    session = sessions[request.sessionId]
 
     # completed 상태 처리 - 대화 완료 후 추가 메시지
     if session.get("stage") == "completed":
-        return ResponseChatServiceDTO(
-            headers=JsonHeader(
-                jwt=request.headers.jwt,
-            ),
-            body=ChatResponseBody(
+
+        contents = ResponseChatServiceDTO(
                 status="success",
                 message="대화가 완료되었습니다. 새로운 대화를 시작하려면 처음부터 다시 시작해주세요.",
                 stage="completed"
-            )
+        )
+
+        return JSONResponse(
+            content=contents.model_dump()
         )
 
     # modification_mode 처리
     if session.get("stage") == "modification_mode":
-        return ResponseChatServiceDTO(
-            headers=JsonHeader(
-                jwt=request.headers.jwt,
-            ),
-            body=handle_modification_mode(session, request.body.message)
+
+        return JSONResponse(
+            content=handle_modification_mode(session, request.message).model_dump()
         )
 
     # 사용자 액션(Next/More 또는 Yes) 응답 처리
     if session.get("waitingForUserAction", False):
-        return ResponseChatServiceDTO(
-            headers=JsonHeader(
-                jwt=request.headers.jwt,
-            ),
-            body=handle_user_action_response(session, request.body.message)
+
+        return JSONResponse(
+            content=handle_user_action_response(session, request.message).model_dump()
         )
 
     # 일반 메시지 처리 (태그 생성)
-    return ResponseChatServiceDTO(
-        headers=JsonHeader(
-            jwt=request.headers.jwt,
-        ),
-        body=handle_user_message(session, request.body.message)
+    return JSONResponse(
+        content=handle_user_message(session, request.message).model_dump()
     )

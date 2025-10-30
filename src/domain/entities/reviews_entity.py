@@ -6,6 +6,7 @@ class ReviewsEntity(BaseModel):
     user_id: str
     category_id: str
     stars: int
+    comment: str
 
     @field_validator('id', 'user_id', 'category_id')
     @classmethod

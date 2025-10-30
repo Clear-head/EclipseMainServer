@@ -4,11 +4,15 @@ from src.domain.entities.base_entity import BaseEntity
 
 
 class UserHistoryEntity(BaseEntity):
+    id: str
     user_id: str
     visited_at: datetime
-    category_id: str
+    cafe: str
+    restaurant: str
+    contents: str
+    template: str
 
-    @field_validator("user_id", "category_id", "visited_at")
+    @field_validator("user_id", "visited_at")
     @classmethod
     def validate_null(cls, value):
         if value is None:

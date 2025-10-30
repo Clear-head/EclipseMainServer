@@ -3,19 +3,16 @@ from pydantic import BaseModel
 
 from src.domain.dto.header import JsonHeader
 
-#   대화 시작 요청 모델 바디
-class StartRequestBody(BaseModel):
+#   /api/service/start
+
+#   대화 시작 요청 모델
+class RequestStartMainServiceDTO(BaseModel):
     peopleCount: int  # 함께할 인원 수
     selectedCategories: List[str]  # 선택한 활동 카테고리 (예: ["카페", "음식점"])
 
-#   대화 시작 요청 모델 전체
-class RequestStartMainServiceDTO(BaseModel):
-    headers: JsonHeader
-    body: StartRequestBody
 
-
-#   대화 시작 응답 모델 바디
-class StartResponseBody(BaseModel):
+#   대화 시작 응답 모델
+class ResponseStartMainServiceDTO(BaseModel):
     status: str  # 상태 (success/error)
     sessionId: str  # 생성된 세션 ID
     message: str  # 챗봇 메시지
@@ -23,24 +20,17 @@ class StartResponseBody(BaseModel):
     progress: Dict[str, int]  # 진행 상태 (current, total)
 
 
-#   대화 시작 응답 모델
-class ResponseStartMainServiceDTO(BaseModel):
-    headers: JsonHeader
-    body: StartResponseBody
 
 
+#   /api/service/chat
 #   채팅 메시지 요청 모델 바디
-class ChatRequestBody(BaseModel):
+class RequestChatServiceDTO(BaseModel):
     sessionId: str  # 세션 식별자
     message: str  # 사용자 메시지
 
-#   채팅 메시지 요청 모델 전문
-class RequestChatServiceDTO(BaseModel):
-    headers: JsonHeader
-    body: ChatRequestBody
 
 #   채팅 응답 모델
-class ChatResponseBody(BaseModel):
+class ResponseChatServiceDTO(BaseModel):
     status: str  # 상태
     message: str  # 챗봇 메시지
     stage: str  # 현재 대화 단계
@@ -53,8 +43,3 @@ class ChatResponseBody(BaseModel):
     yesNoQuestion: Optional[str] = None  # 버튼과 함께 보여줄 질문
     currentCategory: Optional[str] = None  # 현재 질문 중인 카테고리
     availableCategories: Optional[List[str]] = None  # 선택 가능한 카테고리 목록
-
-
-class ResponseChatServiceDTO(BaseModel):
-    headers: JsonHeader
-    body: ChatResponseBody
