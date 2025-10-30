@@ -32,17 +32,17 @@ class StoreChromaDBLoader:
             )
         )
         
-        # 한국어 임베딩 모델 설정
-        logger.info("한국어 임베딩 모델 로딩 중: intfloat/multilingual-e5-large")
+        # 임베딩 모델 설정
+        logger.info("임베딩 모델 로딩 중: intfloat/multilingual-e5-large")
         self.embedding_function = embedding_functions.SentenceTransformerEmbeddingFunction(
             model_name="intfloat/multilingual-e5-large"
         )
-        logger.info("한국어 임베딩 모델 로딩 완료")
+        logger.info("임베딩 모델 로딩 완료")
         
-        # 컬렉션 생성 (한국어 임베딩 함수 적용)
+        # 컬렉션 생성 (임베딩 함수 적용)
         self.store_collection = self.client.get_or_create_collection(
             name="stores",
-            metadata={"description": "매장 정보 검색용 컬렉션 (한국어 임베딩)"},
+            metadata={"description": "매장 정보 검색용 컬렉션 (임베딩)"},
             embedding_function=self.embedding_function
         )
         
@@ -331,10 +331,10 @@ class StoreChromaDBLoader:
             self.client.delete_collection(name="stores")
             logger.info("기존 'stores' 컬렉션 삭제 완료")
             
-            # 한국어 임베딩 함수로 새 컬렉션 생성
+            # 임베딩 함수로 새 컬렉션 생성
             self.store_collection = self.client.create_collection(
                 name="stores",
-                metadata={"description": "매장 정보 검색용 컬렉션 (한국어 임베딩)"},
+                metadata={"description": "매장 정보 검색용 컬렉션 (임베딩)"},
                 embedding_function=self.embedding_function
             )
             logger.info("새로운 'stores' 컬렉션 생성 완료")
