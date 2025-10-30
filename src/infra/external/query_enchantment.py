@@ -18,7 +18,7 @@ class QueryEnhancementService:
     """사용자 입력을 자연스러운 검색 쿼리로 변환하는 클래스"""
     
     def __init__(self):
-        self.api_token = os.getenv('COPILOT_API_KEY') or os.getenv('GITHUB_TOKEN')
+        self.api_token = os.getenv('COPILOT_API_KEY2') or os.getenv('GITHUB_TOKEN')
         if self.api_token:
             self.api_endpoint = "https://api.githubcopilot.com/chat/completions"
             self.headers = {
@@ -66,13 +66,14 @@ class QueryEnhancementService:
                 {
                     "role": "system",
                     "content": """당신은 매장 검색을 위한 쿼리 최적화 전문가입니다. 
-사용자의 입력을 검색에 최적화된 간결한 한국어로 변환하세요.
+사용자의 입력을 매장 검색에 최적화된 자연스러운 한국어 문장으로 변환하세요.
 
 중요 규칙:
-- 핵심 키워드만 간결하게 유지 (과도한 설명 금지)
-- 형용사 형태로 자연스럽게 연결
-- 2-4단어로 구성 (너무 길면 검색 정확도 떨어짐)
-- 구어체나 띄어쓰기 오류만 수정
+- 반드시 완전한 문장 형태로 작성 (주어+서술어)
+- 단순 키워드 나열 금지
+- "~한", "~있는", "~좋은" 등 형용사 형태로 자연스럽게 연결
+- 구어체나 띄어쓰기 오류를 수정
+- 검색 의도를 명확히 표현
 - 한국어로만 답변"""
                 },
                 {
@@ -81,7 +82,7 @@ class QueryEnhancementService:
                 }
             ],
             "temperature": 0.3,
-            "max_tokens": 50
+            "max_tokens": 100
         }
         
         for attempt in range(1, max_retries + 1):
@@ -149,7 +150,7 @@ class QueryEnhancementService:
         
         context = ", ".join(context_parts) if context_parts else "제약 없음"
         
-        prompt = f"""다음 사용자 입력을 검색에 최적화된 간결한 한국어로 변환하세요.
+        prompt = f"""다음 사용자 입력을 매장 검색에 최적화된 자연스러운 한국어 문장으로 변환하세요.
 
 <사용자 입력>
 {user_keyword}
@@ -158,37 +159,38 @@ class QueryEnhancementService:
 {context}
 
 <변환 규칙>
-1. 핵심 키워드만 유지 (2-4단어)
-2. 1명일 때만 "혼자" 키워드 포함
-3. 형용사 형태로 자연스럽게 연결
-4. 쉼표나 불필요한 조사 제거
+1. 반드시 완전한 문장 형태로 작성 (키워드 나열 금지)
+2. 1명일 때만 "혼자", "혼밥" 키워드 포함
+3. 2명 이상일 때는 인원수 언급 안 함
+4. 형용사 형태로 자연스럽게 연결
+5. 검색 의도를 명확히 표현
 
 <변환 예시>
 입력: "조용하고 분위기좋은곳" (1명)
-출력: 혼자 가기 좋은 조용한 곳
+출력: 혼자 있기 좋은 조용하고 분위기 좋은 곳
 
 입력: "조용하고 분위기좋은곳" (2명 이상)
-출력: 조용하고 분위기 좋은
+출력: 조용하고 분위기 좋은 곳
 
 입력: "혼밥하기좋고 맛있는곳" (1명)
-출력: 혼자 식사하기 좋은
+출력: 혼자 식사하기 좋고 음식이 맛있는 곳
 
 입력: "데이트하기딱좋음" (2명)
-출력: 데이트하기 좋은
+출력: 데이트하기 좋은 분위기의 곳
 
 입력: "삼겹살, 저렴한, 된장찌개" (2명 이상, 음식점)
-출력: 저렴한 삼겹살 된장찌개
+출력: 저렴한 가격에 삼겹살과 된장찌개를 먹을 수 있는 곳
 
 입력: "쑥라떼, 에끌레어" (2명 이상, 카페)
-출력: 쑥라떼 에끌레어
+출력: 쑥라떼와 에끌레어가 있는 카페
 
 입력: "커피맛있고 조용한" (2명 이상, 카페)
-출력: 커피 맛있고 조용한
+출력: 커피가 맛있고 조용한 카페
 
-❌ 나쁜 예시: "저렴한 가격에 삼겹살과 된장찌개를 함께 즐길 수 있는 음식점" (너무 김)
-✅ 좋은 예시: "저렴한 삼겹살 된장찌개" (간결함)
+❌ 나쁜 예시: "저렴한 삼겹살 된장찌개" (키워드 나열)
+✅ 좋은 예시: "저렴한 가격에 삼겹살과 된장찌개를 먹을 수 있는 곳" (완전한 문장)
 
-변환된 검색어 (2-4단어, 한국어로만):"""
+변환된 검색 문장 (완전한 문장 형태로, 한국어로만):"""
         
         return prompt
     
@@ -205,12 +207,24 @@ class QueryEnhancementService:
         if personnel and personnel == 1:
             query_parts.append("혼자 가기 좋은")
         
-        # 사용자 키워드 (쉼표 제거하고 공백으로)
+        # 사용자 키워드
         if user_keyword and user_keyword.strip():
-            keywords = user_keyword.strip().replace(",", " ")
-            # 연속된 공백 제거
-            keywords = " ".join(keywords.split())
+            # 키워드 정리
+            keywords = user_keyword.strip()
+            
+            # 쉼표로 구분된 경우 자연스럽게 연결
+            if "," in keywords:
+                items = [k.strip() for k in keywords.split(",")]
+                if len(items) == 2:
+                    keywords = f"{items[0]}와 {items[1]}가 있는"
+                elif len(items) > 2:
+                    keywords = f"{', '.join(items[:-1])}, {items[-1]}가 있는"
+            
             query_parts.append(keywords)
+        
+        # 타입 추가
+        if category_type:
+            query_parts.append(category_type)
         
         final_query = " ".join(query_parts) if query_parts else "추천"
         

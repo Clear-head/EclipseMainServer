@@ -68,7 +68,7 @@ class StoreChromaDBLoader:
     
     def create_store_document(self, store_entity, tags: List[Dict]) -> str:
         """
-        매장 데이터를 키워드 중심 문서로 변환
+        매장 데이터를 자연스러운 한국어 문장으로 변환
         구, 타입, 영업시간은 문서에서 제외 (메타데이터로 필터링/조회)
         
         Args:
@@ -76,7 +76,7 @@ class StoreChromaDBLoader:
             tags: 태그 목록 [{'name': '태그명', 'count': 개수}, ...]
             
         Returns:
-            str: 키워드 중심 문서 (구, 타입, 매장ID, 영업시간 제외)
+            str: 자연스러운 한국어 문장 (구, 타입, 매장ID, 영업시간 제외)
         """
         # 태그 처리: 1등 제외하고 2~11위까지 (상위 10개)
         sorted_tags = sorted(tags, key=lambda x: x['count'], reverse=True)
@@ -90,19 +90,26 @@ class StoreChromaDBLoader:
         # 메뉴 전체
         menu = store_entity.menu if store_entity.menu else ""
         
-        # 키워드 중심 문서 생성 (구, 타입, 매장ID, 영업시간 제외)
+        # 자연스러운 한국어 문장 생성
         doc_parts = []
         
-        # 태그 (따옴표 제거)
+        # 태그를 문장으로 변환
         if tags_list:
-            tags_clean = " ".join(tags_list).replace('"', '')
-            doc_parts.append(tags_clean)
+            tags_clean = [tag.replace('"', '') for tag in tags_list]
+            tags_sentence = f"이 매장은 {', '.join(tags_clean[:-1])} 및 {tags_clean[-1]}의 특징을 가지고 있습니다." if len(tags_clean) > 1 else f"이 매장은 {tags_clean[0]}의 특징을 가지고 있습니다."
+            doc_parts.append(tags_sentence)
         
-        # 메뉴
+        # 메뉴를 문장으로 변환
         if menu:
-            doc_parts.append(menu)
+            menu_items = [item.strip() for item in menu.split(',') if item.strip()]
+            if menu_items:
+                if len(menu_items) > 1:
+                    menu_sentence = f"주요 메뉴는 {', '.join(menu_items[:-1])} 및 {menu_items[-1]} 등이 있습니다."
+                else:
+                    menu_sentence = f"주요 메뉴는 {menu_items[0]} 등이 있습니다."
+                doc_parts.append(menu_sentence)
         
-        # 공백으로 연결 (키워드 나열 형태)
+        # 문장들을 공백으로 연결
         document = " ".join(doc_parts)
         
         return document
