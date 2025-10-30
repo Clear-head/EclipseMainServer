@@ -12,7 +12,8 @@ from src.service.application.ai_service_handler import handle_modification_mode,
     handle_user_action_response
 from src.service.application.main_screen_service import MainScreenService
 from src.service.application.prompts import RESPONSE_MESSAGES
-
+from src.service.auth.jwt import validate_jwt_token
+from src.utils.exception_handler.auth_error_class import MissingTokenException, ExpiredAccessTokenException
 
 router = APIRouter(prefix="/api/service")
 logger = get_logger(__name__)
@@ -38,7 +39,31 @@ async def to_main_screen(request: Request):
     #     raise ExpiredAccessTokenException()
 
     main_service_class = MainScreenService()
-    return await main_service_class.to_main()
+
+    content = await main_service_class.to_main()
+    return JSONResponse(
+        content=content.model_dump()
+    )
+
+@router.get("/detail/{category_id}")
+async def to_detail(category_id: str, request: Request):
+    jwt = request.headers.get("jwt")
+
+    if jwt is None:
+        logger.error("Missing token")
+        raise MissingTokenException()
+
+    validate_result = await validate_jwt_token(jwt)
+
+    if validate_result == 2:
+        logger.error("Expired token")
+        raise ExpiredAccessTokenException()
+
+    main_service_class = MainScreenService()
+    content = await main_service_class.get_category_detail(category_id)
+    return JSONResponse(
+        content=content.model_dump()
+    )
 
 
 """

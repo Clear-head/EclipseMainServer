@@ -1,10 +1,13 @@
+from fastapi import HTTPException
 from starlette.responses import JSONResponse
 
+from src.domain.dto.service.detail_category_dto import ResponseDetailCategoryDTO, DetailCategoryReview
 from src.domain.dto.service.main_screen_dto import MainScreenCategoryList, ResponseMainScreenDTO
 from src.infra.database.repository.category_repository import CategoryRepository
 from src.infra.database.repository.category_tags_repository import CategoryTagsRepository
 from src.infra.database.repository.reviews_repository import ReviewsRepository
 from src.infra.database.repository.tags_repository import TagsRepository
+from src.infra.database.repository.users_repository import UserRepository
 
 
 class MainScreenService:
@@ -16,7 +19,7 @@ class MainScreenService:
         self.tags_repo = TagsRepository()
 
 
-    async def to_main(self):
+    async def to_main(self) -> ResponseMainScreenDTO:
         categories = await self.category_repo.select_by(limit=5)
 
         tags = []
@@ -52,11 +55,54 @@ class MainScreenService:
 
             request_main_screen_body_categories.append(tmp)
 
-
-        contents = ResponseMainScreenDTO(
+        return ResponseMainScreenDTO(
             categories=request_main_screen_body_categories,
         )
 
-        return JSONResponse(
-            content=contents.model_dump(),
+
+    async def get_category_detail(self, category_id) -> ResponseDetailCategoryDTO:
+        user_repo = UserRepository()
+
+
+        category = await self.category_repo.select_by(id=category_id)
+
+        if category is None:
+            raise HTTPException(status_code=404, detail="Category not found")
+        elif len(category) > 1:
+            raise HTTPException(status_code=404, detail="Too many categories")
+        category = category[0]
+
+
+        #   todo: 여기도 성능 잡아야 함 join 처리 해야 할 듯
+
+
+        category_in_tags = await self.category_tags_repo.select_by(category_id=category.id, limit=5)
+        print(len(category_in_tags))
+
+        #   tags
+        tag_names = []
+        for tag_ids in category_in_tags:
+            tag_name = await self.tags_repo.select_by(id=tag_ids.tag_id)
+            for i in tag_name:
+                tag_names.append(i.name.replace("\"", ""))
+
+
+        #   reviews
+        reviews_list = []
+        review_entity_list = await self.reviews_repo.select_by(category_id=category.id)
+        for review_entity in review_entity_list:
+            nickname = (await user_repo.select_by(id=review_entity.user_id))[0].nickname
+            star = review_entity.star
+            comment = review_entity.comment
+            reviews_list.append(
+                DetailCategoryReview(
+                    nickname=nickname,
+                    star=star,
+                    comment=comment,
+                )
+            )
+
+        return ResponseDetailCategoryDTO(
+            tags=tag_names,
+            reviews=reviews_list,
         )
