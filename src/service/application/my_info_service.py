@@ -16,29 +16,28 @@ class UserInfoService:
     async def get_user_like(self, user_id) -> ResponseUserLikeDTO:
         repo = UserLikeRepository()
 
-        liked = await repo.select_with_join(
-            user_id=user_id,
-            join_table=category_table,
-            dto=UserLikeDTO,
-            join_conditions={
-                "category_id": "id"
-            },
-            select_columns={
-                'main': ["category_id"],
-                'join': {
-                    'name': 'category_name',
-                    "image": 'category_image',
-                    "sub_category": "sub_category",
-                    "do": "do",
-                    "si": "si",
-                    "gu": "gu",
-                    "detail_address": "detail_address"
+        liked = await repo.select(
+            return_dto=UserLikeDTO,
+            id=user_id,
+            join=[
+                {
+                    "table": category_table,
+                    "on": {"category_id": "id"},
+                    "alias": "category"
                 }
+            ],
+            columns={
+                "category_id": "category_id",
+                "category.name": "category_name",
+                "category.image": "category_image",
+                "category.sub_category": "sub_category",
+                "category.do": "do",
+                "category.si": "si",
+                "category.gu": "si",
+                "category.detail_address": "detail_address"
             }
-
         )
-
-
+        print(liked[0])
 
 
         if not liked:
@@ -46,7 +45,6 @@ class UserInfoService:
             raise NotFoundAnyItemException()
 
         else:
-
             return ResponseUserLikeDTO(
                 like_list=liked
             )
