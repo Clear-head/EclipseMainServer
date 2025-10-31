@@ -1,7 +1,7 @@
 import uuid
 from typing import Dict
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Depends
 from starlette.responses import JSONResponse
 
 
@@ -15,7 +15,10 @@ from src.service.application.prompts import RESPONSE_MESSAGES
 from src.service.auth.jwt import validate_jwt_token
 from src.utils.exception_handler.auth_error_class import MissingTokenException, ExpiredAccessTokenException
 
-router = APIRouter(prefix="/api/service")
+router = APIRouter(
+    prefix="/api/service",
+    dependencies=[Depends(validate_jwt_token)]
+)
 logger = get_logger(__name__)
 
 # 현재는 메모리 기반 딕셔너리 사용 (서버 재시작 시 초기화됨)
@@ -26,18 +29,6 @@ sessions: Dict[str, Dict] = {}
 #   메인 화면: 로그인 후 바로 보여지는 화면
 @router.post("/main")
 async def to_main_screen(request: Request):
-    # jwt = request.headers.get("jwt")
-    #
-    # if jwt is None:
-    #     logger.error("Missing token")
-    #     raise MissingTokenException()
-    #
-    # validate_result = await validate_jwt_token(jwt)
-    #
-    # if validate_result == 2:
-    #     logger.error("Expired token")
-    #     raise ExpiredAccessTokenException()
-
     main_service_class = MainScreenService()
 
     content = await main_service_class.to_main()
@@ -47,17 +38,6 @@ async def to_main_screen(request: Request):
 
 @router.get("/detail/{category_id}")
 async def to_detail(category_id: str, request: Request):
-    jwt = request.headers.get("jwt")
-
-    if jwt is None:
-        logger.error("Missing token")
-        raise MissingTokenException()
-
-    validate_result = await validate_jwt_token(jwt)
-
-    if validate_result == 2:
-        logger.error("Expired token")
-        raise ExpiredAccessTokenException()
 
     main_service_class = MainScreenService()
     content = await main_service_class.get_category_detail(category_id)
@@ -75,15 +55,8 @@ async def to_detail(category_id: str, request: Request):
 @router.post("/start")
 async def start_conversation(data: RequestStartMainServiceDTO, request: Request):
 
-    # jwt = request.headers.jwt
-    # if jwt is None:
-    #     logger.error("Missing token")
-    #     raise MissingTokenException()
-    #
-    # validate_result = await validate_jwt_token(jwt)
-    # if validate_result == 2:
-    #     logger.error("ExpiredToken token")
-    #     raise ExpiredAccessTokenException()
+
+    print(data.play_address)
 
     # 세션 ID 생성
     session_id = str(uuid.uuid4())

@@ -1,12 +1,15 @@
 import traceback
 
-import jwt
+import jwt as jwt_token
 from dotenv import load_dotenv
 import os
 from datetime import datetime, timedelta, timezone
 
+from fastapi import Header
+
 from src.logger.custom_logger import get_logger
-from src.utils.exception_handler.auth_error_class import InvalidTokenException
+from src.utils.exception_handler.auth_error_class import InvalidTokenException, MissingTokenException, \
+    ExpiredAccessTokenException
 from src.utils.path import path_dic
 
 path = path_dic["env"]
@@ -40,16 +43,22 @@ async def create_jwt_token(username: str) -> tuple:
         "iss": os.environ.get("ISSUE_NAME")
     }
 
-    token1 = jwt.encode(payload, public_key, algorithm=algorithm)
-    token2 = jwt.encode(payload2, public_key, algorithm=algorithm)
+    token1 = jwt_token.encode(payload, public_key, algorithm=algorithm)
+    token2 = jwt_token.encode(payload2, public_key, algorithm=algorithm)
 
     return token1, token2
 
 
-async def validate_jwt_token(jwt_token: str) -> int:
+async def validate_jwt_token(jwt: str = Header(None)):
+    print(Header(jwt))
+
+    if jwt is None:
+        logger.error("Missing token")
+        raise MissingTokenException()
+
     try:
         now = int(datetime.now(timezone.utc).timestamp())
-        decoded = jwt.decode(jwt_token, public_key, algorithms=algorithm)
+        decoded = jwt_token.decode(jwt, public_key, algorithms=algorithm)
 
         #   위조된 토큰
         if (
@@ -57,21 +66,21 @@ async def validate_jwt_token(jwt_token: str) -> int:
                 or decoded["iat"] > decoded["exp"]                  #   만료일자 < 생성일자
                 or decoded["iat"] > now                             #   생성일자 > 지금
         ):
-            raise jwt.InvalidTokenError()
+            raise jwt_token.InvalidTokenError()
 
         #   토큰 만료 상황
         elif decoded["exp"] < now:
-            raise jwt.ExpiredSignatureError()
+            raise jwt_token.ExpiredSignatureError()
 
         #   todo: 여기에 유저네임이 세션에 없을 때 추가
 
         else:
-            return 1
+            return True
 
-    except jwt.ExpiredSignatureError as e:
+    except jwt_token.ExpiredSignatureError as e:
         logger.error(type(e).__name__ + str(e))
         traceback.print_exc()
-        return 2
+        raise ExpiredAccessTokenException()
 
-    except jwt.InvalidTokenError as e:
+    except jwt_token.InvalidTokenError as e:
         raise InvalidTokenException() from e
