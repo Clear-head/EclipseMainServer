@@ -49,7 +49,6 @@ async def create_jwt_token(username: str) -> tuple:
 
 
 async def validate_jwt_token(jwt: str = Header(None)):
-    print(Header(jwt))
 
     if jwt is None:
         logger.error("Missing token")
