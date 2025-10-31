@@ -6,7 +6,10 @@ from typing import Optional, Tuple, List
 from playwright.async_api import Page
 from dotenv import load_dotenv
 
+from src.utils.path import path_dic
 from src.logger.custom_logger import get_logger
+
+load_dotenv(dotenv_path=path_dic["env"])
 
 logger = get_logger(__name__)
 
@@ -18,7 +21,7 @@ class StoreDetailExtractor:
         self.page = page
         
         # GitHub Copilot API 설정
-        self.api_token = os.getenv('COPILOT_API_KEY') or os.getenv('GITHUB_TOKEN')
+        self.api_token = os.getenv('COPILOT_API_KEY')
         if self.api_token:
             self.api_endpoint = "https://api.githubcopilot.com/chat/completions"
             self.headers = {
