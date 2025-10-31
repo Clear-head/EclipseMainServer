@@ -72,7 +72,8 @@ class StoreSuggestService:
         category_type: Optional[str] = None,
         user_keyword: str = "",
         n_results: int = 10,
-        use_ai_enhancement: bool = True
+        use_ai_enhancement: bool = True,
+        min_similarity_threshold: float = 0.75
     ) -> List[Dict]:
         """
         매장 제안 (메타데이터 필터링 → 유사도 검색)
@@ -143,10 +144,12 @@ class StoreSuggestService:
         
         # ===== ChromaDB 검색 (메타데이터 필터 + 유사도 검색) =====
         try:
+            search_n_results = n_results * 3  # 🔥 3배 더 가져오기
+    
             results = self.store_collection.query(
                 query_embeddings=[query_embedding.tolist()],
-                n_results=n_results,
-                where=where_filter,  # 메타데이터 필터 적용
+                n_results=search_n_results,  # 🔥 변경
+                where=where_filter,
                 include=["metadatas", "documents", "distances"]
             )
             
@@ -198,9 +201,19 @@ class StoreSuggestService:
                 logger.error(f"메타데이터: {results['metadatas'][0][i]}")
                 continue
         
-        logger.info(f"최종 제안 결과: {len(suggestions)}개")
+        # 🔥 유사도 임계값 필터링 추가
+        filtered_suggestions = [
+            sug for sug in suggestions 
+            if sug['similarity_score'] >= min_similarity_threshold
+        ]
         
-        return suggestions
+        # 🔥 상위 n_results개만 반환
+        final_suggestions = filtered_suggestions[:n_results]
+        
+        logger.info(f"임계값({min_similarity_threshold}) 필터링 후: {len(filtered_suggestions)}개")
+        logger.info(f"최종 제안 결과: {len(final_suggestions)}개")
+        
+        return final_suggestions
     
     async def get_store_details(self, store_ids: List[str]) -> List[Dict]:
         """

@@ -10,14 +10,17 @@ from dotenv import load_dotenv
 # 환경 변수 로드
 load_dotenv(dotenv_path="src/.env")
 
+from src.utils.path import path_dic
 from src.logger.custom_logger import get_logger
+
+load_dotenv(dotenv_path=path_dic["env"])
 logger = get_logger(__name__)
 
 class CategoryTypeClassifier:
     """LLM을 사용하여 서브 카테고리를 분류하는 클래스"""
     
     def __init__(self):
-        self.api_token = os.getenv('COPILOT_API_KEY') or os.getenv('GITHUB_TOKEN')
+        self.api_token = os.getenv('COPILOT_API_KEY')
         if self.api_token:
             self.api_endpoint = "https://api.githubcopilot.com/chat/completions"
             self.headers = {

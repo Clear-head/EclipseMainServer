@@ -12,7 +12,8 @@ async def update_category(dto: InsertCategoryDto) -> str:
         logger.info(f"Updating category: {dto.name}")
 
         repository = CategoryRepository()
-        result = await repository.select_by(name=dto.name, type=dto.type, detail_address=dto.detail_address)
+        # select_by() → select()로 변경
+        result = await repository.select(name=dto.name, type=dto.type, detail_address=dto.detail_address)
 
         #   항목 중복 or 없어서 업데이트 불가
         if len(result) != 1:
@@ -39,7 +40,8 @@ async def update_category_tags(dto: InsertCategoryTagsDTO) -> int:
         logger = get_logger(__name__)
         logger.info(f"Updating category tags")
         repository = CategoryTagsRepository()
-        result = await repository.select_by(tag_id=dto.tag_id, category_id=dto.category_id)
+        # select_by() → select()로 변경
+        result = await repository.select(tag_id=dto.tag_id, category_id=dto.category_id)
 
         #   중복이거나 항목 없으면 error
         if len(result) != 1:
