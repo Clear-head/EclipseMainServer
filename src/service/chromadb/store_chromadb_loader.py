@@ -15,7 +15,7 @@ logger = get_logger(__name__)
 
 
 class StoreChromaDBLoader:
-    """매장 데이터를 ChromaDB에 적재하는 클래스 (한국어 최적화)"""
+    """매장 데이터를 ChromaDB에 적재하는 클래스"""
     
     def __init__(self, persist_directory: str = "./chroma_db"):
         """
@@ -70,6 +70,7 @@ class StoreChromaDBLoader:
         """
         매장 데이터를 자연스러운 한국어 문장으로 변환
         구, 타입, 영업시간은 문서에서 제외 (메타데이터로 필터링/조회)
+        sub_category와 타입이 콘텐츠일 경우 매장명 포함
         
         Args:
             store_entity: CategoryEntity 객체
@@ -90,8 +91,28 @@ class StoreChromaDBLoader:
         # 메뉴/키워드
         menu_or_keywords = store_entity.menu if store_entity.menu else ""
         
+        # sub_category
+        sub_category = store_entity.sub_category if store_entity.sub_category else ""
+        
         # 자연스러운 한국어 문장 생성
         doc_parts = []
+        
+        # 콘텐츠 타입일 경우 매장명 추가
+        if store_entity.type == 2:  # 콘텐츠
+            store_name = store_entity.name if store_entity.name else ""
+            if store_name:
+                name_sentence = f"{store_name}은(는)"
+                doc_parts.append(name_sentence)
+        
+        # sub_category 문장 추가
+        if sub_category:
+            sub_categories = [cat.strip() for cat in sub_category.split(',') if cat.strip()]
+            if sub_categories:
+                if len(sub_categories) > 1:
+                    sub_cat_sentence = f"{', '.join(sub_categories[:-1])}, {sub_categories[-1]} 카테고리에 속합니다."
+                else:
+                    sub_cat_sentence = f"{sub_categories[0]} 카테고리에 속합니다."
+                doc_parts.append(sub_cat_sentence)
         
         # 태그를 문장으로 변환
         if tags_list:
