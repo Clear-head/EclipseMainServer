@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Request, Depends
 from starlette.responses import JSONResponse
 
-from src.domain.dto.service.change_nickname_dto import RequestChangeNicknameDto
+from src.domain.dto.service.change_info_dto import RequestChangeInfoDto
 from src.domain.dto.service.user_like_dto import RequestGetUserLikeDTO, RequestSetUserLikeDTO
 from src.logger.custom_logger import get_logger
 from src.service.application.my_info_service import UserInfoService
@@ -47,8 +47,6 @@ async def my_history(request: Request) -> JSONResponse:
     pass
 
 
-@router.put("/change-nickname")
-async def change_nickname(dto: RequestChangeNicknameDto):
-    content = await user_info.change_nickname(dto)
-
-    return JSONResponse(status_code=200, content=content.model_dump())
+@router.put("/change/{field}")
+async def change_info(field: str, dto: RequestChangeInfoDto):
+    return JSONResponse(status_code=200, content=(await user_info.change_info(dto, field)).model_dump())

@@ -1,6 +1,8 @@
-from src.domain.dto.service.change_nickname_dto import RequestChangeNicknameDto, ResponseChangeNicknameDto
+from pydantic import EmailStr
+
+from src.domain.dto.service.change_info_dto import ResponseChangeInfoDto, RequestChangeInfoDto
 from src.domain.dto.service.user_like_dto import UserLikeDTO, ResponseUserLikeDTO, RequestSetUserLikeDTO
-from src.domain.dto.service.user_reivew_dto import RequestGetUserReviewDTO
+from src.domain.dto.service.user_reivew_dto import RequestGetUserReviewDTO, ResponseUserReviewDTO
 from src.domain.entities.user_entity import UserEntity
 from src.infra.database.repository.reviews_repository import ReviewsRepository
 from src.infra.database.repository.user_like_repository import UserLikeRepository
@@ -13,6 +15,74 @@ from src.utils.exception_handler.auth_error_class import UserNotFoundException, 
 class UserInfoService:
     def __init__(self):
         self.logger = get_logger(__name__)
+
+    async def change_info(self, dto: RequestChangeInfoDto, field: str):
+        self.logger.info(f"try {field} change id: {dto.user_id}")
+        repo = UserRepository()
+
+        result = await repo.select(id=dto.user_id, password=dto.password)
+
+        if not result:
+            raise UserNotFoundException()
+
+        elif len(result) > 1:
+            raise DuplicateUserInfoError()
+
+        else:
+            result = result[0]
+
+            if field == "nickname":
+                user_entity = UserEntity(
+                    id=dto.user_id,
+                    username=result.username,
+                    nickname=dto.change_field,
+                    password=result.password,
+                    email=result.email,
+                )
+
+            elif field == "password":
+                user_entity = UserEntity(
+                    id=dto.user_id,
+                    username=result.username,
+                    nickname=result.nickname,
+                    password=dto.change_field,
+                    email=result.email,
+                )
+
+            elif field == "email":
+                user_entity = UserEntity(
+                    id=dto.user_id,
+                    username=result.username,
+                    nickname=result.nickname,
+                    email=dto.change_field,
+                    password=result.password
+                )
+
+            elif field == "address":
+                user_entity = UserEntity(
+                    id=dto.user_id,
+                    username=result.username,
+                    nickname=result.nickname,
+                    email=result.email,
+                    address=dto.change_field,
+                    password=result.password,
+                )
+
+            elif field == "phone":
+                user_entity = UserEntity(
+                    id=dto.user_id,
+                    username=result.username,
+                    nickname=result.nickname,
+                    email=result.email,
+                    password=result.password,
+                    phone=dto.change_field,
+                )
+
+            await repo.update(dto.user_id, user_entity)
+
+        return ResponseChangeInfoDto(
+            msg=dto.change_field
+        )
 
 
     async def set_my_like(self, data: RequestSetUserLikeDTO, type: bool) -> str:
@@ -71,33 +141,6 @@ class UserInfoService:
                 like_list=liked
             )
 
-    async def change_nickname(self, dto: RequestChangeNicknameDto):
-        self.logger.info(f"try nickname change id: {dto.user_id}")
-        repo = UserRepository()
-
-        result = await repo.select(id=dto.user_id)
-
-        if not result:
-            raise UserNotFoundException()
-
-        elif len(result) > 1:
-            raise DuplicateUserInfoError()
-
-        else:
-            result = result[0]
-            user_entity = UserEntity(
-                id=dto.user_id,
-                username=result.username,
-                nickname=dto.nickname,
-                password=result.password,
-                email=result.email,
-            )
-
-            await repo.update(dto.user_id, user_entity)
-
-        return ResponseChangeNicknameDto(
-            msg=dto.nickname
-        )
 
     async def set_user_reivew(self, dto: RequestGetUserReviewDTO):
         repo = ReviewsRepository()
