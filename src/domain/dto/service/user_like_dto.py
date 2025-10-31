@@ -49,23 +49,6 @@ class ResponseUserLikeDTO(BaseModel):
 
 """
 
-    내 리뷰 목록 요청 응답
-
-"""
-
-class UserReviewDTO(BaseModel):
-    review_id: str
-    category_id: str
-    category_name: str
-    category_type: str
-    stars: int
-
-class ResponseUserReviewDTO(BaseModel):
-    review_list: Optional[List[UserReviewDTO]] = []
-
-
-"""
-
     내 방문 기록 요청 응답
 
 """

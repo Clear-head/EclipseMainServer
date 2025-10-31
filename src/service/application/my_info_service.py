@@ -1,7 +1,13 @@
+from src.domain.dto.service.change_nickname_dto import RequestChangeNicknameDto, ResponseChangeNicknameDto
 from src.domain.dto.service.user_like_dto import UserLikeDTO, ResponseUserLikeDTO, RequestSetUserLikeDTO
+from src.domain.dto.service.user_reivew_dto import RequestGetUserReviewDTO
+from src.domain.entities.user_entity import UserEntity
+from src.infra.database.repository.reviews_repository import ReviewsRepository
 from src.infra.database.repository.user_like_repository import UserLikeRepository
+from src.infra.database.repository.users_repository import UserRepository
 from src.infra.database.tables.table_category import category_table
 from src.logger.custom_logger import get_logger
+from src.utils.exception_handler.auth_error_class import UserNotFoundException, DuplicateUserInfoError
 from src.utils.exception_handler.service_error_class import NotFoundAnyItemException
 
 
@@ -62,6 +68,40 @@ class UserInfoService:
             return ResponseUserLikeDTO(
                 like_list=liked
             )
+
+    async def change_nickname(self, dto: RequestChangeNicknameDto):
+        self.logger.info(f"try nickname change id: {dto.user_id}")
+        repo = UserRepository()
+
+        result = await repo.select(id=dto.user_id)
+
+        if not result:
+            raise UserNotFoundException()
+
+        elif len(result) > 1:
+            raise DuplicateUserInfoError()
+
+        else:
+            result = result[0]
+            user_entity = UserEntity(
+                id=dto.user_id,
+                username=result.username,
+                nickname=dto.nickname,
+                password=result.password,
+                email=result.email,
+            )
+
+            await repo.update(dto.user_id, user_entity)
+
+        return ResponseChangeNicknameDto(
+            msg=dto.nickname
+        )
+
+    async def set_user_reivew(self, dto: RequestGetUserReviewDTO):
+        repo = ReviewsRepository()
+
+        result = await repo.select(id=dto.user_id, category_id=dto.category_id)
+
 
 
     # async def get_user_review(self, user_id) -> ResponseUserReviewDTO:
