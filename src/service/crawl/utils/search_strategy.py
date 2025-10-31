@@ -3,8 +3,10 @@
 다양한 검색 키워드 조합으로 매장을 찾는 전략을 제공합니다.
 """
 import asyncio
-from typing import Optional, List
+from typing import List
+
 from playwright.async_api import Page, TimeoutError
+
 from src.logger.custom_logger import get_logger
 
 logger = get_logger(__name__)

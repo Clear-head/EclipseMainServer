@@ -4,7 +4,6 @@ from typing import Dict
 from fastapi import APIRouter, HTTPException, Request, Depends
 from starlette.responses import JSONResponse
 
-
 from src.domain.dto.service.haru_service_dto import (RequestStartMainServiceDTO, ResponseStartMainServiceDTO
 , RequestChatServiceDTO, ResponseChatServiceDTO)
 from src.logger.custom_logger import get_logger
@@ -13,7 +12,6 @@ from src.service.application.ai_service_handler import handle_modification_mode,
 from src.service.application.main_screen_service import MainScreenService
 from src.service.application.prompts import RESPONSE_MESSAGES
 from src.service.auth.jwt import validate_jwt_token
-from src.utils.exception_handler.auth_error_class import MissingTokenException, ExpiredAccessTokenException
 
 router = APIRouter(
     prefix="/api/service",

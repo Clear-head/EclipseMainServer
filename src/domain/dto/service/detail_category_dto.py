@@ -2,6 +2,7 @@ from typing import Optional
 
 from pydantic import BaseModel
 
+
 #   카드 선택 요청
 class RequestDetailCategoryDTO(BaseModel):
     category_id: str

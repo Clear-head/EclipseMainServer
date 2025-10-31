@@ -1,7 +1,8 @@
 """
 메모리 최적화 + 봇 우회 브라우저 관리 모듈
 """
-from playwright.async_api import async_playwright, Browser, BrowserContext
+from playwright.async_api import Browser, BrowserContext
+
 from src.logger.custom_logger import get_logger
 
 logger = get_logger(__name__)

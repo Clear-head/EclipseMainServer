@@ -1,6 +1,6 @@
+from src.domain.entities.reviews_entity import ReviewsEntity
 from . import base_repository
 from ..tables.table_reviews import reviews_table
-from src.domain.entities.reviews_entity import ReviewsEntity
 
 
 class ReviewsRepository(base_repository.BaseRepository):
