@@ -2,11 +2,119 @@
 대화 흐름 제어 핸들러
 """
 
-from typing import Dict
+from typing import Dict, List
 
 from src.domain.dto.service.haru_service_dto import ResponseChatServiceDTO
 from src.service.application.prompts import RESPONSE_MESSAGES
-from src.service.application.utils import extract_tags_by_category, generate_recommendations, parse_recommendations
+from src.service.application.utils import extract_tags_by_category, format_collected_data_for_server
+from src.logger.custom_logger import get_logger
+
+logger = get_logger(__name__)
+
+
+async def get_store_recommendations(session: Dict) -> Dict[str, List[Dict]]:
+    """
+    세션의 collectedData를 기반으로 매장 추천
+    
+    Args:
+        session: 세션 데이터 (collectedTags, play_address, peopleCount 포함)
+    
+    Returns:
+        카테고리별 추천 매장 딕셔너리
+    """
+    from src.service.suggest.store_suggest_service import StoreSuggestService
+    
+    logger.info("=" * 60)
+    logger.info("매장 추천 시작")
+    
+    suggest_service = StoreSuggestService()
+    recommendations = {}
+    
+    # 지역 추출
+    region = extract_region_from_address(session.get("play_address", ""))
+    people_count = session.get("peopleCount", 1)
+    collected_tags = session.get("collectedTags", {})
+    
+    logger.info(f"지역: {region}")
+    logger.info(f"인원: {people_count}명")
+    logger.info(f"수집된 태그: {collected_tags}")
+    
+    # 각 카테고리별로 매장 추천
+    for category, keywords in collected_tags.items():
+        keyword_string = ", ".join(keywords) if keywords else ""
+        
+        logger.info(f"[{category}] 키워드: {keyword_string}")
+        
+        try:
+            # 매장 제안 요청
+            suggestions = await suggest_service.suggest_stores(
+                personnel=people_count,
+                region=region,
+                category_type=category,
+                user_keyword=keyword_string,
+                n_results=5,
+                use_ai_enhancement=True,
+                min_similarity_threshold=0.80
+            )
+            
+            logger.info(f"[{category}] 유사도 검색 결과: {len(suggestions)}개")
+            
+            # store_id 추출
+            store_ids = [sug.get('store_id') for sug in suggestions if sug.get('store_id')]
+            
+            # 상세 정보 조회
+            if store_ids:
+                store_details = await suggest_service.get_store_details(store_ids)
+                
+                # 🔥 Flutter가 쉽게 사용할 수 있는 형식으로 변환
+                formatted_stores = []
+                for store in store_details:
+                    formatted_stores.append({
+                        'id': store.get('id', ''),
+                        'name': store.get('name', '알 수 없음'),
+                        'address': f"{store.get('gu', '')} {store.get('detail_address', '')}".strip(),
+                        'category': store.get('sub_category', ''),
+                        'business_hour': store.get('business_hour', ''),
+                        'phone': store.get('phone', ''),
+                        'image': store.get('image', ''),
+                        'latitude': store.get('latitude', 0),
+                        'longitude': store.get('longitude', 0),
+                        'menu': store.get('menu', '')
+                    })
+                
+                recommendations[category] = formatted_stores
+                logger.info(f"[{category}] 최종 추천: {len(formatted_stores)}개")
+            else:
+                recommendations[category] = []
+                logger.warning(f"[{category}] 추천 결과 없음")
+                
+        except Exception as e:
+            logger.error(f"[{category}] 추천 중 오류: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            recommendations[category] = []
+    
+    logger.info(f"전체 추천 완료: {sum(len(v) for v in recommendations.values())}개 매장")
+    logger.info("=" * 60)
+    
+    return recommendations
+
+
+def extract_region_from_address(address: str) -> str:
+    """
+    주소에서 구 단위 추출
+    
+    예: "서울시 강남구 역삼동" -> "강남구"
+    """
+    if not address:
+        return None
+    
+    parts = address.split()
+    for part in parts:
+        if part.endswith("구"):
+            return part
+    
+    return None
 
 
 def handle_user_message(session: Dict, user_message: str) -> ResponseChatServiceDTO:
@@ -87,7 +195,7 @@ def handle_user_message(session: Dict, user_message: str) -> ResponseChatService
     )
 
 
-def handle_user_action_response(session: Dict, user_response: str) -> ResponseChatServiceDTO:
+async def handle_user_action_response(session: Dict, user_response: str) -> ResponseChatServiceDTO:
     """
     사용자 버튼 액션 처리 (Next / More / Yes)
 
@@ -102,6 +210,9 @@ def handle_user_action_response(session: Dict, user_response: str) -> ResponseCh
     Returns:
         다음 단계 응답
     """
+    logger.info(f"사용자 액션 응답: {user_response}")
+    logger.info(f"현재 stage: {session.get('stage')}")
+    
     # 응답 파싱
     is_next = any(word in user_response.lower() for word in
                   ["yes", "네", "넵", "예", "좋아", "좋아요", "그래", "맞아", "ㅇㅇ", "기기", "ㄱㄱ", "고고", "네네", "다음"])
@@ -110,17 +221,26 @@ def handle_user_action_response(session: Dict, user_response: str) -> ResponseCh
     # 결과 출력 확인 단계: Yes(결과 출력) 처리
     if session.get("stage") == "confirming_results":
         if is_next:
-            # 추천 결과 생성
-            recommendations_text = generate_recommendations(
-                session["selectedCategories"],
-                session["collectedTags"]
-            )
+            logger.info("confirming_results 단계에서 '네' 선택됨")
+            
+            # 수집된 데이터를 구조화된 형식으로 변환
+            collected_data = format_collected_data_for_server(session)
+            logger.info(f"수집된 데이터: {collected_data}")
 
-            recommendations_dict = parse_recommendations(
-                recommendations_text,
-                session["selectedCategories"]
-            )
-
+            # 🔥 매장 추천 생성
+            try:
+                logger.info("매장 추천 생성 시작...")
+                recommendations = await get_store_recommendations(session)
+                logger.info(f"추천 생성 완료: {recommendations}")
+            except Exception as e:
+                logger.error(f"매장 추천 생성 중 오류: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
+                recommendations = {}
+            
+            # 세션에 저장
+            session["recommendations"] = recommendations
+            
             # 대화 완료 상태로 전환
             session["stage"] = "completed"
             session["waitingForUserAction"] = False
@@ -129,7 +249,8 @@ def handle_user_action_response(session: Dict, user_response: str) -> ResponseCh
                 status="success",
                 message=RESPONSE_MESSAGES["start"]["final_result"],
                 stage="completed",
-                recommendations=recommendations_dict
+                recommendations=recommendations,  # 🔥 Flutter로 전달
+                collectedData=collected_data
             )
         else:
             # 명확하지 않은 응답 - 사용자 액션 대기 상태 유지
@@ -226,53 +347,10 @@ def handle_next_category(session: Dict) -> ResponseChatServiceDTO:
 
 def handle_modification_mode(session: Dict, user_message: str) -> ResponseChatServiceDTO:
     """
-    수정 모드 처리 (현재 미사용)
+    수정 모드 처리 (현재 미사용) 태그 삭제 기능으로 사용할수도
 
-    사용자가 이전 카테고리로 돌아가서 수정하고 싶을 때 사용.
-    추후 확장 기능으로 개발 예정
-
-    Args:
-        session: 세션 데이터
-        user_message: 사용자가 선택한 카테고리명
-
-    Returns:
-        선택한 카테고리로 이동 또는 재질문
     """
-    # 사용자가 선택한 카테고리 확인
-    selected_categories = session["selectedCategories"]
-    selected_category = None
-
-    for category in selected_categories:
-        if category in user_message:
-            selected_category = category
-            break
-
-    if selected_category:
-        # 해당 카테고리의 인덱스 찾기
-        category_index = selected_categories.index(selected_category)
-
-        # 해당 카테고리로 돌아가기
-        session["currentCategoryIndex"] = category_index
-        session["stage"] = "collecting_details"
-        session["waitingForUserAction"] = False
-
-        # 해당 카테고리에 대한 질문 생성
-        message = f"좋아! '{selected_category}' 활동에 대해 더 추가하고 싶은 내용이 있나요?"
-
-        return ResponseChatServiceDTO(
-            status="success",
-            message=message,
-            stage="collecting_details",
-            currentCategory=selected_category
-        )
-    else:
-        # 카테고리를 명확히 선택하지 않은 경우
-        return ResponseChatServiceDTO(
-            status="success",
-            message="어떤 활동을 수정하고 싶으신가요? 카테고리명을 말씀해주세요.",
-            stage="modification_mode",
-            availableCategories=selected_categories
-        )
+    pass
 
 
 def handle_add_more_tags(session: Dict) -> ResponseChatServiceDTO:
@@ -316,4 +394,3 @@ def handle_add_more_tags(session: Dict) -> ResponseChatServiceDTO:
         stage="collecting_details",
         currentCategory=current_category
     )
-

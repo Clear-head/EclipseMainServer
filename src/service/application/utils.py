@@ -300,3 +300,26 @@ def parse_recommendations(recommendations_text: str, selected_activities: List[s
 
     return result
 
+def format_collected_data_for_server(session: dict) -> list:
+    """
+    세션의 collectedTags를 구조화된 형식으로 변환
+    
+    Args:
+        session: 세션 데이터
+    
+    Returns:
+        [
+            {"category": "음식점", "keywords": ["피자", "파스타"]},
+            {"category": "카페", "keywords": ["조용한", "넓은"]}
+        ]
+    """
+    collected_data = []
+    collected_tags = session.get("collectedTags", {})
+    
+    for category, keywords in collected_tags.items():
+        collected_data.append({
+            "category": category,
+            "keywords": keywords
+        })
+    
+    return collected_data

@@ -213,3 +213,4 @@ src/service/chromadb/chroma_test.py
 src/service/suggest/test_suggest.py
 src/service/crawl/test_run.py
 src/service/test.py
+src/requirements.txt

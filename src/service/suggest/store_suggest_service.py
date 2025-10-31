@@ -71,7 +71,8 @@ class StoreSuggestService:
         category_type: Optional[str] = None,
         user_keyword: str = "",
         n_results: int = 10,
-        use_ai_enhancement: bool = True
+        use_ai_enhancement: bool = True,
+        min_similarity_threshold=0.80
     ) -> List[Dict]:
         """
         매장 제안 (메타데이터 필터링 → 유사도 검색)

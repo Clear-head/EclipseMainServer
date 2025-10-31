@@ -168,11 +168,11 @@ async def chat(request: RequestChatServiceDTO):
             content=handle_modification_mode(session, request.message).model_dump()
         )
 
-    # 사용자 액션(Next/More 또는 Yes) 응답 처리
+    # 🔥 사용자 액션(Next/More 또는 Yes) 응답 처리 - await 추가!
     if session.get("waitingForUserAction", False):
-
+        response = await handle_user_action_response(session, request.message)  # ✅ await 추가
         return JSONResponse(
-            content=handle_user_action_response(session, request.message).model_dump()
+            content=response.model_dump()
         )
 
     # 일반 메시지 처리 (태그 생성)
