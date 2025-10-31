@@ -8,7 +8,6 @@ from src.infra.database.repository.users_repository import UserRepository
 from src.infra.database.tables.table_category import category_table
 from src.logger.custom_logger import get_logger
 from src.utils.exception_handler.auth_error_class import UserNotFoundException, DuplicateUserInfoError
-from src.utils.exception_handler.service_error_class import NotFoundAnyItemException
 
 
 class UserInfoService:
@@ -62,7 +61,10 @@ class UserInfoService:
 
         if not liked:
             self.logger.info(f"no like for {user_id}")
-            raise NotFoundAnyItemException()
+            # raise NotFoundAnyItemException()
+            return ResponseUserLikeDTO(
+                like_list=[]
+            )
 
         else:
             return ResponseUserLikeDTO(
