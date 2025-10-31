@@ -6,6 +6,7 @@ from typing import List, Dict, Optional
 import chromadb
 from chromadb.config import Settings
 from sentence_transformers import SentenceTransformer
+import torch
 
 from src.infra.external.query_enchantment import QueryEnhancementService
 from src.logger.custom_logger import get_logger
@@ -23,6 +24,16 @@ class StoreSuggestService:
         """
         logger.info("매장 제안 서비스 초기화 중...")
         
+        # GPU 사용 가능 여부 확인
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        logger.info(f"사용 중인 디바이스: {self.device}")
+        
+        if self.device == "cuda":
+            logger.info(f"GPU 이름: {torch.cuda.get_device_name(0)}")
+            logger.info(f"GPU 메모리: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.2f} GB")
+        else:
+            logger.warning("GPU를 사용할 수 없습니다. CPU를 사용합니다.")
+        
         # ChromaDB 클라이언트 초기화
         self.client = chromadb.PersistentClient(
             path=persist_directory,
@@ -32,9 +43,13 @@ class StoreSuggestService:
             )
         )
         
-        # 한국어 임베딩 모델 로드
+        # 한국어 임베딩 모델 로드 (GPU 지원)
         logger.info("한국어 임베딩 모델 로딩 중...")
-        self.embedding_model = SentenceTransformer("intfloat/multilingual-e5-large")
+        self.embedding_model = SentenceTransformer(
+            "intfloat/multilingual-e5-large",
+            device=self.device  # GPU 사용 설정
+        )
+        logger.info(f"임베딩 모델 로딩 완료 (디바이스: {self.device})")
         
         # 쿼리 개선 서비스 초기화
         self.query_enhancer = QueryEnhancementService()
@@ -85,6 +100,7 @@ class StoreSuggestService:
             user_keyword: 사용자 입력 키워드
             n_results: 반환할 결과 수
             use_ai_enhancement: AI 쿼리 개선 사용 여부
+            min_similarity_threshold: 최소 유사도 임계값
             
         Returns:
             List[Dict]: 제안 매장 리스트
@@ -96,6 +112,7 @@ class StoreSuggestService:
         logger.info(f"  - 타입: {category_type}")
         logger.info(f"  - 원본 키워드: {user_keyword}")
         logger.info(f"  - AI 개선: {use_ai_enhancement}")
+        logger.info(f"  - 사용 디바이스: {self.device}")
         logger.info("=" * 60)
         
         # 검색 쿼리 생성 (AI 개선 사용 여부에 따라)
@@ -139,16 +156,24 @@ class StoreSuggestService:
         
         logger.info(f"최종 where 필터: {where_filter}")
         
-        # 쿼리 임베딩
-        query_embedding = self.embedding_model.encode(search_query)
+        # 쿼리 임베딩 (GPU 자동 사용)
+        query_embedding = self.embedding_model.encode(
+            search_query,
+            convert_to_tensor=True,  # GPU 텐서로 변환
+            show_progress_bar=False
+        )
+        
+        # CPU로 변환 (ChromaDB는 numpy 배열 필요)
+        if self.device == "cuda":
+            query_embedding = query_embedding.cpu()
         
         # ===== ChromaDB 검색 (메타데이터 필터 + 유사도 검색) =====
         try:
             search_n_results = n_results * 3  # 🔥 3배 더 가져오기
     
             results = self.store_collection.query(
-                query_embeddings=[query_embedding.tolist()],
-                n_results=search_n_results,  # 🔥 변경
+                query_embeddings=[query_embedding.numpy().tolist()],
+                n_results=search_n_results,
                 where=where_filter,
                 include=["metadatas", "documents", "distances"]
             )
