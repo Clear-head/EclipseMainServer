@@ -140,7 +140,7 @@ async def chat(request: RequestChatServiceDTO):
             content=handle_modification_mode(session, request.message).model_dump()
         )
 
-    # 🔥 사용자 액션(Next/More 또는 Yes) 응답 처리 - await 추가!
+    # 사용자 액션(Next/More 또는 Yes) 응답 처리
     if session.get("waitingForUserAction", False):
         response = await handle_user_action_response(session, request.message)
         return JSONResponse(content=response.model_dump())

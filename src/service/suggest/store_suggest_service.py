@@ -73,11 +73,7 @@ class StoreSuggestService:
         user_keyword: str = "",
         n_results: int = 10,
         use_ai_enhancement: bool = True,
-<<<<<<< HEAD
-        min_similarity_threshold=0.80
-=======
         min_similarity_threshold: float = 0.75
->>>>>>> 82ecd100238bbf337a9886e6bd993a58ea9b1417
     ) -> List[Dict]:
         """
         매장 제안 (메타데이터 필터링 → 유사도 검색)

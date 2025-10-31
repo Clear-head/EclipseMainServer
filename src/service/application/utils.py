@@ -9,7 +9,7 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 
-from .prompts import SYSTEM_PROMPT, get_category_prompt, get_general_tagging_prompt
+from .prompts import SYSTEM_PROMPT, get_category_prompt
 
 RECOMMENDATION_DATABASE = {
     "카페": {
