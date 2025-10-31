@@ -7,10 +7,10 @@ import aiohttp
 from dotenv import load_dotenv
 from typing import Optional
 
-# 환경 변수 로드
-load_dotenv(dotenv_path="src/.env")
-
+from src.utils.path import path_dic
 from src.logger.custom_logger import get_logger
+
+load_dotenv(dotenv_path=path_dic["env"])
 logger = get_logger(__name__)
 
 
@@ -18,7 +18,7 @@ class QueryEnhancementService:
     """사용자 입력을 자연스러운 검색 쿼리로 변환하는 클래스"""
     
     def __init__(self):
-        self.api_token = os.getenv('COPILOT_API_KEY2') or os.getenv('GITHUB_TOKEN')
+        self.api_token = os.getenv('COPILOT_API_KEY2')
         if self.api_token:
             self.api_endpoint = "https://api.githubcopilot.com/chat/completions"
             self.headers = {

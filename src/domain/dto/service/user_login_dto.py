@@ -2,7 +2,6 @@ from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel, EmailStr
-from src.domain.dto.header import JsonHeader
 
 
 #   유저가 로그인 시에 보내는 요청

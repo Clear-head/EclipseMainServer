@@ -15,7 +15,7 @@ logger = get_logger(__name__)
 
 
 class StoreChromaDBLoader:
-    """매장 데이터를 ChromaDB에 적재하는 클래스 (한국어 최적화)"""
+    """매장 데이터를 ChromaDB에 적재하는 클래스"""
     
     def __init__(self, persist_directory: str = "./chroma_db"):
         """
@@ -32,17 +32,17 @@ class StoreChromaDBLoader:
             )
         )
         
-        # 한국어 임베딩 모델 설정
-        logger.info("한국어 임베딩 모델 로딩 중: intfloat/multilingual-e5-large")
+        # 임베딩 모델 설정
+        logger.info("임베딩 모델 로딩 중: intfloat/multilingual-e5-large")
         self.embedding_function = embedding_functions.SentenceTransformerEmbeddingFunction(
             model_name="intfloat/multilingual-e5-large"
         )
-        logger.info("한국어 임베딩 모델 로딩 완료")
+        logger.info("임베딩 모델 로딩 완료")
         
-        # 컬렉션 생성 (한국어 임베딩 함수 적용)
+        # 컬렉션 생성 (임베딩 함수 적용)
         self.store_collection = self.client.get_or_create_collection(
             name="stores",
-            metadata={"description": "매장 정보 검색용 컬렉션 (한국어 임베딩)"},
+            metadata={"description": "매장 정보 검색용 컬렉션 (임베딩)"},
             embedding_function=self.embedding_function
         )
         
@@ -70,6 +70,7 @@ class StoreChromaDBLoader:
         """
         매장 데이터를 자연스러운 한국어 문장으로 변환
         구, 타입, 영업시간은 문서에서 제외 (메타데이터로 필터링/조회)
+        sub_category와 타입이 콘텐츠일 경우 매장명 포함
         
         Args:
             store_entity: CategoryEntity 객체
@@ -90,8 +91,28 @@ class StoreChromaDBLoader:
         # 메뉴/키워드
         menu_or_keywords = store_entity.menu if store_entity.menu else ""
         
+        # sub_category
+        sub_category = store_entity.sub_category if store_entity.sub_category else ""
+        
         # 자연스러운 한국어 문장 생성
         doc_parts = []
+        
+        # 콘텐츠 타입일 경우 매장명 추가
+        if store_entity.type == 2:  # 콘텐츠
+            store_name = store_entity.name if store_entity.name else ""
+            if store_name:
+                name_sentence = f"{store_name}은(는)"
+                doc_parts.append(name_sentence)
+        
+        # sub_category 문장 추가
+        if sub_category:
+            sub_categories = [cat.strip() for cat in sub_category.split(',') if cat.strip()]
+            if sub_categories:
+                if len(sub_categories) > 1:
+                    sub_cat_sentence = f"{', '.join(sub_categories[:-1])}, {sub_categories[-1]} 카테고리에 속합니다."
+                else:
+                    sub_cat_sentence = f"{sub_categories[0]} 카테고리에 속합니다."
+                doc_parts.append(sub_cat_sentence)
         
         # 태그를 문장으로 변환
         if tags_list:
@@ -170,7 +191,7 @@ class StoreChromaDBLoader:
         tags_repo = TagsRepository()
         
         # 전체 매장 데이터 조회
-        stores = await category_repo.select_by()
+        stores = await category_repo.select()
         total_stores = len(stores)
         
         logger.info(f"총 {total_stores}개 매장 데이터 조회 완료")
@@ -195,7 +216,7 @@ class StoreChromaDBLoader:
                     store_id = store.id
                     
                     # 매장별 태그 정보 조회
-                    category_tags = await category_tags_repo.select_by(
+                    category_tags = await category_tags_repo.select(
                         category_id=store_id
                     )
                     
@@ -203,7 +224,7 @@ class StoreChromaDBLoader:
                     tag_details = []
                     for ct in category_tags:
                         tag_id = ct.tag_id if hasattr(ct, 'tag_id') else ct['tag_id']
-                        tags = await tags_repo.select_by(id=tag_id)
+                        tags = await tags_repo.select(id=tag_id)
                         
                         if tags and len(tags) > 0:
                             tag = tags[0]
@@ -273,7 +294,7 @@ class StoreChromaDBLoader:
             tags_repo = TagsRepository()
             
             # 매장 데이터 조회
-            stores = await category_repo.select_by(id=store_id)
+            stores = await category_repo.select(id=store_id)
             if not stores or len(stores) == 0:
                 logger.error(f"매장 ID '{store_id}'를 찾을 수 없습니다.")
                 return False
@@ -281,14 +302,14 @@ class StoreChromaDBLoader:
             store = stores[0]
             
             # 태그 정보 조회
-            category_tags = await category_tags_repo.select_by(
+            category_tags = await category_tags_repo.select(
                 category_id=store_id
             )
             
             tag_details = []
             for ct in category_tags:
                 tag_id = ct.tag_id if hasattr(ct, 'tag_id') else ct['tag_id']
-                tags = await tags_repo.select_by(id=tag_id)
+                tags = await tags_repo.select(id=tag_id)
                 
                 if tags and len(tags) > 0:
                     tag = tags[0]
@@ -331,10 +352,10 @@ class StoreChromaDBLoader:
             self.client.delete_collection(name="stores")
             logger.info("기존 'stores' 컬렉션 삭제 완료")
             
-            # 한국어 임베딩 함수로 새 컬렉션 생성
+            # 임베딩 함수로 새 컬렉션 생성
             self.store_collection = self.client.create_collection(
                 name="stores",
-                metadata={"description": "매장 정보 검색용 컬렉션 (한국어 임베딩)"},
+                metadata={"description": "매장 정보 검색용 컬렉션 (임베딩)"},
                 embedding_function=self.embedding_function
             )
             logger.info("새로운 'stores' 컬렉션 생성 완료")

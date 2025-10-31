@@ -4,12 +4,12 @@
 
 import re
 from typing import Dict, List
-from langchain_openai import ChatOpenAI
-from langchain_core.prompts import ChatPromptTemplate
+
 from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_openai import ChatOpenAI
 
 from .prompts import SYSTEM_PROMPT, get_category_prompt, get_general_tagging_prompt
-
 
 RECOMMENDATION_DATABASE = {
     "카페": {
@@ -120,42 +120,6 @@ def extract_tags_by_category(user_detail: str, category: str, people_count: int 
         # 태그가 너무 적으면 재시도
         if len(tag_list) < 3:
             tag_response = chain.invoke({"user_input": base_prompt})
-            tag_list = [tag.strip() for tag in tag_response.split(",") if tag.strip()]
-
-        # 최소 1개는 보장
-        if len(tag_list) == 0:
-            tag_list = [user_detail.strip()[:10]]
-
-        return tag_list
-
-    except Exception as e:
-        # 오류 발생 시 기본 태그 반환
-        fallback_tag = [user_detail.strip()[:10]] if user_detail.strip() else ["일반적인"]
-        return fallback_tag
-
-
-def extract_tags(user_detail: str) -> List[str]:
-    """
-    범용 태그 추출 함수 (카테고리 구분 없이)
-
-    카테고리가 지정되지 않았을 때 사용하는 기본 태그 추출 함수
-    현재는 사용하지 않지만 확장성을 위해 유지
-
-    Args:
-        user_detail: 사용자 입력 문장
-
-    Returns:
-        추출된 태그 리스트
-    """
-    try:
-        tagging_prompt = get_general_tagging_prompt(user_detail)
-
-        tag_response = chain.invoke({"user_input": tagging_prompt})
-        tag_list = [tag.strip() for tag in tag_response.split(",") if tag.strip()]
-
-        # 태그가 너무 적으면 재시도
-        if len(tag_list) < 3:
-            tag_response = chain.invoke({"user_input": tagging_prompt})
             tag_list = [tag.strip() for tag in tag_response.split(",") if tag.strip()]
 
         # 최소 1개는 보장
@@ -300,26 +264,64 @@ def parse_recommendations(recommendations_text: str, selected_activities: List[s
 
     return result
 
-def format_collected_data_for_server(session: dict) -> list:
+
+# =============================================================================
+# 수집 데이터 구조화 함수
+# =============================================================================
+
+def format_collected_data_for_server(session: Dict) -> List[Dict]:
     """
-    세션의 collectedTags를 구조화된 형식으로 변환
+    세션 데이터를 서버로 전송할 형식으로 구조화
+    
+    채팅 완료 후 수집된 정보(위치, 인원수, 카테고리별 키워드)를
+    카테고리별로 구조화된 리스트로 변환합니다.
     
     Args:
-        session: 세션 데이터
+        session: 세션 딕셔너리 (play_address, peopleCount, selectedCategories, collectedTags 포함)
     
     Returns:
+        카테고리별로 구조화된 데이터 리스트
+        예시:
         [
-            {"category": "음식점", "keywords": ["피자", "파스타"]},
-            {"category": "카페", "keywords": ["조용한", "넓은"]}
+            {
+                "위치": "강남구",
+                "인원수": "2명",
+                "카테고리 타입": "카페",
+                "키워드": ["치즈케이크", "고구마 라떼", "한적한", "디저트"]
+            },
+            {
+                "위치": "강남구",
+                "인원수": "2명",
+                "카테고리 타입": "음식점",
+                "키워드": ["된장찌개", "돼지고기", "냉면", "한식", "구이"]
+            }
         ]
     """
-    collected_data = []
+    # 세션에서 기본 정보 추출
+    play_address = session.get("play_address", "")
+    people_count = session.get("peopleCount", 1)
+    selected_categories = session.get("selectedCategories", [])
     collected_tags = session.get("collectedTags", {})
     
-    for category, keywords in collected_tags.items():
-        collected_data.append({
-            "category": category,
-            "keywords": keywords
-        })
+    # 인원수 포맷팅 ("2명" 형식)
+    people_count_str = f"{people_count}명"
     
-    return collected_data
+    # 결과 리스트 초기화
+    formatted_data = []
+    
+    # 각 카테고리별로 데이터 구조화
+    for category in selected_categories:
+        # 카테고리별 키워드 추출 (없으면 빈 리스트)
+        keywords = collected_tags.get(category, [])
+        
+        # 각 카테고리별 객체 생성
+        category_data = {
+            "위치": play_address,
+            "인원수": people_count_str,
+            "카테고리 타입": category,
+            "키워드": keywords
+        }
+        
+        formatted_data.append(category_data)
+    
+    return formatted_data

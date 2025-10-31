@@ -2,6 +2,7 @@ from typing import Optional
 
 from pydantic import BaseModel
 
+
 #   카드 선택 요청
 class RequestDetailCategoryDTO(BaseModel):
     category_id: str
@@ -17,5 +18,6 @@ class DetailCategoryReview(BaseModel):
 #   카드 선택 응답 본문
 class ResponseDetailCategoryDTO(BaseModel):
     # average_stars: int
+    is_like: bool
     tags: Optional[list[str]]
     reviews: Optional[list[DetailCategoryReview]]

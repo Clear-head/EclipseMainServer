@@ -20,8 +20,9 @@ async def insert_category(dto: InsertCategoryDto):
         while not flag:
             entity = CategoryEntity.from_dto(dto)
 
+            # select_by() → select()로 변경
             if len(
-                    await repository.select_by(
+                    await repository.select(
                         name=entity.name,
                         si=entity.si,
                         gu=entity.gu,
@@ -56,14 +57,14 @@ async def insert_category_tags(dto: InsertCategoryTagsDTO):
     return True
 
 
-
 async def insert_tags(name: str, category_type: int):
     logger = get_logger(__name__)
     logger.info(f"Inserting tags: {name}")
 
     try:
         repository = TagsRepository()
-        result = await repository.select_by(name=name)
+        # select_by() → select()로 변경
+        result = await repository.select(name=name)
         print(result)
 
         if len(result) == 0:
@@ -71,7 +72,6 @@ async def insert_tags(name: str, category_type: int):
             await repository.insert(TagsEntity(id=last_id, name=name))
         else:
             last_id = result[0].id
-
 
     except Exception as e:
         logger.error(f"error insert tags: {e}")

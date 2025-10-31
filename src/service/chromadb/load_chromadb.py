@@ -23,7 +23,7 @@ async def main():
     logger.info("ChromaDB 데이터 적재 시작")
     # logger.info("=" * 60)
     
-    # ChromaDB 로더 초기화 (한국어 임베딩 모델 로딩)
+    # ChromaDB 로더 초기화 (임베딩 모델 로딩)
     loader = StoreChromaDBLoader(persist_directory="./chroma_db")
     
     # 기존 데이터 삭제
