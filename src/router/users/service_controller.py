@@ -53,9 +53,6 @@ async def to_detail(category_id: str, request: Request):
 @router.post("/start")
 async def start_conversation(data: RequestStartMainServiceDTO, request: Request):
 
-
-    print(data.play_address)
-
     # 세션 ID 생성
     session_id = str(uuid.uuid4())
 
@@ -103,16 +100,6 @@ async def start_conversation(data: RequestStartMainServiceDTO, request: Request)
 @router.get("/chat")
 @router.post("/chat")
 async def chat(request: RequestChatServiceDTO):
-
-    # jwt = request.headers.jwt
-    # if jwt is None:
-    #     logger.error("Missing token")
-    #     raise MissingTokenException()
-    #
-    # validate_result = await validate_jwt_token(jwt)
-    # if validate_result == 2:
-    #     logger.error("ExpiredToken token")
-    #     raise ExpiredAccessTokenException()
 
     # 세션 확인
     if request.sessionId not in sessions:

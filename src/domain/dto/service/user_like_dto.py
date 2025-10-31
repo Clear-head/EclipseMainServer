@@ -25,6 +25,7 @@ class RequestSetUserLikeDTO(BaseModel):
 """
 
 class UserLikeDTO(BaseModel):
+    type: str
     category_id: str
     category_name: str
     category_image: str
@@ -34,7 +35,7 @@ class UserLikeDTO(BaseModel):
     gu: Optional[str]
     detail_address: str
     category_address: str = Field(
-        default_factory=lambda x: f"{x['do']} {x['si']} {x['gu']} {x['detail_address']}"
+        default_factory=lambda x: f"{x['do'] }{x['si'] }{x['gu'] }{x['detail_address']}"
     )
 
 
@@ -44,23 +45,6 @@ class UserLikeDTO(BaseModel):
 
 class ResponseUserLikeDTO(BaseModel):
     like_list: Optional[List[UserLikeDTO]] = []
-
-
-"""
-
-    내 리뷰 목록 요청 응답
-
-"""
-
-class UserReviewDTO(BaseModel):
-    review_id: str
-    category_id: str
-    category_name: str
-    category_type: str
-    stars: int
-
-class ResponseUserReviewDTO(BaseModel):
-    review_list: Optional[List[UserReviewDTO]] = []
 
 
 """
