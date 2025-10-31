@@ -1,7 +1,8 @@
+from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel
-from datetime import datetime
+
 from src.domain.entities.base_entity import BaseEntity
 
 

@@ -2,9 +2,11 @@ from datetime import datetime
 from typing import Optional
 
 from pydantic import field_validator, ValidationError
+
 from src.domain.dto.crawled.insert_category_dto import InsertCategoryDto
 from src.domain.entities.base_entity import BaseEntity
 from src.utils.uuid_maker import generate_uuid
+
 
 class CategoryEntity(BaseEntity):
     id: str = generate_uuid()

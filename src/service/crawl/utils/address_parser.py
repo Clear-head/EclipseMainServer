@@ -1,10 +1,10 @@
 """
 주소 파싱 유틸리티
 """
-import os
 from typing import Tuple
 
 from src.logger.custom_logger import get_logger
+
 logger = get_logger(__name__)
 
 
