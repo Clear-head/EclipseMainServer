@@ -1,10 +1,10 @@
 import asyncio
-import re
 import os
-import aiohttp
+import re
 from typing import Optional, Tuple, List
+
+import aiohttp
 from playwright.async_api import Page
-from dotenv import load_dotenv
 
 from src.utils.path import path_dic
 from src.logger.custom_logger import get_logger

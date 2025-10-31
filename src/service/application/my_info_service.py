@@ -1,9 +1,5 @@
-from src.domain.dto.service.user_like_dto import ResponseUserHistoryDTO, UserLikeDTO, ResponseUserLikeDTO, \
-    UserReviewDTO, ResponseUserReviewDTO, UserHistoryDTO
-from src.infra.database.repository.reviews_repository import ReviewsRepository
-from src.infra.database.repository.user_history_repository import UserHistoryRepository
+from src.domain.dto.service.user_like_dto import UserLikeDTO, ResponseUserLikeDTO, RequestSetUserLikeDTO
 from src.infra.database.repository.user_like_repository import UserLikeRepository
-from src.infra.database.repository.users_repository import UserRepository
 from src.infra.database.tables.table_category import category_table
 from src.logger.custom_logger import get_logger
 from src.utils.exception_handler.service_error_class import NotFoundAnyItemException
@@ -12,6 +8,24 @@ from src.utils.exception_handler.service_error_class import NotFoundAnyItemExcep
 class UserInfoService:
     def __init__(self):
         self.logger = get_logger(__name__)
+
+
+    async def set_my_like(self, data: RequestSetUserLikeDTO, type: bool) -> str:
+        repo = UserLikeRepository()
+
+        if not type:
+            flag = await repo.delete(user_id=data.user_id, category_id=data.category_id)
+        else:
+            flag = await repo.insert(data)
+
+        if not flag:
+            self.logger.error(f"찜 목록 설정 실패 user: {data.user_id}, category: {data.category_id}")
+            raise Exception(f"찜 목록 설정 실패 user: {data.user_id}, category: {data.category_id}")
+
+        else:
+            return "success"
+
+
 
     async def get_user_like(self, user_id) -> ResponseUserLikeDTO:
         repo = UserLikeRepository()

@@ -1,15 +1,14 @@
-import asyncio
 from typing import Tuple
 
-from src.logger.custom_logger import get_logger
 from src.domain.dto.crawled.insert_category_dto import InsertCategoryDto
 from src.domain.dto.crawled.insert_category_tags_dto import InsertCategoryTagsDTO
-from src.service.crawl.insert_crawled import insert_category, insert_category_tags, insert_tags
-from src.service.crawl.update_crawled import update_category, update_category_tags
 from src.infra.database.repository.category_repository import CategoryRepository
 from src.infra.database.repository.category_tags_repository import CategoryTagsRepository
-from src.infra.external.kakao_geocoding_service import GeocodingService
 from src.infra.external.category_classifier_service import CategoryTypeClassifier
+from src.infra.external.kakao_geocoding_service import GeocodingService
+from src.logger.custom_logger import get_logger
+from src.service.crawl.insert_crawled import insert_category, insert_category_tags, insert_tags
+from src.service.crawl.update_crawled import update_category, update_category_tags
 from src.service.crawl.utils.address_parser import AddressParser
 
 logger = get_logger(__name__)

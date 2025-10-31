@@ -154,11 +154,35 @@ class BaseRepository:
             raise e
 
 
-    async def delete(self, item_id):
+    async def select_by(self, **filters):
         try:
             engine = await get_engine()
             async with engine.begin() as conn:
-                stmt = self.table.delete().where(self.table.c.id == item_id)
+                stmt = select(self.table)
+
+                for column, value in filters.items():
+                    if hasattr(self.table.c, column):
+                        stmt = stmt.where(getattr(self.table.c, column) == value)
+
+                result = await conn.execute(stmt)
+                ans = []
+                for row in result.mappings():
+                    ans.append(self.entity(**row))
+        except Exception as e:
+            self.logger.error(e)
+            return []
+
+        return ans
+
+
+    async def delete(self, **filters):
+        try:
+            engine = await get_engine()
+            async with engine.begin() as conn:
+                stmt = self.table.delete()
+                for column, value in filters.items():
+                    if hasattr(self.table.c, column):
+                        stmt = stmt.where(getattr(self.table.c, column) == value)
                 await conn.execute(stmt)
             return True
 

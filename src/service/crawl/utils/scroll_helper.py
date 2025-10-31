@@ -2,6 +2,7 @@
 스크롤 유틸리티 모듈 (용도별 분리)
 """
 import asyncio
+
 from src.logger.custom_logger import get_logger
 
 logger = get_logger(__name__)

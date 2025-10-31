@@ -2,13 +2,15 @@
 크롤링 베이스 클래스
 """
 from abc import ABC, abstractmethod
+
 from playwright.async_api import async_playwright, Page, Browser
+
 from src.logger.custom_logger import get_logger
+from src.service.crawl.utils.human_like_actions import HumanLikeActions
 from src.service.crawl.utils.optimized_browser_manager import (
-    OptimizedBrowserManager, 
+    OptimizedBrowserManager,
     BatchCrawlingMixin
 )
-from src.service.crawl.utils.human_like_actions import HumanLikeActions
 from src.service.crawl.utils.scroll_helper import ScrollHelper
 from src.service.crawl.utils.store_data_saver import StoreDataSaver
 

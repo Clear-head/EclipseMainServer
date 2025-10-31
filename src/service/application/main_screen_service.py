@@ -1,10 +1,12 @@
 from fastapi import HTTPException
+
 from src.domain.dto.service.detail_category_dto import ResponseDetailCategoryDTO, DetailCategoryReview
 from src.domain.dto.service.main_screen_dto import MainScreenCategoryList, ResponseMainScreenDTO
 from src.infra.database.repository.category_repository import CategoryRepository
 from src.infra.database.repository.category_tags_repository import CategoryTagsRepository
 from src.infra.database.repository.reviews_repository import ReviewsRepository
 from src.infra.database.repository.tags_repository import TagsRepository
+from src.infra.database.repository.user_like_repository import UserLikeRepository
 from src.infra.database.repository.users_repository import UserRepository
 
 
@@ -77,6 +79,15 @@ class MainScreenService:
         category_in_tags = await self.category_tags_repo.select(category_id=category.id, limit=5)
         print(len(category_in_tags))
 
+        #   is_like
+        repo = UserLikeRepository()
+        result = await repo.select(category_id=category.id)
+        if result:
+            is_like = True
+        else:
+            is_like = False
+
+
         #   tags
         tag_names = []
         for tag_ids in category_in_tags:
@@ -101,6 +112,7 @@ class MainScreenService:
             )
 
         return ResponseDetailCategoryDTO(
+            is_like=is_like,
             tags=tag_names,
             reviews=reviews_list,
         )

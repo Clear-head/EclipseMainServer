@@ -2,12 +2,13 @@
 ChromaDB 기반 매장 제안 서비스
 """
 from typing import List, Dict, Optional
-from sentence_transformers import SentenceTransformer
+
 import chromadb
 from chromadb.config import Settings
+from sentence_transformers import SentenceTransformer
 
-from src.logger.custom_logger import get_logger
 from src.infra.external.query_enchantment import QueryEnhancementService
+from src.logger.custom_logger import get_logger
 
 logger = get_logger(__name__)
 

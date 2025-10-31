@@ -1,10 +1,11 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+
 import uvicorn
+from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
+from src.router.users import user_controller, service_controller, my_info_controller
 from src.utils.exception_handler.http_log_handler import setup_exception_handlers
-from src.router.users import user_controller, service_controller
 
 
 @asynccontextmanager
@@ -14,6 +15,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 setup_exception_handlers(app)
 app.include_router(user_controller.router)
+app.include_router(my_info_controller.router)
 app.include_router(service_controller.router)
 app.add_middleware(
     CORSMiddleware,

@@ -18,5 +18,5 @@ class CategoryRepository(base_repository.BaseRepository):
     async def update(self, item_id, item):
         return await super().update(item_id, item)
         
-    async def delete(self, item):
-        return await super().delete(item)
+    async def delete(self, **filters):
+        return await super().delete(**filters)

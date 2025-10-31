@@ -1,6 +1,6 @@
+from src.domain.entities.reviews_entity import ReviewsEntity
 from . import base_repository
 from ..tables.table_reviews import reviews_table
-from src.domain.entities.reviews_entity import ReviewsEntity
 
 
 class ReviewsRepository(base_repository.BaseRepository):
@@ -19,5 +19,5 @@ class ReviewsRepository(base_repository.BaseRepository):
     async def update(self, item_id, item):
         return await super().update(item_id, item)
 
-    async def delete(self, item):
-        return await super().delete(item)
+    async def delete(self, **filters):
+        return await super().delete(**filters)
