@@ -16,8 +16,8 @@ class ReviewsRepository(base_repository.BaseRepository):
     async def select(self, **filters):
         return await super().select(**filters)
 
-    async def update(self, item_id, item):
-        return await super().update(item_id, item)
+    async def update(self, **filters):
+        return await super().select(**filters)
 
     async def delete(self, **filters):
         return await super().delete(**filters)

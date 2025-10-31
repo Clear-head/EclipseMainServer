@@ -137,20 +137,19 @@ class BaseRepository:
             raise e
 
 
-    async def update(self, item_id, item):
+    async def update(self, **filters):
         try:
             engine = await get_engine()
             async with engine.begin() as conn:
-                stmt = (
-                    self.table.update()
-                    .values(**item.model_dump(exclude_none=True))
-                    .where(self.table.c.id == item_id)
-                )
+                stmt = self.table.delete()
+                for column, value in filters.items():
+                    if hasattr(self.table.c, column):
+                        stmt = stmt.where(getattr(self.table.c, column) == value)
                 await conn.execute(stmt)
             return True
 
         except Exception as e:
-            self.logger.error(f"update error in {self.table}: {e}")
+            self.logger.error(f"delete error in {self.table}: {e}")
             raise e
 
 
