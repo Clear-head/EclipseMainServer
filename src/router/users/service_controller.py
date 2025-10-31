@@ -129,10 +129,8 @@ async def chat(request: RequestChatServiceDTO):
 
     # 사용자 액션(Next/More 또는 Yes) 응답 처리
     if session.get("waitingForUserAction", False):
-
-        return JSONResponse(
-            content=handle_user_action_response(session, request.message).model_dump()
-        )
+        response = await handle_user_action_response(session, request.message)
+        return JSONResponse(content=response.model_dump())
 
     # 일반 메시지 처리 (태그 생성)
     return JSONResponse(

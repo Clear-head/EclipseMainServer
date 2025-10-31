@@ -48,9 +48,7 @@ class BluerRestaurantCrawler:
         """
         async with async_playwright() as p:
             # 1단계: Bluer에서 전체 음식점 목록 수집
-            self.logger.info(f"\n{'='*70}")
-            self.logger.info("📋 1단계: Bluer 전체 목록 수집 시작")
-            self.logger.info(f"{'='*70}\n")
+            self.logger.info("1단계: Bluer 전체 목록 수집 시작")
             
             all_restaurants = await self._collect_all_restaurants(p, delay)
             
@@ -59,16 +57,12 @@ class BluerRestaurantCrawler:
                 return
             
             total = len(all_restaurants)
-            self.logger.info(f"\n{'='*70}")
-            self.logger.info(f"✅ 총 {total}개 음식점 수집 완료")
-            self.logger.info(f"{'='*70}\n")
+            self.logger.info(f"총 {total}개 음식점 수집 완료")
             
             # 2단계: 네이버 지도에서 배치 병렬 크롤링
-            self.logger.info(f"\n{'='*70}")
-            self.logger.info("📊 2단계: 네이버 지도 병렬 크롤링 시작")
-            self.logger.info(f"   배치 크기: {self.RESTART_INTERVAL}개")
-            self.logger.info(f"   예상 배치 수: {(total + self.RESTART_INTERVAL - 1) // self.RESTART_INTERVAL}개")
-            self.logger.info(f"{'='*70}\n")
+            self.logger.info("2단계: 네이버 지도 병렬 크롤링 시작")
+            self.logger.info(f"배치 크기: {self.RESTART_INTERVAL}개")
+            self.logger.info(f"예상 배치 수: {(total + self.RESTART_INTERVAL - 1) // self.RESTART_INTERVAL}개")
             
             naver_browser = await OptimizedBrowserManager.create_optimized_browser(p, self.headless)
             
@@ -80,9 +74,7 @@ class BluerRestaurantCrawler:
                     batch_num = batch_start // self.RESTART_INTERVAL + 1
                     total_batches = (total + self.RESTART_INTERVAL - 1) // self.RESTART_INTERVAL
                     
-                    self.logger.info(f"\n{'='*70}")
-                    self.logger.info(f"🔄 배치 {batch_num}/{total_batches}: {batch_start+1}~{batch_end}/{total}")
-                    self.logger.info(f"{'='*70}\n")
+                    self.logger.info(f"배치 {batch_num}/{total_batches}: {batch_start+1}~{batch_end}/{total}")
                     
                     # 새 컨텍스트 생성
                     context = await OptimizedBrowserManager.create_stealth_context(naver_browser)
@@ -104,18 +96,16 @@ class BluerRestaurantCrawler:
                         if batch_end < total:
                             import random
                             rest_time = random.uniform(20, 40)
-                            self.logger.info(f"\n🛌 배치 {batch_num} 완료, {rest_time:.0f}초 휴식...\n")
+                            self.logger.info(f"배치 {batch_num} 완료, {rest_time:.0f}초 휴식...\n")
                             await asyncio.sleep(rest_time)
                 
                 # 최종 결과
-                self.logger.info(f"\n{'='*70}")
-                self.logger.info(f"✅ 전체 크롤링 완료!")
-                self.logger.info(f"   총 처리: {total}개")
-                self.logger.info(f"   성공: {self.success_count}개")
-                self.logger.info(f"   실패: {self.fail_count}개")
+                self.logger.info(f"전체 크롤링 완료!")
+                self.logger.info(f"총 처리: {total}개")
+                self.logger.info(f"성공: {self.success_count}개")
+                self.logger.info(f"실패: {self.fail_count}개")
                 if total > 0:
                     self.logger.info(f"   성공률: {self.success_count/total*100:.1f}%")
-                self.logger.info(f"{'='*70}\n")
                 
             finally:
                 await naver_browser.close()
@@ -135,21 +125,21 @@ class BluerRestaurantCrawler:
             current_page = 1
             
             while True:
-                self.logger.info(f"  Bluer 페이지 {current_page} 수집 중...")
+                self.logger.info(f"Bluer 페이지 {current_page} 수집 중...")
                 
                 restaurants = await self._extract_restaurants_from_page(page)
                 
                 if restaurants:
-                    self.logger.info(f"  페이지 {current_page}: {len(restaurants)}개 수집 (누적 {len(all_restaurants) + len(restaurants)}개)")
+                    self.logger.info(f"페이지 {current_page}: {len(restaurants)}개 수집 (누적 {len(all_restaurants) + len(restaurants)}개)")
                     all_restaurants.extend(restaurants)
                 else:
-                    self.logger.warning(f"  페이지 {current_page}에서 음식점을 찾지 못했습니다.")
+                    self.logger.warning(f"페이지 {current_page}에서 음식점을 찾지 못했습니다.")
                     break
                 
                 has_next = await PageNavigator.go_to_next_page_bluer(page)
                 
                 if not has_next:
-                    self.logger.info(f"  마지막 페이지 도달 (총 {current_page}페이지)")
+                    self.logger.info(f"마지막 페이지 도달 (총 {current_page}페이지)")
                     break
                 
                 current_page += 1
@@ -200,7 +190,7 @@ class BluerRestaurantCrawler:
                         restaurants.append((name, address))
                     
                 except Exception as item_error:
-                    self.logger.error(f"  아이템 {idx} 추출 중 오류: {item_error}")
+                    self.logger.error(f"아이템 {idx} 추출 중 오류: {item_error}")
                     continue
             
         except TimeoutError:
@@ -298,9 +288,7 @@ async def main():
     """메인 함수"""
     logger = get_logger(__name__)
     
-    logger.info("="*70)
-    logger.info("🚀 Bluer 음식점 크롤러 시작 (병렬 처리)")
-    logger.info("="*70)
+    logger.info("Bluer 음식점 크롤러 시작 (병렬 처리)")
     
     try:
         crawler = BluerRestaurantCrawler(headless=False)
@@ -310,9 +298,7 @@ async def main():
             naver_delay=15
         )
         
-        logger.info("="*70)
-        logger.info("🏁 크롤러 종료")
-        logger.info("="*70)
+        logger.info("크롤러 종료")
         
     except Exception as e:
         logger.error(f"크롤링 중 오류: {e}")

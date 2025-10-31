@@ -51,10 +51,12 @@ async def before_delete_category(id: str):
 
         select_list = []
 
-        select_list.extend(await r1.select(id))
-        select_list.extend(await r2.select(id))
-        select_list.extend(await r3.select_by(category_id=id))
-        select_list.extend(await r4.select_by(category_id=id))
+        # select(id) → select(category_id=id) 또는 적절한 컬럼명으로 변경
+        # 주의: 각 repository의 테이블 구조에 맞게 컬럼명을 지정해야 합니다
+        select_list.extend(await r1.select(category_id=id))
+        select_list.extend(await r2.select(category_id=id))
+        select_list.extend(await r3.select(category_id=id))
+        select_list.extend(await r4.select(category_id=id))
 
         return True if select_list else False
     except Exception as ex:

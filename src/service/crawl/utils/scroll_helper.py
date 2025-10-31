@@ -39,7 +39,7 @@ class FavoriteListScroller:
         Returns:
             int: 로드된 장소 개수
         """
-        logger.debug("📜 즐겨찾기 전체 스크롤 시작...")
+        logger.debug("즐겨찾기 전체 스크롤 시작...")
         
         prev_count = 0
         same_count = 0
@@ -53,13 +53,13 @@ class FavoriteListScroller:
                 
                 # 로깅 (10회마다)
                 if scroll_attempt % 10 == 0 and scroll_attempt > 0:
-                    logger.debug(f"  스크롤 {scroll_attempt}회: {current_count}개 장소")
+                    logger.debug(f"스크롤 {scroll_attempt}회: {current_count}개 장소")
                 
                 # 개수 변화 체크
                 if current_count == prev_count:
                     same_count += 1
                     if same_count >= max_same_count:
-                        logger.debug(f"✅ 스크롤 완료: 총 {current_count}개")
+                        logger.debug(f"스크롤 완료: 총 {current_count}개")
                         break
                 else:
                     same_count = 0
@@ -107,7 +107,7 @@ class FavoriteListScroller:
             item_selector: 장소 선택자
             target_index: 목표 인덱스 (0부터 시작)
         """
-        logger.info(f"📜 {target_index+1}번째 항목까지 스크롤 중...")
+        logger.info(f"{target_index+1}번째 항목까지 스크롤 중...")
         
         prev_count = 0
         same_count = 0
@@ -119,14 +119,14 @@ class FavoriteListScroller:
                 
                 # 목표 도달
                 if current_count > target_index:
-                    logger.debug(f"✅ 목표 도달: {current_count}개 로드")
+                    logger.debug(f"목표 도달: {current_count}개 로드")
                     break
                 
                 # 정체 체크
                 if current_count == prev_count:
                     same_count += 1
                     if same_count >= 3:
-                        logger.warning(f"⚠️ 스크롤 정체: {current_count}개")
+                        logger.warning(f"스크롤 정체: {current_count}개")
                         break
                 else:
                     same_count = 0
@@ -205,7 +205,7 @@ class SearchResultScroller:
                 if current_count == prev_count:
                     same_count += 1
                     if same_count >= max_same_count:
-                        logger.debug(f"✅ 페이지 스크롤 완료: {current_count}개")
+                        logger.debug(f"페이지 스크롤 완료: {current_count}개")
                         break
                 else:
                     same_count = 0
@@ -299,7 +299,7 @@ class PageNavigator:
                         # 스크롤 초기화
                         await SearchResultScroller.reset_scroll_position(search_frame)
                         
-                        logger.debug("✅ 다음 페이지로 이동")
+                        logger.debug("다음 페이지로 이동")
                         return True
                 except:
                     continue
