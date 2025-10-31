@@ -38,6 +38,7 @@ class ResponseChatServiceDTO(BaseModel):
     tags: Optional[List[str]] = None  # 추출된 태그 목록
     progress: Optional[Dict[str, int]] = None  # 진행 상태
     recommendations: Optional[Dict[str, List[str]]] = None  # 최종 추천 결과
+    collectedData: Optional[List[Dict]] = None  # 구조화된 수집 데이터 (위치, 인원수, 카테고리별 키워드)
 
     # Flutter 클라이언트 호환성을 위한 필드 (이름은 yesNo지만 실제로는 Next/More 또는 Yes 버튼)
     showYesNoButtons: Optional[bool] = False  # 버튼 표시 여부
