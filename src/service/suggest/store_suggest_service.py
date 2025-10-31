@@ -43,8 +43,8 @@ class StoreSuggestService:
             )
         )
         
-        # 한국어 임베딩 모델 로드 (GPU 지원)
-        logger.info("한국어 임베딩 모델 로딩 중...")
+        # 임베딩 모델 로드 (GPU 지원)
+        logger.info("임베딩 모델 로딩 중...")
         self.embedding_model = SentenceTransformer(
             "intfloat/multilingual-e5-large",
             device=self.device  # GPU 사용 설정
