@@ -25,6 +25,7 @@ class RequestSetUserLikeDTO(BaseModel):
 """
 
 class UserLikeDTO(BaseModel):
+    type: str
     category_id: str
     category_name: str
     category_image: str
@@ -34,7 +35,7 @@ class UserLikeDTO(BaseModel):
     gu: Optional[str]
     detail_address: str
     category_address: str = Field(
-        default_factory=lambda x: f"{x['do']} {x['si']} {x['gu']} {x['detail_address']}"
+        default_factory=lambda x: f"{x['do'] }{x['si'] }{x['gu'] }{x['detail_address']}"
     )
 
 

@@ -32,8 +32,8 @@ class UserInfoService:
 
         liked = await repo.select(
             return_dto=UserLikeDTO,
-            id=user_id,
-            join=[
+            user_id=user_id,
+            joins=[
                 {
                     "table": category_table,
                     "on": {"category_id": "id"},
@@ -41,17 +41,17 @@ class UserInfoService:
                 }
             ],
             columns={
-                "category_id": "category_id",
+                "category.type": "type",
+                "category.id": "category_id",
                 "category.name": "category_name",
                 "category.image": "category_image",
                 "category.sub_category": "sub_category",
                 "category.do": "do",
                 "category.si": "si",
-                "category.gu": "si",
+                "category.gu": "gu",
                 "category.detail_address": "detail_address"
             }
         )
-        print(liked[0])
 
 
         if not liked:
