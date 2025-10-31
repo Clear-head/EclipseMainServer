@@ -17,7 +17,7 @@ public_key = os.environ.get("PUBLIC_KEY")
 algorithm = "HS256"
 logger = get_logger(__name__)
 
-async def create_jwt_token(username: str) -> tuple:
+async def create_jwt_token(user_id: str) -> tuple:
 
     now = (datetime.now(timezone.utc))
     access_token_expires = now + timedelta(hours=1)
@@ -28,7 +28,7 @@ async def create_jwt_token(username: str) -> tuple:
     refresh_token_expires = int(refresh_token_expires.timestamp())
 
     payload = {
-        "username": username,                           #   유저 이름
+        "userId": user_id,                           #   유저 이름
         "exp": access_token_expires,                    #   만료 시간
         "iat": now,                                     #   생성 시간
         "iss": os.environ.get("ISSUE_NAME")             #   서명
@@ -36,7 +36,7 @@ async def create_jwt_token(username: str) -> tuple:
 
     #   refresh token
     payload2 = {
-        "username": username,
+        "userId": user_id,
         "exp": refresh_token_expires,
         "iat": now,
         "iss": os.environ.get("ISSUE_NAME")
@@ -70,7 +70,7 @@ async def validate_jwt_token(jwt: str = Header(None)):
         elif decoded["exp"] < now:
             raise jwt_token.ExpiredSignatureError()
 
-        #   todo: 여기에 유저네임이 세션에 없을 때 추가
+        #   todo: 여기에 유저아이디가 세션에 없을 때 추가
 
         else:
             return True
