@@ -1,4 +1,5 @@
 from pydantic import field_validator
+
 from src.domain.entities.base_entity import BaseEntity
 
 

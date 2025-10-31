@@ -1,5 +1,7 @@
 from datetime import datetime
+
 from pydantic import field_validator, ValidationError
+
 from src.domain.entities.base_entity import BaseEntity
 
 

@@ -1,7 +1,7 @@
 from typing import Dict, List, Optional
+
 from pydantic import BaseModel
 
-from src.domain.dto.header import JsonHeader
 
 #   /api/service/start
 

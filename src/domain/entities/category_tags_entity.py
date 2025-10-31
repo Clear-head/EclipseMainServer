@@ -1,6 +1,7 @@
 from typing import Optional
 
 from pydantic import ValidationError, field_validator
+
 from src.domain.dto.crawled.insert_category_tags_dto import InsertCategoryTagsDTO
 from src.domain.entities.base_entity import BaseEntity
 
