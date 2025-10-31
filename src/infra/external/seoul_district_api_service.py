@@ -8,11 +8,10 @@ import xml.etree.ElementTree as ET
 from typing import List
 from dotenv import load_dotenv
 
-# 환경 변수 로드
-load_dotenv(dotenv_path="src/.env")
-
-# 로거는 필요시 import
+from src.utils.path import path_dic
 from src.logger.custom_logger import get_logger
+
+load_dotenv(dotenv_path=path_dic["env"])
 logger = get_logger(__name__)
 
 

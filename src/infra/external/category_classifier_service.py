@@ -20,7 +20,7 @@ class CategoryTypeClassifier:
     """LLM을 사용하여 서브 카테고리를 분류하는 클래스"""
     
     def __init__(self):
-        self.api_token = os.getenv('COPILOT_API_KEY') or os.getenv('GITHUB_TOKEN')
+        self.api_token = os.getenv('COPILOT_API_KEY')
         if self.api_token:
             self.api_endpoint = "https://api.githubcopilot.com/chat/completions"
             self.headers = {

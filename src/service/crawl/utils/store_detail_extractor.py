@@ -2,6 +2,7 @@ import asyncio
 import os
 import re
 from typing import Optional, Tuple, List
+from dotenv import load_dotenv
 
 import aiohttp
 from playwright.async_api import Page
