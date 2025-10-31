@@ -6,7 +6,7 @@ from typing import Dict
 
 from src.domain.dto.service.haru_service_dto import ResponseChatServiceDTO
 from src.service.application.prompts import RESPONSE_MESSAGES
-from src.service.application.utils import extract_tags_by_category, generate_recommendations, parse_recommendations
+from src.service.application.utils import extract_tags_by_category, format_collected_data_for_server
 
 
 def handle_user_message(session: Dict, user_message: str) -> ResponseChatServiceDTO:
@@ -110,16 +110,8 @@ def handle_user_action_response(session: Dict, user_response: str) -> ResponseCh
     # 결과 출력 확인 단계: Yes(결과 출력) 처리
     if session.get("stage") == "confirming_results":
         if is_next:
-            # 추천 결과 생성
-            recommendations_text = generate_recommendations(
-                session["selectedCategories"],
-                session["collectedTags"]
-            )
-
-            recommendations_dict = parse_recommendations(
-                recommendations_text,
-                session["selectedCategories"]
-            )
+            # 수집된 데이터를 구조화된 형식으로 변환
+            collected_data = format_collected_data_for_server(session)
 
             # 대화 완료 상태로 전환
             session["stage"] = "completed"
@@ -129,7 +121,8 @@ def handle_user_action_response(session: Dict, user_response: str) -> ResponseCh
                 status="success",
                 message=RESPONSE_MESSAGES["start"]["final_result"],
                 stage="completed",
-                recommendations=recommendations_dict
+                recommendations=None,  # RECOMMENDATION_DATABASE 로직 제거
+                collectedData=collected_data
             )
         else:
             # 명확하지 않은 응답 - 사용자 액션 대기 상태 유지
@@ -226,53 +219,9 @@ def handle_next_category(session: Dict) -> ResponseChatServiceDTO:
 
 def handle_modification_mode(session: Dict, user_message: str) -> ResponseChatServiceDTO:
     """
-    수정 모드 처리 (현재 미사용)
+    수정 모드 처리 (현재 미사용) 태그 삭제 기능으로 사용할수도
 
-    사용자가 이전 카테고리로 돌아가서 수정하고 싶을 때 사용.
-    추후 확장 기능으로 개발 예정
-
-    Args:
-        session: 세션 데이터
-        user_message: 사용자가 선택한 카테고리명
-
-    Returns:
-        선택한 카테고리로 이동 또는 재질문
     """
-    # 사용자가 선택한 카테고리 확인
-    selected_categories = session["selectedCategories"]
-    selected_category = None
-
-    for category in selected_categories:
-        if category in user_message:
-            selected_category = category
-            break
-
-    if selected_category:
-        # 해당 카테고리의 인덱스 찾기
-        category_index = selected_categories.index(selected_category)
-
-        # 해당 카테고리로 돌아가기
-        session["currentCategoryIndex"] = category_index
-        session["stage"] = "collecting_details"
-        session["waitingForUserAction"] = False
-
-        # 해당 카테고리에 대한 질문 생성
-        message = f"좋아! '{selected_category}' 활동에 대해 더 추가하고 싶은 내용이 있나요?"
-
-        return ResponseChatServiceDTO(
-            status="success",
-            message=message,
-            stage="collecting_details",
-            currentCategory=selected_category
-        )
-    else:
-        # 카테고리를 명확히 선택하지 않은 경우
-        return ResponseChatServiceDTO(
-            status="success",
-            message="어떤 활동을 수정하고 싶으신가요? 카테고리명을 말씀해주세요.",
-            stage="modification_mode",
-            availableCategories=selected_categories
-        )
 
 
 def handle_add_more_tags(session: Dict) -> ResponseChatServiceDTO:
