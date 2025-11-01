@@ -78,81 +78,43 @@ class StoreChromaDBLoader:
     
     def create_store_document(self, store_entity, tags: List[Dict]) -> str:
         """
-        매장 데이터를 자연스러운 한국어 문장으로 변환
-        구, 타입, 영업시간은 문서에서 제외 (메타데이터로 필터링/조회)
-        sub_category와 타입이 콘텐츠일 경우 매장명 포함
-        
-        Args:
-            store_entity: CategoryEntity 객체
-            tags: 태그 목록 [{'name': '태그명', 'count': 개수}, ...]
-            
-        Returns:
-            str: 자연스러운 한국어 문장 (구, 타입, 매장ID, 영업시간 제외)
+        키워드 중심의 간결한 문서 생성
         """
-        # 태그 처리: 1등 제외하고 2~11위까지 (상위 10개)
+        # 태그 처리: 상위 10개 사용 (1등 제외)
         sorted_tags = sorted(tags, key=lambda x: x['count'], reverse=True)
-        if len(sorted_tags) > 1:
-            selected_tags = sorted_tags[1:11]  # 2~11위
-        else:
-            selected_tags = []
-        
-        tags_list = [tag['name'] for tag in selected_tags]
+        top_tags = sorted_tags[1:10]  # 2등부터 11위까지
+        tags_list = [tag['name'] for tag in top_tags]
         
         # 메뉴/키워드
-        menu_or_keywords = store_entity.menu if store_entity.menu else ""
+        menu_items = []
+        if store_entity.menu:
+            menu_items = [item.strip() for item in store_entity.menu.split(',') if item.strip()]
         
         # sub_category
-        sub_category = store_entity.sub_category if store_entity.sub_category else ""
+        sub_categories = []
+        if store_entity.sub_category:
+            sub_categories = [cat.strip() for cat in store_entity.sub_category.split(',') if cat.strip()]
         
-        # 자연스러운 한국어 문장 생성
+        # 키워드 중심으로 간결하게 구성
         doc_parts = []
         
-        # 콘텐츠 타입일 경우 매장명 추가
-        if store_entity.type == 2:  # 콘텐츠
-            store_name = store_entity.name if store_entity.name else ""
-            if store_name:
-                name_sentence = f"{store_name}은(는)"
-                doc_parts.append(name_sentence)
+        # 콘텐츠 타입이면 매장명 추가
+        if store_entity.type == 2 and store_entity.name:
+            doc_parts.append(store_entity.name)
         
-        # sub_category 문장 추가
-        if sub_category:
-            sub_categories = [cat.strip() for cat in sub_category.split(',') if cat.strip()]
-            if sub_categories:
-                if len(sub_categories) > 1:
-                    sub_cat_sentence = f"{', '.join(sub_categories[:-1])}, {sub_categories[-1]} 카테고리에 속합니다."
-                else:
-                    sub_cat_sentence = f"{sub_categories[0]} 카테고리에 속합니다."
-                doc_parts.append(sub_cat_sentence)
+        # 카테고리 (쉼표로 구분)
+        if sub_categories:
+            doc_parts.append(" ".join(sub_categories))
         
-        # 태그를 문장으로 변환
+        # 메뉴/키워드 (쉼표로 구분)
+        if menu_items:
+            doc_parts.append(" ".join(menu_items))
+        
+        # 태그 (공백으로 구분)
         if tags_list:
-            tags_clean = [tag.replace('"', '').strip() for tag in tags_list]
-            if len(tags_clean) > 1:
-                tags_sentence = f"이 장소는 {', '.join(tags_clean[:-1])}, {tags_clean[-1]}의 특징을 가지고 있습니다."
-            else:
-                tags_sentence = f"이 장소는 {tags_clean[0]}의 특징을 가지고 있습니다."
-            doc_parts.append(tags_sentence)
+            doc_parts.append(" ".join(tags_list))
         
-        # type에 따라 메뉴/키워드 문장 다르게 생성
-        if menu_or_keywords:
-            items = [item.strip() for item in menu_or_keywords.split(',') if item.strip()]
-            
-            if items:
-                # 타입별로 다른 표현 사용
-                if store_entity.type == 2:  # 콘텐츠
-                    if len(items) > 1:
-                        keyword_sentence = f"주요 키워드는 {', '.join(items[:-1])}, {items[-1]} 등입니다."
-                    else:
-                        keyword_sentence = f"주요 키워드는 {items[0]} 등입니다."
-                else:  # 음식점(0), 카페(1)
-                    if len(items) > 1:
-                        keyword_sentence = f"주요 메뉴는 {', '.join(items[:-1])}, {items[-1]} 등이 있습니다."
-                    else:
-                        keyword_sentence = f"주요 메뉴는 {items[0]} 등이 있습니다."
-                
-                doc_parts.append(keyword_sentence)
-        
-        # 문장들을 공백으로 연결
+        # 공백으로 연결 (간단한 키워드 나열)
         document = " ".join(doc_parts)
         
         return document
