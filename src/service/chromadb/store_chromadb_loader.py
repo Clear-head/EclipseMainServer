@@ -6,6 +6,7 @@ import chromadb
 from chromadb.config import Settings
 from chromadb.utils import embedding_functions
 from typing import List, Dict
+import torch
 from src.logger.custom_logger import get_logger
 from src.infra.database.repository.category_repository import CategoryRepository
 from src.infra.database.repository.category_tags_repository import CategoryTagsRepository
@@ -24,6 +25,14 @@ class StoreChromaDBLoader:
         """
         logger.info("ChromaDB 초기화 중...")
         
+        # GPU 사용 가능 여부 확인
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        logger.info(f"사용 중인 디바이스: {self.device}")
+        
+        if self.device == "cuda":
+            logger.info(f"GPU 이름: {torch.cuda.get_device_name(0)}")
+            logger.info(f"GPU 메모리: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.2f} GB")
+        
         self.client = chromadb.PersistentClient(
             path=persist_directory,
             settings=Settings(
@@ -32,12 +41,13 @@ class StoreChromaDBLoader:
             )
         )
         
-        # 임베딩 모델 설정
+        # 임베딩 모델 설정 (GPU 지원)
         logger.info("임베딩 모델 로딩 중: intfloat/multilingual-e5-large")
         self.embedding_function = embedding_functions.SentenceTransformerEmbeddingFunction(
-            model_name="intfloat/multilingual-e5-large"
+            model_name="intfloat/multilingual-e5-large",
+            device=self.device  # GPU 사용 설정
         )
-        logger.info("임베딩 모델 로딩 완료")
+        logger.info(f"임베딩 모델 로딩 완료 (디바이스: {self.device})")
         
         # 컬렉션 생성 (임베딩 함수 적용)
         self.store_collection = self.client.get_or_create_collection(
@@ -184,6 +194,7 @@ class StoreChromaDBLoader:
             batch_size: 배치 크기 (한 번에 처리할 매장 수)
         """
         logger.info("ChromaDB 데이터 적재 시작...")
+        logger.info(f"GPU 사용 여부: {self.device == 'cuda'}")
         
         # Repository 초기화
         category_repo = CategoryRepository()
@@ -377,7 +388,8 @@ class StoreChromaDBLoader:
                 "collection_name": self.store_collection.name,
                 "total_documents": count,
                 "metadata": self.store_collection.metadata,
-                "embedding_model": "intfloat/multilingual-e5-large"
+                "embedding_model": "intfloat/multilingual-e5-large",
+                "device": self.device
             }
             
             return info

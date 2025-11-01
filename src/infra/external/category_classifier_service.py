@@ -7,9 +7,6 @@ import aiohttp
 import re
 from dotenv import load_dotenv
 
-# 환경 변수 로드
-load_dotenv(dotenv_path="src/.env")
-
 from src.utils.path import path_dic
 from src.logger.custom_logger import get_logger
 

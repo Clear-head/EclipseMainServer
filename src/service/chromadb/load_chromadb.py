@@ -2,9 +2,7 @@
 ChromaDB 데이터 적재 실행 스크립트
 DB에 저장된 매장 데이터를 ChromaDB에 별도로 적재합니다.
 """
-import asyncio
 import sys
-import os
 from pathlib import Path
 
 # 프로젝트 루트를 Python 경로에 추가
