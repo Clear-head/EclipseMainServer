@@ -1,4 +1,4 @@
-from sqlalchemy import MetaData, Column, String, Table, ForeignKey, Integer
+from sqlalchemy import MetaData, Column, String, Table, ForeignKey, Integer, DateTime
 
 meta = MetaData()
 
@@ -9,5 +9,6 @@ reviews_table = Table(
     Column('user_id', String(255), ForeignKey('users.id'), nullable=False),
     Column('category_id', String(255), ForeignKey('category.id'), nullable=False),
     Column('stars', Integer),
-    Column('comments', String(300))
+    Column('comments', String(300)),
+    Column('created_at', DateTime),
 )
