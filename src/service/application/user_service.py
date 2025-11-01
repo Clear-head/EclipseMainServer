@@ -1,12 +1,12 @@
 from starlette.responses import JSONResponse
 
-from src.domain.dto.service.user_login_dto import ToUserLoginDto, AfterLoginUserInfo
-from src.domain.dto.service.user_register_dto import ResponseRegisterDto, RequestRegisterDto
+from src.domain.dto.service.user_service.user_login_dto import ToUserLoginDto, AfterLoginUserInfo
+from src.domain.dto.service.user_service.user_register_dto import ResponseRegisterDto, RequestRegisterDto
 from src.infra.database.repository.users_repository import UserRepository
 from src.logger.custom_logger import get_logger
 from src.service.auth.jwt import create_jwt_token
 from src.utils.exception_handler.auth_error_class import DuplicateUserInfoError, InvalidCredentialsException, \
-    UserAlreadyExistsException
+    UserAlreadyExistsException, UserNotFoundException
 
 
 class UserService:
@@ -70,8 +70,16 @@ class UserService:
             )
 
 
-    async def delete_account(self, id: str):
-        pass
+    async def delete_account(self, id: str, pw: str):
+        result = await self.repository.select(id=id, password=pw)
+
+        if not result:
+            raise UserNotFoundException()
+        elif len(result) > 1:
+            raise DuplicateUserInfoError()
+
+        else:
+            return await self.repository.delete(id=id, password=pw)
 
     async def find_id_pw(self, id: str, pw: str):
         pass
