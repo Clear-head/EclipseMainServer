@@ -20,7 +20,7 @@ class UserEntity(BaseEntity):
     nickname: str
     birth: Optional[datetime] = None
     phone: Optional[str] = None
-    email: EmailStr
+    email: str
     sex: Optional[int] = None
     address: Optional[str] = None
 

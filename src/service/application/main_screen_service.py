@@ -77,7 +77,6 @@ class MainScreenService:
 
 
         category_in_tags = await self.category_tags_repo.select(category_id=category.id, limit=5)
-        print(len(category_in_tags))
 
         #   is_like
         repo = UserLikeRepository()

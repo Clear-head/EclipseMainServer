@@ -45,9 +45,7 @@ class UserService:
                 info=info
             )
 
-        return JSONResponse(
-            content=content.model_dump()
-        )
+        return content
 
     async def logout(self, id: str):
         pass
