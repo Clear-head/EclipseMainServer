@@ -216,15 +216,15 @@ class QueryEnhancementService:
             if "," in keywords:
                 items = [k.strip() for k in keywords.split(",")]
                 if len(items) == 2:
-                    keywords = f"{items[0]}와 {items[1]}가 있는"
+                    keywords = f"{items[0]}, {items[1]}"
                 elif len(items) > 2:
-                    keywords = f"{', '.join(items[:-1])}, {items[-1]}가 있는"
+                    keywords = f"{', '.join(items[:-1])}, {items[-1]}"
             
             query_parts.append(keywords)
         
         # 타입 추가
-        if category_type:
-            query_parts.append(category_type)
+        # if category_type:
+        #     query_parts.append(category_type)
         
         final_query = " ".join(query_parts) if query_parts else "추천"
         
