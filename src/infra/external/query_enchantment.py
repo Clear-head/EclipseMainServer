@@ -5,7 +5,7 @@ import os
 import asyncio
 import aiohttp
 from dotenv import load_dotenv
-from typing import Optional
+from typing import Optional, List, Dict
 
 from src.utils.path import path_dic
 from src.logger.custom_logger import get_logger
@@ -132,6 +132,211 @@ class QueryEnhancementService:
         
         return self._build_fallback_query(personnel, category_type, user_keyword)
     
+    async def filter_recommendations_with_gpt(
+        self,
+        stores: List[Dict],
+        user_keywords: List[str],
+        category_type: str,
+        personnel: int,
+        max_results: int = 8,
+        max_retries: int = 3
+    ) -> List[Dict]:
+        """
+        GPT-4.1을 사용하여 추천 결과를 필터링 및 재정렬
+        
+        Args:
+            stores: 추천된 매장 리스트 (MainScreenCategoryList 형식의 dict)
+            user_keywords: 사용자가 입력한 키워드 리스트
+            category_type: 카테고리 타입 (음식점, 카페, 콘텐츠)
+            personnel: 인원 수
+            max_results: 최대 반환 개수 (기본 8개)
+            max_retries: 최대 재시도 횟수
+            
+        Returns:
+            List[Dict]: GPT가 필터링한 매장 리스트
+        """
+        if not self.api_token:
+            logger.warning("API 토큰 없음 - 원본 결과 반환")
+            return stores[:max_results]
+        
+        if not stores:
+            logger.warning("필터링할 매장이 없습니다.")
+            return []
+        
+        logger.info(f"GPT-4.1 필터링 시작: {len(stores)}개 매장 → 최대 {max_results}개 선택")
+        logger.info(f"키워드: {user_keywords}, 카테고리: {category_type}, 인원: {personnel}명")
+        
+        # 매장 정보 간결하게 정리
+        stores_summary = []
+        for idx, store in enumerate(stores, 1):
+            summary = {
+                "순번": idx,
+                "매장ID": store.get('id', ''),
+                "이름": store.get('title', ''),
+                "주소": store.get('detail_address', ''),
+                "카테고리": store.get('sub_category', '')
+            }
+            stores_summary.append(summary)
+        
+        # 프롬프트 구성
+        prompt = f"""다음은 ChromaDB + 하이브리드 검색으로 추천된 {category_type} 매장 목록입니다.
+사용자의 요구사항에 가장 적합한 매장을 최대 {max_results}개 선택하고, 적합도 순으로 정렬하세요.
+
+<사용자 요구사항>
+- 카테고리: {category_type}
+- 인원: {personnel}명
+- 키워드: {', '.join(user_keywords)}
+
+<추천된 매장 목록>
+{self._format_stores_for_prompt(stores_summary)}
+
+<필터링 기준 (우선순위 순)>
+1. 🔥 [최우선] 메뉴에 사용자 키워드가 정확히 포함되는지
+   - "김치찌개" 키워드 → 메뉴에 "김치찌개"가 있는 매장 최우선
+   - "참치" 키워드 → 메뉴에 "참치"가 있는 매장 최우선
+   
+2. 메뉴 정보가 있는 매장 > 메뉴 정보가 없는 매장
+   - ⚠️ 메뉴 정보 없음: 하위 순위로 배치
+   
+3. {category_type} 타입에 적합한지
+4. 인원({personnel}명)에 적합한 분위기인지
+5. 중복/유사 매장 제외
+
+<중요 규칙>
+❌ 나쁜 선택: 카테고리만 "찌개,전골"이고 메뉴 정보가 없는 매장
+✅ 좋은 선택: 메뉴에 "김치찌개, 된장찌개" 등이 명시된 매장
+
+<출력 형식>
+선택된 매장의 순번만 콤마로 구분하여 출력하세요. (예: 6,7,8,1,2)
+- 최대 {max_results}개까지만 선택
+- 메뉴 정보가 있고 키워드와 정확히 매칭되는 매장을 최우선 선택
+- 순번만 출력 (설명 불필요)
+
+선택된 매장 순번:"""
+
+        payload = {
+            "model": "gpt-4.1",
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "당신은 매장 추천 전문가입니다. 사용자의 요구사항에 가장 적합한 매장을 선택하고 정렬하세요."
+                },
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            "temperature": 0.2,
+            "max_tokens": 200
+        }
+        
+        for attempt in range(1, max_retries + 1):
+            try:
+                timeout = aiohttp.ClientTimeout(total=15)
+                async with aiohttp.ClientSession(timeout=timeout) as session:
+                    async with session.post(
+                        self.api_endpoint,
+                        headers=self.headers,
+                        json=payload
+                    ) as response:
+                        if response.status == 200:
+                            result = await response.json()
+                            gpt_output = result['choices'][0]['message']['content'].strip()
+                            
+                            logger.info(f"GPT 응답: {gpt_output}")
+                            
+                            # 순번 파싱 (예: "1,3,5,7,2,4,8")
+                            selected_indices = self._parse_gpt_selection(gpt_output, len(stores))
+                            
+                            if not selected_indices:
+                                logger.warning("GPT 파싱 실패 - 원본 결과 반환")
+                                return stores[:max_results]
+                            
+                            # 선택된 순번대로 매장 재정렬
+                            filtered_stores = [stores[idx - 1] for idx in selected_indices if 1 <= idx <= len(stores)]
+                            filtered_stores = filtered_stores[:max_results]
+                            
+                            logger.info(f"GPT 필터링 완료: {len(filtered_stores)}개 매장 선택")
+                            logger.info(f"선택된 순번: {selected_indices[:max_results]}")
+                            
+                            return filtered_stores
+                        else:
+                            logger.warning(f"GPT 필터링 API 호출 실패 ({attempt}번째 시도) - 상태 코드: {response.status}")
+                            
+                            if attempt < max_retries:
+                                await asyncio.sleep(1)
+                            else:
+                                logger.warning("최대 재시도 초과 - 원본 결과 반환")
+                                return stores[:max_results]
+                
+            except asyncio.TimeoutError:
+                logger.warning(f"GPT 필터링 API 시간 초과 ({attempt}번째 시도)")
+                
+                if attempt < max_retries:
+                    await asyncio.sleep(2)
+                else:
+                    logger.warning("최대 재시도 초과 - 원본 결과 반환")
+                    return stores[:max_results]
+                    
+            except Exception as e:
+                logger.error(f"GPT 필터링 중 오류 ({attempt}번째 시도): {e}")
+                
+                if attempt < max_retries:
+                    await asyncio.sleep(2)
+                else:
+                    logger.error("최대 재시도 초과 - 원본 결과 반환")
+                    return stores[:max_results]
+        
+        return stores[:max_results]
+    
+    def _format_stores_for_prompt(self, stores_summary: List[Dict]) -> str:
+        """매장 목록을 프롬프트용 텍스트로 변환 (메뉴 정보 강조)"""
+        lines = []
+        for store in stores_summary:
+            menu = store.get('menu', '')
+            if menu and menu != '정보없음':
+                line = f"{store['순번']}. {store['이름']} | 카테고리: {store['카테고리']} | 메뉴: {menu[:100]} | 주소: {store['주소']}"
+            else:
+                line = f"{store['순번']}. {store['이름']} | 카테고리: {store['카테고리']} | ⚠️ 메뉴 정보 없음 | 주소: {store['주소']}"
+            lines.append(line)
+        return "\n".join(lines)
+    
+    def _parse_gpt_selection(self, gpt_output: str, total_count: int) -> List[int]:
+        """
+        GPT 응답에서 선택된 순번 파싱
+        
+        Args:
+            gpt_output: GPT 응답 텍스트 (예: "1,3,5,7,2,4,8")
+            total_count: 전체 매장 개수
+            
+        Returns:
+            List[int]: 선택된 순번 리스트
+        """
+        try:
+            # 숫자와 콤마만 추출
+            import re
+            numbers_str = re.findall(r'\d+', gpt_output)
+            
+            # 정수 변환
+            selected = [int(n) for n in numbers_str if n.isdigit()]
+            
+            # 유효한 범위만 필터링 (1 ~ total_count)
+            valid_selected = [n for n in selected if 1 <= n <= total_count]
+            
+            # 중복 제거 (순서 유지)
+            seen = set()
+            unique_selected = []
+            for n in valid_selected:
+                if n not in seen:
+                    seen.add(n)
+                    unique_selected.append(n)
+            
+            return unique_selected
+            
+        except Exception as e:
+            logger.error(f"GPT 응답 파싱 실패: {e}")
+            return []
+    
     def _build_prompt(
         self,
         personnel: Optional[int],
@@ -221,10 +426,6 @@ class QueryEnhancementService:
                     keywords = f"{', '.join(items[:-1])}, {items[-1]}"
             
             query_parts.append(keywords)
-        
-        # 타입 추가
-        # if category_type:
-        #     query_parts.append(category_type)
         
         final_query = " ".join(query_parts) if query_parts else "추천"
         

@@ -5,7 +5,7 @@
 from typing import Dict, List
 
 from src.domain.dto.service.haru_service_dto import ResponseChatServiceDTO
-from src.domain.dto.service.main_screen_dto import MainScreenCategoryList  # 🔥 추가
+from src.domain.dto.service.main_screen_dto import MainScreenCategoryList
 from src.service.application.prompts import RESPONSE_MESSAGES
 from src.service.application.utils import extract_tags_by_category, format_collected_data_for_server
 from src.logger.custom_logger import get_logger
@@ -15,7 +15,7 @@ logger = get_logger(__name__)
 
 async def get_store_recommendations(session: Dict) -> Dict[str, List[MainScreenCategoryList]]:
     """
-    세션의 collectedData를 기반으로 매장 추천
+    세션의 collectedData를 기반으로 매장 추천 (GPT-4.1 필터링 적용)
     
     Args:
         session: 세션 데이터 (collectedTags, play_address, peopleCount 포함)
@@ -24,11 +24,13 @@ async def get_store_recommendations(session: Dict) -> Dict[str, List[MainScreenC
         카테고리별 추천 매장 딕셔너리 (MainScreenCategoryList 형식)
     """
     from src.service.suggest.store_suggest_service import StoreSuggestService
+    from src.infra.external.query_enchantment import QueryEnhancementService
     
     logger.info("=" * 60)
-    logger.info("매장 추천 시작")
+    logger.info("매장 추천 시작 (GPT-4.1 필터링 적용)")
     
     suggest_service = StoreSuggestService()
+    query_enhancer = QueryEnhancementService()
     recommendations = {}
     
     # 지역 추출
@@ -47,18 +49,18 @@ async def get_store_recommendations(session: Dict) -> Dict[str, List[MainScreenC
         logger.info(f"[{category}] 키워드: {keyword_string}")
         
         try:
-            # 매장 제안 요청
+            # 1단계: ChromaDB 하이브리드 검색 (더 많이 가져오기)
             suggestions = await suggest_service.suggest_stores(
                 personnel=people_count,
                 region=region,
                 category_type=category,
                 user_keyword=keyword_string,
-                n_results=8,
+                n_results=15,  # 🔥 15개 가져와서 GPT가 8개 선택
                 use_ai_enhancement=False,
-                min_similarity_threshold=0.80
+                min_similarity_threshold=0.70  # 🔥 임계값 낮춤 (더 많은 후보)
             )
             
-            logger.info(f"[{category}] 유사도 검색 결과: {len(suggestions)}개")
+            logger.info(f"[{category}] ChromaDB 검색 결과: {len(suggestions)}개")
             
             # store_id 추출
             store_ids = [sug.get('store_id') for sug in suggestions if sug.get('store_id')]
@@ -67,7 +69,7 @@ async def get_store_recommendations(session: Dict) -> Dict[str, List[MainScreenC
             if store_ids:
                 store_details = await suggest_service.get_store_details(store_ids)
                 
-                # 🔥 MainScreenCategoryList 형식으로 변환
+                # MainScreenCategoryList 형식으로 변환
                 category_list = []
                 for store in store_details:
                     address = (
@@ -87,8 +89,50 @@ async def get_store_recommendations(session: Dict) -> Dict[str, List[MainScreenC
                         )
                     )
                 
-                recommendations[category] = category_list
-                logger.info(f"[{category}] 최종 추천: {len(category_list)}개")
+                logger.info(f"[{category}] 변환 완료: {len(category_list)}개")
+                
+                # 🔥 2단계: GPT-4.1 필터링 (15개 → 8개 선택)
+                if len(category_list) > 8:
+                    logger.info(f"[{category}] GPT-4.1 필터링 시작...")
+                    
+                    # MainScreenCategoryList를 dict로 변환
+                    stores_as_dicts = [
+                        {
+                            'id': store.id,
+                            'title': store.title,
+                            'image_url': store.image_url,
+                            'detail_address': store.detail_address,
+                            'sub_category': store.sub_category
+                        }
+                        for store in category_list
+                    ]
+                    
+                    filtered_dicts = await query_enhancer.filter_recommendations_with_gpt(
+                        stores=stores_as_dicts,
+                        user_keywords=keywords,
+                        category_type=category,
+                        personnel=people_count,
+                        max_results=8
+                    )
+                    
+                    # dict를 다시 MainScreenCategoryList로 변환
+                    filtered_list = [
+                        MainScreenCategoryList(
+                            id=store['id'],
+                            title=store['title'],
+                            image_url=store['image_url'],
+                            detail_address=store['detail_address'],
+                            sub_category=store['sub_category']
+                        )
+                        for store in filtered_dicts
+                    ]
+                    
+                    recommendations[category] = filtered_list
+                    logger.info(f"[{category}] GPT 필터링 완료: {len(filtered_list)}개")
+                else:
+                    # 8개 이하면 필터링 없이 그대로 사용
+                    recommendations[category] = category_list
+                    logger.info(f"[{category}] 8개 이하라서 필터링 생략")
             else:
                 recommendations[category] = []
                 logger.warning(f"[{category}] 추천 결과 없음")
@@ -194,12 +238,12 @@ async def handle_user_action_response(session: Dict, user_response: str) -> Resp
     # 🔥 결과 출력 확인 단계: Yes(매장 추천 생성)
     if session.get("stage") == "confirming_results":
         if is_next:
-            logger.info("confirming_results 단계에서 '네' 선택 -> 매장 추천 생성")
+            logger.info("confirming_results 단계에서 '네' 선택 -> 매장 추천 생성 (GPT 필터링)")
             
             # 수집된 데이터 구조화
             collected_data = format_collected_data_for_server(session)
             
-            # 🔥 매장 추천 생성 (MainScreenCategoryList 형식)
+            # 🔥 매장 추천 생성 (ChromaDB + GPT-4.1 필터링)
             recommendations = await get_store_recommendations(session)
             
             # 세션에 저장
@@ -211,7 +255,7 @@ async def handle_user_action_response(session: Dict, user_response: str) -> Resp
                 status="success",
                 message=RESPONSE_MESSAGES["start"]["final_result"],
                 stage="completed",
-                recommendations=recommendations,  # 🔥 MainScreenCategoryList 형식으로 전달
+                recommendations=recommendations,
                 collectedData=collected_data
             )
         else:
