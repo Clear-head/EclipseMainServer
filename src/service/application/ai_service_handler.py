@@ -5,6 +5,7 @@
 from typing import Dict, List
 
 from src.domain.dto.service.haru_service_dto import ResponseChatServiceDTO
+from src.domain.dto.service.main_screen_dto import MainScreenCategoryList  # 🔥 추가
 from src.service.application.prompts import RESPONSE_MESSAGES
 from src.service.application.utils import extract_tags_by_category, format_collected_data_for_server
 from src.logger.custom_logger import get_logger
@@ -12,7 +13,7 @@ from src.logger.custom_logger import get_logger
 logger = get_logger(__name__)
 
 
-async def get_store_recommendations(session: Dict) -> Dict[str, List[Dict]]:
+async def get_store_recommendations(session: Dict) -> Dict[str, List[MainScreenCategoryList]]:
     """
     세션의 collectedData를 기반으로 매장 추천
     
@@ -20,7 +21,7 @@ async def get_store_recommendations(session: Dict) -> Dict[str, List[Dict]]:
         session: 세션 데이터 (collectedTags, play_address, peopleCount 포함)
     
     Returns:
-        카테고리별 추천 매장 딕셔너리
+        카테고리별 추천 매장 딕셔너리 (MainScreenCategoryList 형식)
     """
     from src.service.suggest.store_suggest_service import StoreSuggestService
     
@@ -52,8 +53,8 @@ async def get_store_recommendations(session: Dict) -> Dict[str, List[Dict]]:
                 region=region,
                 category_type=category,
                 user_keyword=keyword_string,
-                n_results=5,
-                use_ai_enhancement=True,
+                n_results=8,
+                use_ai_enhancement=False,
                 min_similarity_threshold=0.80
             )
             
@@ -65,8 +66,29 @@ async def get_store_recommendations(session: Dict) -> Dict[str, List[Dict]]:
             # 상세 정보 조회
             if store_ids:
                 store_details = await suggest_service.get_store_details(store_ids)
-                recommendations[category] = store_details
-                logger.info(f"[{category}] 최종 추천: {len(store_details)}개")
+                
+                # 🔥 MainScreenCategoryList 형식으로 변환
+                category_list = []
+                for store in store_details:
+                    address = (
+                        (store.get('do', '') + " " if store.get('do') else "") +
+                        (store.get('si', '') + " " if store.get('si') else "") +
+                        (store.get('gu', '') + " " if store.get('gu') else "") +
+                        (store.get('detail_address', '') if store.get('detail_address') else "")
+                    ).strip()
+                    
+                    category_list.append(
+                        MainScreenCategoryList(
+                            id=store.get('id', ''),
+                            title=store.get('name', ''),
+                            image_url=store.get('image', ''),
+                            detail_address=address,
+                            sub_category=store.get('sub_category', '')
+                        )
+                    )
+                
+                recommendations[category] = category_list
+                logger.info(f"[{category}] 최종 추천: {len(category_list)}개")
             else:
                 recommendations[category] = []
                 logger.warning(f"[{category}] 추천 결과 없음")
@@ -177,7 +199,7 @@ async def handle_user_action_response(session: Dict, user_response: str) -> Resp
             # 수집된 데이터 구조화
             collected_data = format_collected_data_for_server(session)
             
-            # 🔥 매장 추천 생성
+            # 🔥 매장 추천 생성 (MainScreenCategoryList 형식)
             recommendations = await get_store_recommendations(session)
             
             # 세션에 저장
@@ -189,7 +211,7 @@ async def handle_user_action_response(session: Dict, user_response: str) -> Resp
                 status="success",
                 message=RESPONSE_MESSAGES["start"]["final_result"],
                 stage="completed",
-                recommendations=recommendations,  # 🔥 Flutter로 전달
+                recommendations=recommendations,  # 🔥 MainScreenCategoryList 형식으로 전달
                 collectedData=collected_data
             )
         else:
