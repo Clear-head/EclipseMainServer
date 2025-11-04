@@ -161,7 +161,7 @@ def validate_user_input(user_message: str, category: str = "카페") -> Tuple[bo
     하이브리드 입력 검증 함수 (통합)
     
     1단계: 규칙 기반 빠른 필터링 (quick_validation)
-    2단계: 짧거나 애매한 입력은 LLM 검증 (llm_validation)
+    2단계: 모든 입력에 대해 LLM 검증 (llm_validation)
     
     Args:
         user_message: 사용자 입력 메시지
@@ -177,28 +177,9 @@ def validate_user_input(user_message: str, category: str = "카페") -> Tuple[bo
         # 명백히 무효한 입력 -> 즉시 거부 (LLM 호출 안 함)
         return False, error_msg
     
-    # 2단계: 짧거나 애매한 케이스는 LLM 검증
-    
-    # 특수문자/공백 제거 후 실제 문자 수 확인
-    text_without_special = re.sub(r'[^\w가-힣]', '', user_message, flags=re.UNICODE)
-    is_short = len(text_without_special) <= 5  # 5자 이하면 짧다고 판단
-    
-    # 애매한 키워드 체크
-    ambiguous_keywords = [
-        "아무거나", "몰라", "글쎄", "모르겠어", "아무데나", "상관없어",
-        "그냥", "막", "아무", "whatever", "anything", "idk", "dunno"
-    ]
-    
-    text_lower = user_message.lower()
-    has_ambiguous_keyword = any(keyword in text_lower for keyword in ambiguous_keywords)
-    
-    # ✨ 짧거나 애매한 키워드가 있으면 LLM에게 판단시키기
-    if is_short or has_ambiguous_keyword:
-        print(f"🤖 LLM 검증 시작: '{user_message}' (짧은 입력: {is_short}, 애매한 키워드: {has_ambiguous_keyword})")
-        return llm_validation(user_message, category)
-    
-    # 명백히 의미있는 입력 (6자 이상 + 애매한 키워드 없음) -> 통과
-    return True, ""
+    # 2단계: 모든 입력에 대해 LLM 검증 수행
+    print(f"🤖 LLM 검증 시작: '{user_message}'")
+    return llm_validation(user_message, category)
 
 
 # =============================================================================
@@ -226,6 +207,10 @@ def extract_tags_by_category(user_detail: str, category: str, people_count: int 
 
         tag_response = chain.invoke({"user_input": base_prompt})
         tag_list = [tag.strip() for tag in tag_response.split(",") if tag.strip()]
+
+        # 무의미한 태그 필터링 (없음, none, 없어 등)
+        excluded_tags = {"없음", "none", "없어", "없습니다", "정보없음", "없는", "no", "nothing", "해당없음", "해당 없음"}
+        tag_list = [tag for tag in tag_list if tag.lower() not in excluded_tags and tag not in excluded_tags]
 
         # 태그가 0개면 재시도
         if len(tag_list) == 0:
