@@ -7,7 +7,6 @@ from chromadb.config import Settings
 from sentence_transformers import SentenceTransformer, CrossEncoder
 import torch
 import re
-from collections import Counter
 
 from src.infra.external.query_enchantment import QueryEnhancementService
 from src.logger.custom_logger import get_logger
