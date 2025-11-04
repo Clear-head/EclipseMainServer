@@ -1,7 +1,7 @@
 from starlette.responses import JSONResponse
 
-from src.domain.dto.service.user_service.user_login_dto import ToUserLoginDto, AfterLoginUserInfo
-from src.domain.dto.service.user_service.user_register_dto import ResponseRegisterDto, RequestRegisterDto
+from src.domain.dto.service.user_login_dto import ToUserLoginDto, AfterLoginUserInfo
+from src.domain.dto.service.user_register_dto import ResponseRegisterDto, RequestRegisterDto
 from src.infra.database.repository.users_repository import UserRepository
 from src.logger.custom_logger import get_logger
 from src.service.auth.jwt import create_jwt_token
