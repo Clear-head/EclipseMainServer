@@ -221,42 +221,46 @@ class StoreSuggestService:
         region: Optional[str] = None,
         category_type: Optional[str] = None,
         user_keyword: str = "",
-        n_results: int = 10,
+        n_results: int = 20,
         use_ai_enhancement: bool = False,
         min_similarity_threshold: float = 0.2,
         rerank_candidates_multiplier: int = 5,
-        keyword_weight: float = 0.5,
-        semantic_weight: float = 0.3,
-        rerank_weight: float = 0.2
+        keyword_weight: float = 0.75,
+        semantic_weight: float = 0.2,
+        rerank_weight: float = 0.1
     ) -> List[Dict]:
-        """
-        개선된 매장 제안 (키워드 중심 하이브리드 검색)
-        """
+        """개선된 매장 제안 (키워드 중심 하이브리드 검색)"""
+        
         logger.info("=" * 60)
         logger.info("개선된 매장 제안 요청")
         logger.info(f"  - 인원: {personnel}명")
         logger.info(f"  - 지역: {region}")
         logger.info(f"  - 타입: {category_type}")
         logger.info(f"  - 원본 키워드: {user_keyword}")
-        logger.info(f"  - 가중치: 키워드={keyword_weight}, 시맨틱={semantic_weight}, Re-rank={rerank_weight}")
         logger.info("=" * 60)
         
         # 키워드 추출
         query_keywords = self.extract_keywords(user_keyword)
         logger.info(f"추출된 키워드: {query_keywords}")
         
+        # 🔥 키워드 전처리 (동의어 치환)
+        query_keywords = self.preprocess_keywords(query_keywords)
+        logger.info(f"전처리된 키워드: {query_keywords}")
+        
         # 검색 쿼리 생성
         if use_ai_enhancement:
+            # AI 쿼리 개선 사용 시
             search_query = await self.query_enhancer.enhance_query(
                 personnel=personnel,
                 category_type=category_type,
-                user_keyword=user_keyword
+                user_keyword=user_keyword  # 원본 키워드 사용
             )
         else:
+            # 🔥 치환된 키워드로 쿼리 생성
             query_parts = []
             if category_type:
                 query_parts.append(category_type)
-            query_parts.extend(query_keywords)
+            query_parts.extend(query_keywords)  # 치환된 키워드 사용
             search_query = " ".join(query_parts) if query_parts else user_keyword
         
         logger.info(f"최종 검색 쿼리: {search_query}")
@@ -395,3 +399,33 @@ class StoreSuggestService:
                 continue
         
         return store_details
+    
+    def preprocess_keywords(self, keywords: List[str]) -> List[str]:
+        """
+        키워드 전처리 (동의어 치환)
+        
+        Args:
+            keywords: 원본 키워드 리스트
+            
+        Returns:
+            List[str]: 치환된 키워드 리스트
+        """
+        # 동의어 매핑
+        synonym_map = {
+            "중국집": "중식당",
+            "중국요리": "중식당",
+            "중국음식": "중식당",
+            "한식집": "한식",
+            # 필요한 만큼 추가
+        }
+        
+        processed_keywords = []
+        for keyword in keywords:
+            # 동의어가 있으면 치환, 없으면 원본 사용
+            processed = synonym_map.get(keyword.strip(), keyword.strip())
+            processed_keywords.append(processed)
+            
+            if processed != keyword.strip():
+                logger.info(f"키워드 치환: '{keyword}' → '{processed}'")
+        
+        return processed_keywords
