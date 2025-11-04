@@ -1,6 +1,7 @@
 from src.domain import dto
 from src.domain.dto.service.change_info_dto import ResponseChangeInfoDto, RequestChangeInfoDto
-from src.domain.dto.service.user_history_dto import ResponseUserHistoryListDto, MergeUserHistory
+from src.domain.dto.service.user_history_dto import ResponseUserHistoryListDto, MergeUserHistory, \
+    ResponseUserHistoryDto, UserHistoryDto
 from src.domain.dto.service.user_like_dto import UserLikeDTO, ResponseUserLikeDTO, RequestSetUserLikeDTO
 from src.domain.dto.service.user_reivew_dto import ResponseUserReviewDTO, RequestGetUserReviewDTO, \
     UserReviewDTO
@@ -185,12 +186,13 @@ class UserInfoService:
             review_list=result
         )
 
-    async def get_user_history_list(self, user_id):
+    async def get_user_history_list(self, user_id, template_type):
         self.logger.info(f"try {user_id} get user history list: {user_id}")
         repo = MergeHistoryRepository()
 
         result = await repo.select(
             user_id=user_id,
+            template_type=template_type,
             desc=MergeHistoryEntity.visited_at
         )
 
@@ -208,13 +210,29 @@ class UserInfoService:
         )
 
 
-    async def get_user_history(self, user_id, merge_history_id):
+    async def get_user_history_detail(self, user_id, merge_history_id):
         self.logger.info(f"try {user_id} get user history: {user_id}")
         repo = UserHistoryRepository()
 
         result = await repo.select(
             user_id=user_id,
-            merge_history_id=merge_history_id,
-            order_by=UserHistoryEntity.order
+            merge_id=merge_history_id,
+            order=UserHistoryEntity.seq
+        )
+
+        tmp = []
+
+        for i in result:
+            tmp.append(
+                UserHistoryDto(
+                    category_id=i.category_id,
+                    category_name=i.category_name,
+                    duration=i.duration,
+                    transportation_type=i.transportation_type
+                )
+            )
+
+        return ResponseUserHistoryDto(
+            categories=tmp
         )
 

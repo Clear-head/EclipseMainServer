@@ -6,6 +6,11 @@ from typing import Dict, List
 
 from src.domain.dto.service.haru_service_dto import ResponseChatServiceDTO
 from src.domain.dto.service.main_screen_dto import MainScreenCategoryList
+from src.domain.dto.service.user_history_dto import RequestSetUserHistoryDto
+from src.domain.entities.merge_history_entity import MergeHistoryEntity
+from src.domain.entities.user_history_entity import UserHistoryEntity
+from src.infra.database.repository.merge_history_repository import MergeHistoryRepository
+from src.infra.database.repository.user_history_repository import UserHistoryRepository
 from src.service.application.prompts import RESPONSE_MESSAGES
 from src.service.application.utils import extract_tags_by_category, format_collected_data_for_server, validate_user_input
 from src.logger.custom_logger import get_logger
@@ -367,3 +372,56 @@ def handle_add_more_tags(session: Dict) -> ResponseChatServiceDTO:
         stage="collecting_details",
         currentCategory=current_category
     )
+
+
+#   일정표 저장
+async def save_selected_template_to_merge(dto: RequestSetUserHistoryDto) -> str:
+    logger.info(f"try to merge history: {dto.user_id}")
+
+    try:
+
+        name = "".join([i.category_name for i in dto.category])
+        repo = MergeHistoryRepository()
+
+        entity = MergeHistoryEntity.from_dto(
+            user_id=dto.user_id,
+            categories_name=name,
+            template_type=dto.template_type,
+        )
+        print(f"entity : {entity}")
+
+        await repo.insert(entity)
+
+
+    except Exception as e:
+        logger.error(f"error insert history {e}")
+        print(dto)
+        raise Exception(e)
+
+    logger.info(f"Inserting history successes: {dto}")
+    return entity.id
+
+
+
+async def save_selected_template(dto: RequestSetUserHistoryDto, merge_id: str):
+    logger.info(f"try to save history: {dto.user_id}")
+
+    try:
+        repo = UserHistoryRepository()
+
+        for i in range(len(dto.category)):
+            entity = UserHistoryEntity.from_dto(
+                user_id=dto.user_id,
+                order=i,
+                merge_id=merge_id,
+                **dto.category[i].model_dump()
+            )
+            await repo.insert(entity)
+
+    except Exception as e:
+        logger.error(f"error insert history {e}")
+        raise Exception(e)
+
+    logger.info(f"Inserting history successes: {dto}")
+    return True
+

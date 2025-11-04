@@ -7,7 +7,7 @@ merge_history_table = Table(
     meta,
     Column('id', String(255), primary_key=True),
     Column('user_id', String(255), ForeignKey('users.id'), nullable=False),
-    Column("template_type", String(10), nullable=True),
+    Column("template_type", Text, nullable=True),
     Column('categories_name', Text, nullable=False),
     Column('visited_at', DateTime),
 )
