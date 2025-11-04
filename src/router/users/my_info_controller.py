@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from starlette.responses import JSONResponse
 
 from src.domain.dto.service.change_info_dto import RequestChangeInfoDto
-from src.domain.dto.service.user_history_dto import RequestUserHistoryDetailDto
+from src.domain.dto.service.user_history_dto import RequestUserHistoryDetailDto, RequestHistoryDto
 from src.domain.dto.service.user_like_dto import RequestGetUserLikeDTO, RequestSetUserLikeDTO
 from src.domain.dto.service.user_reivew_dto import RequestGetUserReviewDTO
 from src.logger.custom_logger import get_logger
@@ -39,12 +39,13 @@ async def my_review(dto: RequestGetUserReviewDTO):
 
 
 @router.post("/my-history")
-async def my_history(dto: RequestGetUserLikeDTO):
-    return await user_info.get_user_history_list(dto.user_id)
+async def my_history(dto: RequestHistoryDto):
+    return await user_info.get_user_history_list(dto.user_id, dto.template_type)
+
 
 @router.post("/my-history-detail")
 async def my_history_detail(dto: RequestUserHistoryDetailDto):
-    pass
+    return await user_info.get_user_history_detail(dto.user_id, dto.merge_history_id)
 
 
 @router.put("/change/{field}")
