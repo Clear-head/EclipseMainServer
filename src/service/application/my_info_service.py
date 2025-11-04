@@ -1,10 +1,15 @@
-from pydantic import EmailStr
-
+from src.domain import dto
 from src.domain.dto.service.change_info_dto import ResponseChangeInfoDto, RequestChangeInfoDto
+from src.domain.dto.service.user_history_dto import ResponseUserHistoryListDto, MergeUserHistory
 from src.domain.dto.service.user_like_dto import UserLikeDTO, ResponseUserLikeDTO, RequestSetUserLikeDTO
-from src.domain.dto.service.user_reivew_dto import RequestGetUserReviewDTO, ResponseUserReviewDTO
+from src.domain.dto.service.user_reivew_dto import ResponseUserReviewDTO, RequestGetUserReviewDTO, \
+    UserReviewDTO
+from src.domain.entities.merge_history_entity import MergeHistoryEntity
 from src.domain.entities.user_entity import UserEntity
+from src.domain.entities.user_history_entity import UserHistoryEntity
+from src.infra.database.repository.merge_history_repository import MergeHistoryRepository
 from src.infra.database.repository.reviews_repository import ReviewsRepository
+from src.infra.database.repository.user_history_repository import UserHistoryRepository
 from src.infra.database.repository.user_like_repository import UserLikeRepository
 from src.infra.database.repository.users_repository import UserRepository
 from src.infra.database.tables.table_category import category_table
@@ -86,6 +91,7 @@ class UserInfoService:
 
 
     async def set_my_like(self, data: RequestSetUserLikeDTO, type: bool) -> str:
+        self.logger.info(f"try {data.user_id} set my like: {type}")
         repo = UserLikeRepository()
 
         if not type:
@@ -103,6 +109,7 @@ class UserInfoService:
 
 
     async def get_user_like(self, user_id) -> ResponseUserLikeDTO:
+        self.logger.info(f"try {user_id} get user like: {user_id}")
         repo = UserLikeRepository()
 
         liked = await repo.select(
@@ -124,7 +131,9 @@ class UserInfoService:
                 "category.do": "do",
                 "category.si": "si",
                 "category.gu": "gu",
-                "category.detail_address": "detail_address"
+                "category.detail_address": "detail_address",
+                # "stars": "stars",
+                # "created_at": "created_at",
             }
         )
 
@@ -149,70 +158,63 @@ class UserInfoService:
 
 
 
-    # async def get_user_review(self, user_id) -> ResponseUserReviewDTO:
-    #     repo = ReviewsRepository()
-    #     reviews = await repo.select_with_join(
-    #         user_id=user_id,
-    #         join_table=category_table,
-    #         dto=UserReviewDTO,
-    #         join_conditions={
-    #             "category_id": "id"
-    #         },
-    #         select_columns={
-    #             'main': ["category_id"],
-    #             'join': {
-    #                 'name': 'category_name',
-    #                 "image": 'category_image',
-    #                 "sub_category": "sub_category",
-    #                 "do": "do",
-    #                 "si": "si",
-    #                 "gu": "gu",
-    #                 "detail_address": "detail_address"
-    #             }
-    #         }
-    #
-    #     )
-    #     if not reviews:
-    #         self.logger.info(f"no review for {user_id}")
-    #         raise NotFoundAnyItemException()
-    #
-    #     else:
-    #         for review in reviews:
-    #             tmp.append(
-    #                 UserReviewDTO(
-    #                     review
-    #                 )
-    #             )
-    #
-    #
-    # async def get_user_history(self, user_id):
-    #     repo = UserHistoryRepository()
-    #
-    #     history = await repo.select_with_join(
-    #         user_id=user_id,
-    #         join_table=category_table,
-    #         dto=UserHistoryDTO,
-    #         join_conditions={
-    #             "category_id": "id"
-    #         },
-    #         select_columns={
-    #             'main': ["category_id"],
-    #             'join': {
-    #                 'name': 'category_name',
-    #                 "image": 'category_image',
-    #                 "sub_category": "sub_category",
-    #                 "do": "do",
-    #                 "si": "si",
-    #                 "gu": "gu",
-    #                 "detail_address": "detail_address"
-    #             }
-    #         }
-    #
-    #     )
-    #
-    #
-    #     if not history:
-    #         self.logger.info(f"no history for {user_id}")
-    #         raise NotFoundAnyItemException()
-    #
-    #     return history
+    async def get_user_reviews(self, user_id) -> ResponseUserReviewDTO:
+        self.logger.info(f"try {user_id} get user review: {user_id}")
+        review_repo = ReviewsRepository()
+
+        result = await review_repo.select(
+            return_dto=UserReviewDTO,
+            joins=[
+                {
+                    "table": category_table,
+                    "on": {"category_id": "id"},
+                    "alias": "category"
+                }
+            ],
+            columns={
+                "id": "review_id",
+                "comment": "comment",
+                "stars": "stars",
+                "category.name": "category_name",
+                "created_at": "created_at"
+            },
+            user_id=user_id,
+        )
+
+        return ResponseUserReviewDTO(
+            review_list=result
+        )
+
+    async def get_user_history_list(self, user_id):
+        self.logger.info(f"try {user_id} get user history list: {user_id}")
+        repo = MergeHistoryRepository()
+
+        result = await repo.select(
+            user_id=user_id,
+            desc=MergeHistoryEntity.visited_at
+        )
+
+        results = [
+            MergeUserHistory(
+                id=item.id,
+                visited_at=item.visited_at,
+                categories_name=item.categories_name
+            )
+            for item in result
+        ]
+
+        return ResponseUserHistoryListDto(
+            results=results
+        )
+
+
+    async def get_user_history(self, user_id, merge_history_id):
+        self.logger.info(f"try {user_id} get user history: {user_id}")
+        repo = UserHistoryRepository()
+
+        result = await repo.select(
+            user_id=user_id,
+            merge_history_id=merge_history_id,
+            order_by=UserHistoryEntity.order
+        )
+

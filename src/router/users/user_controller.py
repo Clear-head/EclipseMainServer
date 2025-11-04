@@ -2,6 +2,7 @@ from fastapi import APIRouter
 from starlette.responses import JSONResponse
 
 from src.domain.dto.service.request_jwt_dto import RequestAccessTokenDto
+from src.domain.dto.service.user_delete_account_dto import ResponseDeleteAccount
 from src.domain.dto.service.user_login_dto import GetUserLoginDto
 from src.domain.dto.service.user_register_dto import RequestRegisterDto
 from src.logger.custom_logger import get_logger
@@ -42,8 +43,9 @@ async def register(dto: RequestRegisterDto):
 
 #   회원탈퇴
 @router.delete('/register')
-async def delete_account():
-    pass
+async def delete_account(dto: ResponseDeleteAccount):
+    await user_service.delete_account(dto.user_id, dto.password)
+    return JSONResponse(status_code=200, content={"status": "success"})
 
 
 #   아이디 찾기
