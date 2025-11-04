@@ -1,4 +1,4 @@
-from sqlalchemy import select, join, and_, outerjoin
+from sqlalchemy import select, join, and_, outerjoin, desc
 from sqlalchemy.exc import IntegrityError
 
 from src.infra.database.repository.maria_engine import get_engine
@@ -37,7 +37,7 @@ class BaseRepository:
             columns=None,
             return_dto=None,
             limit=None,
-            desc=None,
+            order=None,
             **filters
     ) -> list:
         """
@@ -113,8 +113,12 @@ class BaseRepository:
                     else:
                         stmt = stmt.where(col == value)
 
-                if desc is not None:
-                    stmt = stmt.order_by(desc(desc))
+                if order is not None:
+                    if isinstance(order, str):
+                        desc_col = getattr(self.table.c, order)
+                    else:
+                        desc_col = order
+                    stmt = stmt.order_by(desc(desc_col))
 
                 # 5. LIMIT
                 if limit is not None:
