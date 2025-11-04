@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, field_validator, ValidationError
 
 
@@ -7,12 +9,21 @@ class ReviewsEntity(BaseModel):
     category_id: str
     stars: int
     comment: str
+    created_at: datetime
 
     @field_validator('id', 'user_id', 'category_id')
     @classmethod
     def validate_null(cls, v):
         if v is None:
             raise ValidationError('[ReviewEntity] null exception')
+        return v
+
+
+    @field_validator("created_at")
+    @classmethod
+    def validate_created_at(cls, v):
+        if v is None:
+            v = datetime.now()
         return v
 
     @field_validator("stars")

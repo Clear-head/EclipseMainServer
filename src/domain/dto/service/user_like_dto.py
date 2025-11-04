@@ -45,18 +45,3 @@ class UserLikeDTO(BaseModel):
 
 class ResponseUserLikeDTO(BaseModel):
     like_list: Optional[List[UserLikeDTO]] = []
-
-
-"""
-
-    내 방문 기록 요청 응답
-
-"""
-class UserHistoryDTO(BaseModel):
-    category_id: str
-    category_name: str
-    visited_at: datetime
-
-
-class ResponseUserHistoryDTO(BaseModel):
-    history_list: Optional[List[UserHistoryDTO]] = []

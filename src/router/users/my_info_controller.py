@@ -1,8 +1,10 @@
-from fastapi import APIRouter, Request, Depends
+from fastapi import APIRouter, Depends
 from starlette.responses import JSONResponse
 
 from src.domain.dto.service.change_info_dto import RequestChangeInfoDto
+from src.domain.dto.service.user_history_dto import RequestUserHistoryDetailDto
 from src.domain.dto.service.user_like_dto import RequestGetUserLikeDTO, RequestSetUserLikeDTO
+from src.domain.dto.service.user_reivew_dto import RequestGetUserReviewDTO
 from src.logger.custom_logger import get_logger
 from src.service.application.my_info_service import UserInfoService
 from src.service.auth.jwt import validate_jwt_token
@@ -32,18 +34,16 @@ async def my_like(request_data: RequestGetUserLikeDTO) -> JSONResponse:
     return JSONResponse(content=like_list.model_dump())
 
 @router.get("/my-review")
-async def my_review(request: Request) -> JSONResponse:
-    pass
+async def my_review(dto: RequestGetUserReviewDTO):
+    return await user_info.get_user_reviews(dto.user_id)
 
 
 @router.post("/my-history")
-async def my_history(request: Request) -> JSONResponse:
+async def my_history(dto: RequestGetUserLikeDTO):
+    return await user_info.get_user_history_list(dto.user_id)
 
-
-    # request_data = RequestUserLikeDTO(user_id=request.user.id)
-    # content = await user_info.get_user_review(request_data.user_id)
-    #
-    # return JSONResponse(content=content.model_dump())
+@router.post("/my-history-detail")
+async def my_history_detail(dto: RequestUserHistoryDetailDto):
     pass
 
 
