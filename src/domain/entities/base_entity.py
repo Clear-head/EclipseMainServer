@@ -14,5 +14,5 @@ class BaseEntity(BaseModel):
 
 
     @classmethod
-    def from_dto(cls, dto):
+    def from_dto(cls, **dto):
         pass
