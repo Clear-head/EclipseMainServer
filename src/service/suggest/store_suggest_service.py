@@ -1,12 +1,12 @@
 """
-ChromaDB 기반 매장 제안 서비스
+개선된 매장 제안 서비스 (키워드 매칭 + 시맨틱 검색 하이브리드)
 """
 from typing import List, Dict, Optional
-
 import chromadb
 from chromadb.config import Settings
-from sentence_transformers import SentenceTransformer
+from sentence_transformers import SentenceTransformer, CrossEncoder
 import torch
+import re
 
 from src.infra.external.query_enchantment import QueryEnhancementService
 from src.logger.custom_logger import get_logger
@@ -15,24 +15,18 @@ logger = get_logger(__name__)
 
 
 class StoreSuggestService:
-    """매장 제안 서비스 클래스"""
+    """개선된 매장 제안 서비스 (키워드 매칭 중심)"""
     
-    def __init__(self, persist_directory: str = "./chroma_db"):
+    def __init__(self, persist_directory: str = "./chroma_db", use_reranker: bool = True):
         """
         Args:
             persist_directory: ChromaDB 저장 경로
+            use_reranker: Re-ranking 모델 사용 여부
         """
-        logger.info("매장 제안 서비스 초기화 중...")
+        logger.info("개선된 매장 제안 서비스 초기화 중...")
         
-        # GPU 사용 가능 여부 확인
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         logger.info(f"사용 중인 디바이스: {self.device}")
-        
-        if self.device == "cuda":
-            logger.info(f"GPU 이름: {torch.cuda.get_device_name(0)}")
-            logger.info(f"GPU 메모리: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.2f} GB")
-        else:
-            logger.warning("GPU를 사용할 수 없습니다. CPU를 사용합니다.")
         
         # ChromaDB 클라이언트 초기화
         self.client = chromadb.PersistentClient(
@@ -43,18 +37,33 @@ class StoreSuggestService:
             )
         )
         
-        # 임베딩 모델 로드 (GPU 지원)
-        logger.info("임베딩 모델 로딩 중...")
+        # 임베딩 모델 로드
+        logger.info("임베딩 모델 로딩 중: intfloat/multilingual-e5-large")
         self.embedding_model = SentenceTransformer(
             "intfloat/multilingual-e5-large",
-            device=self.device  # GPU 사용 설정
+            device=self.device
         )
-        logger.info(f"임베딩 모델 로딩 완료 (디바이스: {self.device})")
+        logger.info(f"임베딩 모델 로딩 완료")
         
-        # 쿼리 개선 서비스 초기화
+        # Re-ranking 모델 로드 (한국어 특화)
+        self.use_reranker = use_reranker
+        self.reranker = None
+        
+        if self.use_reranker:
+            try:
+                logger.info("Re-ranking 모델 로딩 중: BAAI/bge-reranker-base")
+                self.reranker = CrossEncoder(
+                    'BAAI/bge-reranker-base',
+                    max_length=512,
+                    device=self.device
+                )
+                logger.info(f"Re-ranking 모델 로딩 완료")
+            except Exception as e:
+                logger.error(f"Re-ranking 모델 로딩 실패: {e}")
+                self.use_reranker = False
+        
         self.query_enhancer = QueryEnhancementService()
         
-        # 컬렉션 가져오기
         try:
             self.store_collection = self.client.get_collection(name="stores")
             logger.info(f"매장 컬렉션 로드 완료: {self.store_collection.count()}개 매장")
@@ -64,21 +73,146 @@ class StoreSuggestService:
     
     @staticmethod
     def convert_type_to_code(type_korean: str) -> str:
+        """한글 타입을 코드로 변환"""
+        type_map = {"음식점": "0", "카페": "1", "콘텐츠": "2"}
+        return type_map.get(type_korean, "")
+    
+    def extract_keywords(self, text: str) -> List[str]:
+        """텍스트에서 키워드 추출 (쉼표, 공백 기준)"""
+        # 쉼표와 공백으로 분리
+        keywords = re.split(r'[,\s]+', text)
+        # 빈 문자열 제거 및 소문자 변환
+        keywords = [k.strip() for k in keywords if k.strip()]
+        return keywords
+    
+    def calculate_keyword_score(self, query_keywords: List[str], document: str) -> float:
         """
-        한글 타입을 코드로 변환
+        키워드 매칭 점수 계산 (BM25 스타일)
         
         Args:
-            type_korean: 한글 타입 (음식점, 카페, 콘텐츠)
+            query_keywords: 검색 키워드 리스트
+            document: 문서 텍스트
             
         Returns:
-            str: 타입 코드 ("0", "1", "2")
+            float: 키워드 매칭 점수 (0~1)
         """
-        type_map = {
-            "음식점": "0",
-            "카페": "1",
-            "콘텐츠": "2"
-        }
-        return type_map.get(type_korean, "")
+        if not query_keywords:
+            return 0.0
+        
+        doc_lower = document.lower()
+        
+        # 각 키워드가 문서에 등장하는지 확인
+        matches = 0
+        total_occurrences = 0
+        
+        for keyword in query_keywords:
+            keyword_lower = keyword.lower()
+            count = doc_lower.count(keyword_lower)
+            if count > 0:
+                matches += 1
+                total_occurrences += count
+        
+        # 매칭 비율 계산
+        match_ratio = matches / len(query_keywords)
+        
+        # 빈도 점수 (로그 스케일)
+        import math
+        frequency_score = math.log1p(total_occurrences) / 5.0  # 정규화
+        
+        # 최종 점수: 매칭 비율 70% + 빈도 30%
+        final_score = (match_ratio * 0.7) + (min(frequency_score, 1.0) * 0.3)
+        
+        return final_score
+    
+    def hybrid_rerank(
+        self,
+        search_query: str,
+        query_keywords: List[str],
+        ids: List[str],
+        metadatas: List[Dict],
+        documents: List[str],
+        distances: List[float],
+        keyword_weight: float = 0.5,
+        semantic_weight: float = 0.3,
+        rerank_weight: float = 0.2
+    ) -> List[tuple]:
+        """
+        하이브리드 Re-ranking: 키워드 + 시맨틱 + Cross-Encoder
+        
+        Args:
+            search_query: 검색 쿼리
+            query_keywords: 검색 키워드 리스트
+            ids: 매장 ID 리스트
+            metadatas: 메타데이터 리스트
+            documents: 문서 리스트
+            distances: 거리 리스트
+            keyword_weight: 키워드 매칭 가중치 (기본 50%)
+            semantic_weight: 시맨틱 유사도 가중치 (기본 30%)
+            rerank_weight: Re-ranker 가중치 (기본 20%)
+            
+        Returns:
+            List[tuple]: (id, metadata, document, final_score, score_details) 형태
+        """
+        logger.info(f"하이브리드 Re-ranking 시작: {len(ids)}개 문서")
+        logger.info(f"가중치 - 키워드:{keyword_weight}, 시맨틱:{semantic_weight}, Re-rank:{rerank_weight}")
+        
+        results = []
+        
+        # Cross-Encoder 점수 계산 (사용하는 경우)
+        rerank_scores = None
+        if self.use_reranker and self.reranker is not None:
+            try:
+                pairs = [[search_query, doc] for doc in documents]
+                rerank_scores = self.reranker.predict(pairs)
+                logger.info("Cross-Encoder 점수 계산 완료")
+            except Exception as e:
+                logger.error(f"Cross-Encoder 실행 오류: {e}")
+                rerank_scores = None
+        
+        # 각 문서에 대해 점수 계산
+        for i in range(len(ids)):
+            # 1. 키워드 매칭 점수
+            keyword_score = self.calculate_keyword_score(query_keywords, documents[i])
+            
+            # 2. 시맨틱 유사도 점수 (거리 -> 유사도)
+            semantic_score = max(0, 1 - distances[i])
+            
+            # 3. Re-ranker 점수 (정규화: -10~10 -> 0~1)
+            if rerank_scores is not None:
+                rerank_score = (rerank_scores[i] + 10) / 20  # 정규화
+                rerank_score = max(0, min(1, rerank_score))  # 클리핑
+            else:
+                rerank_score = semantic_score  # Re-ranker 없으면 시맨틱 점수 사용
+            
+            # 4. 최종 점수 (가중 평균)
+            final_score = (
+                keyword_score * keyword_weight +
+                semantic_score * semantic_weight +
+                rerank_score * rerank_weight
+            )
+            
+            score_details = {
+                'keyword': round(keyword_score, 4),
+                'semantic': round(semantic_score, 4),
+                'rerank': round(rerank_score, 4),
+                'final': round(final_score, 4)
+            }
+            
+            results.append((
+                ids[i],
+                metadatas[i],
+                documents[i],
+                final_score,
+                score_details
+            ))
+        
+        # 최종 점수 기준으로 정렬
+        results.sort(key=lambda x: x[3], reverse=True)
+        
+        logger.info("하이브리드 Re-ranking 완료")
+        logger.info(f"상위 3개 점수: {[r[4] for r in results[:3]]}")
+        
+        return results
     
     async def suggest_stores(
         self,
@@ -86,103 +220,90 @@ class StoreSuggestService:
         region: Optional[str] = None,
         category_type: Optional[str] = None,
         user_keyword: str = "",
-        n_results: int = 10,
-        use_ai_enhancement: bool = True,
-        min_similarity_threshold: float = 0.75
+        n_results: int = 20,
+        use_ai_enhancement: bool = False,
+        min_similarity_threshold: float = 0.2,
+        rerank_candidates_multiplier: int = 5,
+        keyword_weight: float = 0.75,
+        semantic_weight: float = 0.2,
+        rerank_weight: float = 0.1
     ) -> List[Dict]:
-        """
-        매장 제안 (메타데이터 필터링 → 유사도 검색)
+        """개선된 매장 제안 (키워드 중심 하이브리드 검색)"""
         
-        Args:
-            personnel: 인원 수 (1, 2, 3, 4, 5+)
-            region: 지역 (구 단위, 예: "강남구")
-            category_type: 카테고리 타입 ("음식점", "카페", "콘텐츠")
-            user_keyword: 사용자 입력 키워드
-            n_results: 반환할 결과 수
-            use_ai_enhancement: AI 쿼리 개선 사용 여부
-            min_similarity_threshold: 최소 유사도 임계값
-            
-        Returns:
-            List[Dict]: 제안 매장 리스트
-        """
         logger.info("=" * 60)
-        logger.info("매장 제안 요청")
+        logger.info("개선된 매장 제안 요청")
         logger.info(f"  - 인원: {personnel}명")
         logger.info(f"  - 지역: {region}")
         logger.info(f"  - 타입: {category_type}")
         logger.info(f"  - 원본 키워드: {user_keyword}")
-        logger.info(f"  - AI 개선: {use_ai_enhancement}")
-        logger.info(f"  - 사용 디바이스: {self.device}")
         logger.info("=" * 60)
         
-        # 검색 쿼리 생성 (AI 개선 사용 여부에 따라)
+        # 키워드 추출
+        query_keywords = self.extract_keywords(user_keyword)
+        logger.info(f"추출된 키워드: {query_keywords}")
+        
+        # 🔥 키워드 전처리 (동의어 치환)
+        query_keywords = self.preprocess_keywords(query_keywords)
+        logger.info(f"전처리된 키워드: {query_keywords}")
+        
+        # 검색 쿼리 생성
         if use_ai_enhancement:
+            # AI 쿼리 개선 사용 시
             search_query = await self.query_enhancer.enhance_query(
                 personnel=personnel,
                 category_type=category_type,
-                user_keyword=user_keyword
+                user_keyword=user_keyword  # 원본 키워드 사용
             )
         else:
-            # 기본 쿼리 생성
-            search_query = self.query_enhancer._build_fallback_query(
-                personnel=personnel,
-                category_type=category_type,
-                user_keyword=user_keyword
-            )
+            # 🔥 치환된 키워드로 쿼리 생성
+            query_parts = []
+            if category_type:
+                query_parts.append(category_type)
+            query_parts.extend(query_keywords)  # 치환된 키워드 사용
+            search_query = " ".join(query_parts) if query_parts else user_keyword
         
         logger.info(f"최종 검색 쿼리: {search_query}")
         
-        # ===== 메타데이터 필터 조건 구성 (ChromaDB 문법) =====
+        # 메타데이터 필터
         where_filter = None
         filter_conditions = []
         
-        # 지역 필터
         if region:
             filter_conditions.append({"region": region})
-            logger.info(f"지역 필터 적용: {region}")
         
-        # 타입 필터
         if category_type:
             type_code = self.convert_type_to_code(category_type)
             if type_code:
                 filter_conditions.append({"type_code": type_code})
-                logger.info(f"타입 필터 적용: {category_type} (코드: {type_code})")
         
-        # 필터 조건이 있으면 $and로 결합
         if len(filter_conditions) > 1:
             where_filter = {"$and": filter_conditions}
         elif len(filter_conditions) == 1:
             where_filter = filter_conditions[0]
         
-        logger.info(f"최종 where 필터: {where_filter}")
-        
-        # 쿼리 임베딩 (GPU 자동 사용)
+        # 쿼리 임베딩
         query_embedding = self.embedding_model.encode(
             search_query,
-            convert_to_tensor=True,  # GPU 텐서로 변환
+            convert_to_tensor=True,
             show_progress_bar=False
         )
         
-        # CPU로 변환 (ChromaDB는 numpy 배열 필요)
         if self.device == "cuda":
             query_embedding = query_embedding.cpu()
         
-        # ===== ChromaDB 검색 (메타데이터 필터 + 유사도 검색) =====
+        # ChromaDB 검색 (🔥 안전하게 처리)
+        search_n_results = n_results * rerank_candidates_multiplier
+        
         try:
-            search_n_results = n_results * 3  # 🔥 3배 더 가져오기
-    
+            # 🔥 include 파라미터에서 'embeddings' 제거 (ID 오류 방지)
             results = self.store_collection.query(
                 query_embeddings=[query_embedding.numpy().tolist()],
                 n_results=search_n_results,
                 where=where_filter,
-                include=["metadatas", "documents", "distances"]
+                include=["metadatas", "documents", "distances"]  # embeddings 제외
             )
             
             logger.info(f"ChromaDB 검색 결과: {len(results['ids'][0])}개")
-            
-            # 디버그: 처음 3개 결과의 메타데이터 출력
-            for i in range(min(3, len(results['ids'][0]))):
-                logger.debug(f"결과 {i+1} 메타데이터: {results['metadatas'][0][i]}")
             
         except Exception as e:
             logger.error(f"ChromaDB 검색 중 오류: {e}")
@@ -190,66 +311,61 @@ class StoreSuggestService:
             logger.error(traceback.format_exc())
             return []
         
-        # 결과가 없으면 빈 리스트 반환
         if not results['ids'][0]:
             logger.warning("검색 결과가 없습니다.")
             return []
         
+        # 하이브리드 Re-ranking
+        reranked_results = self.hybrid_rerank(
+            search_query=search_query,
+            query_keywords=query_keywords,
+            ids=results['ids'][0],
+            metadatas=results['metadatas'][0],
+            documents=results['documents'][0],
+            distances=results['distances'][0],
+            keyword_weight=keyword_weight,
+            semantic_weight=semantic_weight,
+            rerank_weight=rerank_weight
+        )
+        
         # 결과 포맷팅
         suggestions = []
         
-        for i in range(len(results['ids'][0])):
+        for store_id, metadata, document, final_score, score_details in reranked_results:
             try:
-                metadata = results['metadatas'][0][i]
-                document = results['documents'][0][i]
-                distance = results['distances'][0][i]
-                store_id = results['ids'][0][i]
-                
-                # 유사도 점수 계산 (거리를 점수로 변환)
-                similarity_score = max(0, 1 - distance)
+                if final_score < min_similarity_threshold:
+                    continue
                 
                 suggestion = {
-                    'store_id': metadata.get('store_id'),          # 매장ID (메타데이터)
-                    'region': metadata.get('region'),              # 구 (메타데이터)
-                    'type': metadata.get('type'),                  # 타입 (메타데이터)
-                    'business_hour': metadata.get('business_hour'), # 영업시간 (메타데이터)
-                    'similarity_score': round(similarity_score, 4),
-                    'distance': round(distance, 4),
-                    'document': document,                          # 태그 + 메뉴
+                    'store_id': metadata.get('store_id'),
+                    'region': metadata.get('region'),
+                    'type': metadata.get('type'),
+                    'business_hour': metadata.get('business_hour'),
+                    'similarity_score': final_score,
+                    'score_breakdown': score_details,
+                    'document': document,
                     'search_query': search_query
                 }
                 
                 suggestions.append(suggestion)
                 
+                if len(suggestions) >= n_results:
+                    break
+                
             except Exception as e:
-                logger.error(f"결과 {i+1} 처리 중 오류: {e}")
-                logger.error(f"메타데이터: {results['metadatas'][0][i]}")
+                logger.error(f"결과 처리 중 오류: {e}")
                 continue
         
-        # 🔥 유사도 임계값 필터링 추가
-        filtered_suggestions = [
-            sug for sug in suggestions 
-            if sug['similarity_score'] >= min_similarity_threshold
-        ]
+        logger.info(f"최종 제안 결과: {len(suggestions)}개")
         
-        # 🔥 상위 n_results개만 반환
-        final_suggestions = filtered_suggestions[:n_results]
+        # 상위 3개 결과 로깅
+        for i, sug in enumerate(suggestions[:3], 1):
+            logger.info(f"순위 {i}: 최종점수={sug['similarity_score']:.4f}, 세부={sug['score_breakdown']}")
         
-        logger.info(f"임계값({min_similarity_threshold}) 필터링 후: {len(filtered_suggestions)}개")
-        logger.info(f"최종 제안 결과: {len(final_suggestions)}개")
-        
-        return final_suggestions
+        return suggestions
     
     async def get_store_details(self, store_ids: List[str]) -> List[Dict]:
-        """
-        매장 ID 목록으로 상세 정보 조회
-        
-        Args:
-            store_ids: 매장 ID 리스트
-            
-        Returns:
-            List[Dict]: 매장 상세 정보
-        """
+        """매장 상세 정보 조회"""
         from src.infra.database.repository.category_repository import CategoryRepository
         
         category_repo = CategoryRepository()
@@ -282,3 +398,33 @@ class StoreSuggestService:
                 continue
         
         return store_details
+    
+    def preprocess_keywords(self, keywords: List[str]) -> List[str]:
+        """
+        키워드 전처리 (동의어 치환)
+        
+        Args:
+            keywords: 원본 키워드 리스트
+            
+        Returns:
+            List[str]: 치환된 키워드 리스트
+        """
+        # 동의어 매핑
+        synonym_map = {
+            "중국집": "중식당",
+            "중국요리": "중식당",
+            "중국음식": "중식당",
+            "한식집": "한식",
+            # 필요한 만큼 추가
+        }
+        
+        processed_keywords = []
+        for keyword in keywords:
+            # 동의어가 있으면 치환, 없으면 원본 사용
+            processed = synonym_map.get(keyword.strip(), keyword.strip())
+            processed_keywords.append(processed)
+            
+            if processed != keyword.strip():
+                logger.info(f"키워드 치환: '{keyword}' → '{processed}'")
+        
+        return processed_keywords
