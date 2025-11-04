@@ -44,26 +44,34 @@ SYSTEM_PROMPT = """
 # 카테고리별 맞춤 프롬프트 템플릿
 # =============================================================================
 
-def get_category_prompt(category: str, user_detail: str, people_count: int) -> str:
+def _get_people_exclusion_rule(people_count: int) -> str:
     """
-    카테고리별 맞춤 프롬프트 생성
+    인원수 관련 제외 규칙 생성
 
     Args:
-        category: 카테고리명 (카페, 음식점, 콘텐츠)
-        user_detail: 사용자 입력 문장
         people_count: 인원 수
 
     Returns:
-        카테고리별 맞춤 프롬프트
+        인원수 관련 제외 규칙 문자열
     """
-    # 인원수 관련 제외 규칙 생성
-    people_exclusion_rule = ""
     if people_count >= 2:
-        people_exclusion_rule = f"- 인원 수가 {people_count}명이므로 '혼자', '1인', '솔로', '혼밥' 등 1인 관련 키워드는 제외"
+        return f"- 인원 수가 {people_count}명이므로 '혼자', '1인', '솔로', '혼밥' 등 1인 관련 키워드는 제외"
+    return ""
 
-    # 카테고리별 맞춤 프롬프트
-    category_prompts = {
-        "카페": f"""
+
+def _get_cafe_prompt(user_detail: str, people_count: int, people_exclusion_rule: str) -> str:
+    """
+    카페 카테고리 프롬프트 생성
+
+    Args:
+        user_detail: 사용자 입력 문장
+        people_count: 인원 수
+        people_exclusion_rule: 인원수 관련 제외 규칙
+
+    Returns:
+        카페 카테고리 프롬프트
+    """
+    return f"""
         [상황 정보]
         - 인원 수: {people_count}명
         - 활동 카테고리: 카페
@@ -87,11 +95,26 @@ def get_category_prompt(category: str, user_detail: str, people_count: int) -> s
         - 감정적 표현 ('좋은', '멋진', '재미있는' 등)
         - 일반적 표현 ('편한', '괜찮은' 등)
         - 서브카테고리 ('한식', '중식', '일식', '양식', '이탈리안', '프렌치', '태국', '베트남' 등 음식 계열 분류)
+        - 카테고리명 ('카페', '카페'와 관련된 일반적인 용어) - 이미 카테고리로 설정되어 있으므로 태그로 추출하지 않음
         {people_exclusion_rule}
 
         다른 설명 없이 키워드만 나열해줘.
-        """,
-        "음식점": f"""
+        """
+
+
+def _get_restaurant_prompt(user_detail: str, people_count: int, people_exclusion_rule: str) -> str:
+    """
+    음식점 카테고리 프롬프트 생성
+
+    Args:
+        user_detail: 사용자 입력 문장
+        people_count: 인원 수
+        people_exclusion_rule: 인원수 관련 제외 규칙
+
+    Returns:
+        음식점 카테고리 프롬프트
+    """
+    return f"""
         [상황 정보]
         - 인원 수: {people_count}명
         - 활동 카테고리: 음식점
@@ -125,11 +148,26 @@ def get_category_prompt(category: str, user_detail: str, people_count: int) -> s
         - 감정적 표현 ('맛있는', '좋은', '최고' 등)
         - 일반적 표현 ('괜찮은', '편한' 등)
         - 서브카테고리 ('한식', '중식', '일식', '양식', '이탈리안', '프렌치', '중국', '일본', '베트남', '태국', '인도' 등 음식 계열 분류)
+        - 카테고리명 ('음식점', '음식점'과 관련된 일반적인 용어) - 이미 카테고리로 설정되어 있으므로 태그로 추출하지 않음
         {people_exclusion_rule}
 
         다른 설명 없이 키워드만 나열해줘.
-        """,
-        "콘텐츠": f"""
+        """
+
+
+def _get_content_prompt(user_detail: str, people_count: int, people_exclusion_rule: str) -> str:
+    """
+    콘텐츠 카테고리 프롬프트 생성
+
+    Args:
+        user_detail: 사용자 입력 문장
+        people_count: 인원 수
+        people_exclusion_rule: 인원수 관련 제외 규칙
+
+    Returns:
+        콘텐츠 카테고리 프롬프트
+    """
+    return f"""
         [상황 정보]
         - 인원 수: {people_count}명
         - 활동 카테고리: 콘텐츠
@@ -154,13 +192,38 @@ def get_category_prompt(category: str, user_detail: str, people_count: int) -> s
         - 감정적 표현 ('좋은', '멋진', '최고' 등)
         - 일반적 표현 ('편한', '괜찮은' 등)
         - 서브카테고리 ('한식', '중식', '일식', '양식' 등 음식 계열 분류는 콘텐츠와 무관)
+        - 카테고리명 ('콘텐츠', '콘텐츠'와 관련된 일반적인 용어) - 이미 카테고리로 설정되어 있으므로 태그로 추출하지 않음
         {people_exclusion_rule}
 
         다른 설명 없이 키워드만 나열해줘.
         """
+
+
+def get_category_prompt(category: str, user_detail: str, people_count: int) -> str:
+    """
+    카테고리별 맞춤 프롬프트 생성 (라우터 함수)
+
+    Args:
+        category: 카테고리명 (카페, 음식점, 콘텐츠)
+        user_detail: 사용자 입력 문장
+        people_count: 인원 수
+
+    Returns:
+        카테고리별 맞춤 프롬프트
+    """
+    # 인원수 관련 제외 규칙 생성
+    people_exclusion_rule = _get_people_exclusion_rule(people_count)
+
+    # 카테고리별 프롬프트 생성 함수 매핑
+    prompt_generators = {
+        "카페": lambda: _get_cafe_prompt(user_detail, people_count, people_exclusion_rule),
+        "음식점": lambda: _get_restaurant_prompt(user_detail, people_count, people_exclusion_rule),
+        "콘텐츠": lambda: _get_content_prompt(user_detail, people_count, people_exclusion_rule),
     }
 
-    return category_prompts.get(category, category_prompts["카페"])
+    # 카테고리에 맞는 프롬프트 생성 함수 호출, 없으면 카페 프롬프트 사용
+    generator = prompt_generators.get(category, prompt_generators["카페"])
+    return generator()
 
 
 # =============================================================================
