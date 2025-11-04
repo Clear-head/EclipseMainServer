@@ -225,9 +225,9 @@ class StoreSuggestService:
         use_ai_enhancement: bool = False,
         min_similarity_threshold: float = 0.2,
         rerank_candidates_multiplier: int = 5,
-        keyword_weight: float = 0.5,  # 키워드 매칭 가중치
-        semantic_weight: float = 0.3,  # 시맨틱 유사도 가중치
-        rerank_weight: float = 0.2     # Re-ranker 가중치
+        keyword_weight: float = 0.5,
+        semantic_weight: float = 0.3,
+        rerank_weight: float = 0.2
     ) -> List[Dict]:
         """
         개선된 매장 제안 (키워드 중심 하이브리드 검색)
@@ -288,21 +288,24 @@ class StoreSuggestService:
         if self.device == "cuda":
             query_embedding = query_embedding.cpu()
         
-        # ChromaDB 검색
+        # ChromaDB 검색 (🔥 안전하게 처리)
         search_n_results = n_results * rerank_candidates_multiplier
         
         try:
+            # 🔥 include 파라미터에서 'embeddings' 제거 (ID 오류 방지)
             results = self.store_collection.query(
                 query_embeddings=[query_embedding.numpy().tolist()],
                 n_results=search_n_results,
                 where=where_filter,
-                include=["metadatas", "documents", "distances"]
+                include=["metadatas", "documents", "distances"]  # embeddings 제외
             )
             
             logger.info(f"ChromaDB 검색 결과: {len(results['ids'][0])}개")
             
         except Exception as e:
             logger.error(f"ChromaDB 검색 중 오류: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
             return []
         
         if not results['ids'][0]:

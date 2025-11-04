@@ -1,5 +1,5 @@
 """
-대화 흐름 제어 핸들러
+대화 흐름 제어 핸들러 (추천 생성 + GPT 필터링 호출)
 """
 
 from typing import Dict, List
@@ -15,62 +15,69 @@ logger = get_logger(__name__)
 
 async def get_store_recommendations(session: Dict) -> Dict[str, List[MainScreenCategoryList]]:
     """
-    세션의 collectedData를 기반으로 매장 추천 (GPT-4.1 필터링 적용)
-    
-    Args:
-        session: 세션 데이터 (collectedTags, play_address, peopleCount 포함)
-    
-    Returns:
-        카테고리별 추천 매장 딕셔너리 (MainScreenCategoryList 형식)
+    세션의 collectedData를 기반으로 매장 추천 (GPT-4.1 필터링 적용, 부족 시 채우지 않음)
     """
     from src.service.suggest.store_suggest_service import StoreSuggestService
     from src.infra.external.query_enchantment import QueryEnhancementService
-    
+
     logger.info("=" * 60)
-    logger.info("매장 추천 시작 (GPT-4.1 필터링 적용)")
-    
+    logger.info("매장 추천 시작 (GPT-4.1 필터링 적용: 부족분 채우지 않음)")
+    logger.info("=" * 60)
+
     suggest_service = StoreSuggestService()
     query_enhancer = QueryEnhancementService()
     recommendations = {}
-    
-    # 지역 추출
+
+    # 지역/인원/수집된 태그
     region = extract_region_from_address(session.get("play_address", ""))
     people_count = session.get("peopleCount", 1)
     collected_tags = session.get("collectedTags", {})
-    
+
     logger.info(f"지역: {region}")
     logger.info(f"인원: {people_count}명")
     logger.info(f"수집된 태그: {collected_tags}")
-    
-    # 각 카테고리별로 매장 추천
+
     for category, keywords in collected_tags.items():
         keyword_string = ", ".join(keywords) if keywords else ""
-        
+
         logger.info(f"[{category}] 키워드: {keyword_string}")
-        
+
         try:
-            # 1단계: ChromaDB 하이브리드 검색 (더 많이 가져오기)
+            # 1단계: 후보 충분히 확보 (더 많은 후보 추출)
             suggestions = await suggest_service.suggest_stores(
                 personnel=people_count,
                 region=region,
                 category_type=category,
                 user_keyword=keyword_string,
-                n_results=15,  # 🔥 15개 가져와서 GPT가 8개 선택
+                n_results=15,  # 후보를 많이 가져와서 GPT가 선별
                 use_ai_enhancement=False,
-                min_similarity_threshold=0.70  # 🔥 임계값 낮춤 (더 많은 후보)
+                min_similarity_threshold=0.3,  # 후보 다양성 확보 (필요 시 조정)
+                rerank_candidates_multiplier=5,
+                keyword_weight=0.75,
+                semantic_weight=0.15,
+                rerank_weight=0.1
             )
-            
+
             logger.info(f"[{category}] ChromaDB 검색 결과: {len(suggestions)}개")
-            
-            # store_id 추출
+
             store_ids = [sug.get('store_id') for sug in suggestions if sug.get('store_id')]
-            
-            # 상세 정보 조회
+
             if store_ids:
                 store_details = await suggest_service.get_store_details(store_ids)
-                
-                # MainScreenCategoryList 형식으로 변환
-                category_list = []
+
+                # ChromaDB 결과(점수 등)를 id->data 맵으로 보관
+                id_to_chroma = {}
+                for sug in suggestions:
+                    sid = sug.get('store_id')
+                    if sid:
+                        id_to_chroma[sid] = {
+                            'similarity_score': sug.get('similarity_score'),
+                            'score_breakdown': sug.get('score_breakdown'),
+                            'document': sug.get('document')
+                        }
+
+                # MainScreenCategoryList 형식으로 변환 (GPT 입력용 dict 리스트 생성)
+                stores_as_dicts = []
                 for store in store_details:
                     address = (
                         (store.get('do', '') + " " if store.get('do') else "") +
@@ -78,89 +85,70 @@ async def get_store_recommendations(session: Dict) -> Dict[str, List[MainScreenC
                         (store.get('gu', '') + " " if store.get('gu') else "") +
                         (store.get('detail_address', '') if store.get('detail_address') else "")
                     ).strip()
-                    
-                    category_list.append(
+
+                    stores_as_dicts.append({
+                        'id': store.get('id', ''),
+                        'title': store.get('name', ''),
+                        'image_url': store.get('image', ''),
+                        'detail_address': address,
+                        'sub_category': store.get('sub_category', ''),
+                        'business_hour': store.get('business_hour', ''),
+                        'phone': store.get('phone', ''),
+                        'menu': store.get('menu', '') or '정보없음',
+                    })
+
+                logger.info(f"[{category}] 후보 매장 상세 조회 및 변환 완료: {len(stores_as_dicts)}개")
+
+                # 2단계: GPT-4.1 필터링 호출 (부족분 채우지 않음)
+                filtered_dicts = await query_enhancer.filter_recommendations_with_gpt(
+                    stores=stores_as_dicts,
+                    user_keywords=keywords,
+                    category_type=category,
+                    personnel=people_count,
+                    max_results=8,
+                    fill_with_original=False  # 핵심: GPT가 적게 골랐다면 그 수만 반환
+                )
+
+                # dict -> MainScreenCategoryList 변환 및 recommendations 저장
+                filtered_list = []
+                for store in filtered_dicts:
+                    filtered_list.append(
                         MainScreenCategoryList(
                             id=store.get('id', ''),
-                            title=store.get('name', ''),
-                            image_url=store.get('image', ''),
-                            detail_address=address,
+                            title=store.get('title', ''),
+                            image_url=store.get('image_url', ''),
+                            detail_address=store.get('detail_address', ''),
                             sub_category=store.get('sub_category', '')
                         )
                     )
-                
-                logger.info(f"[{category}] 변환 완료: {len(category_list)}개")
-                
-                # 🔥 2단계: GPT-4.1 필터링 (15개 → 8개 선택)
-                if len(category_list) > 8:
-                    logger.info(f"[{category}] GPT-4.1 필터링 시작...")
-                    
-                    # MainScreenCategoryList를 dict로 변환
-                    stores_as_dicts = [
-                        {
-                            'id': store.id,
-                            'title': store.title,
-                            'image_url': store.image_url,
-                            'detail_address': store.detail_address,
-                            'sub_category': store.sub_category
-                        }
-                        for store in category_list
-                    ]
-                    
-                    filtered_dicts = await query_enhancer.filter_recommendations_with_gpt(
-                        stores=stores_as_dicts,
-                        user_keywords=keywords,
-                        category_type=category,
-                        personnel=people_count,
-                        max_results=8
-                    )
-                    
-                    # dict를 다시 MainScreenCategoryList로 변환
-                    filtered_list = [
-                        MainScreenCategoryList(
-                            id=store['id'],
-                            title=store['title'],
-                            image_url=store['image_url'],
-                            detail_address=store['detail_address'],
-                            sub_category=store['sub_category']
-                        )
-                        for store in filtered_dicts
-                    ]
-                    
-                    recommendations[category] = filtered_list
-                    logger.info(f"[{category}] GPT 필터링 완료: {len(filtered_list)}개")
-                else:
-                    # 8개 이하면 필터링 없이 그대로 사용
-                    recommendations[category] = category_list
-                    logger.info(f"[{category}] 8개 이하라서 필터링 생략")
+
+                recommendations[category] = filtered_list
+                logger.info(f"[{category}] 최종 추천 갯수: {len(filtered_list)}개")
+
             else:
                 recommendations[category] = []
-                logger.warning(f"[{category}] 추천 결과 없음")
-                
+                logger.warning(f"[{category}] 추천 후보 없음")
+
         except Exception as e:
             logger.error(f"[{category}] 추천 중 오류: {e}")
             recommendations[category] = []
-    
+
     logger.info(f"전체 추천 완료: {sum(len(v) for v in recommendations.values())}개 매장")
     logger.info("=" * 60)
-    
     return recommendations
 
 
 def extract_region_from_address(address: str) -> str:
     """
     주소에서 구 단위 추출
-    
     예: "서울시 강남구 역삼동" -> "강남구"
     """
     if not address:
         return None
-    
     parts = address.split()
     for part in parts:
         if part.endswith("구"):
             return part
-    
     return None
 
 

@@ -78,45 +78,45 @@ class StoreChromaDBLoader:
     
     def create_store_document(self, store_entity, tags: List[Dict]) -> str:
         """
-        키워드 중심의 간결한 문서 생성
+        키워드 중심 문서 생성 (카테고리 + 메뉴 + 태그)
         """
-        # 태그 처리: 상위 10개 사용 (1등 제외)
+        # 태그 처리 (상위 10개, 1등 제외)
         sorted_tags = sorted(tags, key=lambda x: x['count'], reverse=True)
-        top_tags = sorted_tags[1:10]  # 2등부터 11위까지
+        top_tags = sorted_tags[1:11]  # 2~11위
         tags_list = [tag['name'] for tag in top_tags]
         
-        # 메뉴/키워드
+        # 메뉴 (실제 음식명만)
         menu_items = []
         if store_entity.menu:
             menu_items = [item.strip() for item in store_entity.menu.split(',') if item.strip()]
         
-        # sub_category
+        # 카테고리
         sub_categories = []
         if store_entity.sub_category:
             sub_categories = [cat.strip() for cat in store_entity.sub_category.split(',') if cat.strip()]
         
-        # 키워드 중심으로 간결하게 구성
         doc_parts = []
         
-        # 콘텐츠 타입이면 매장명 추가
+        # 🔥 1순위: 카테고리 (3번 반복)
+        if sub_categories:
+            category_text = " ".join(sub_categories)
+            doc_parts.append(f"{category_text} {category_text} {category_text}")
+        
+        # 2순위: 메뉴 (2번 반복)
+        if menu_items:
+            menu_text = " ".join(menu_items)
+            doc_parts.append(f"{menu_text} {menu_text}")
+        
+        # 🔥 3순위: 태그 (속성 키워드 포함, 2번 반복)
+        if tags_list:
+            tags_text = " ".join(tags_list)
+            doc_parts.append(f"{tags_text} {tags_text}")
+        
+        # 4순위: 매장명 (콘텐츠 타입만)
         if store_entity.type == 2 and store_entity.name:
             doc_parts.append(store_entity.name)
         
-        # 카테고리 (쉼표로 구분)
-        if sub_categories:
-            doc_parts.append(" ".join(sub_categories))
-        
-        # 메뉴/키워드 (쉼표로 구분)
-        if menu_items:
-            doc_parts.append(" ".join(menu_items))
-        
-        # 태그 (공백으로 구분)
-        if tags_list:
-            doc_parts.append(" ".join(tags_list))
-        
-        # 공백으로 연결 (간단한 키워드 나열)
         document = " ".join(doc_parts)
-        
         return document
     
     def create_metadata(self, store_entity) -> dict:
