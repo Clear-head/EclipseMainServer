@@ -7,7 +7,7 @@ from typing import Dict, List
 from src.domain.dto.service.haru_service_dto import ResponseChatServiceDTO
 from src.domain.dto.service.main_screen_dto import MainScreenCategoryList  # 🔥 추가
 from src.service.application.prompts import RESPONSE_MESSAGES
-from src.service.application.utils import extract_tags_by_category, format_collected_data_for_server
+from src.service.application.utils import extract_tags_by_category, format_collected_data_for_server, validate_user_input
 from src.logger.custom_logger import get_logger
 
 logger = get_logger(__name__)
@@ -53,8 +53,8 @@ async def get_store_recommendations(session: Dict) -> Dict[str, List[MainScreenC
                 region=region,
                 category_type=category,
                 user_keyword=keyword_string,
-                n_results=8,
-                use_ai_enhancement=False,
+                n_results=5,
+                use_ai_enhancement=True,
                 min_similarity_threshold=0.80
             )
             
@@ -146,6 +146,17 @@ def handle_user_message(session: Dict, user_message: str) -> ResponseChatService
         )
 
     current_category = selected_categories[current_index]
+
+    # ✅ 입력 검증 (하이브리드 방식)
+    is_valid, error_message = validate_user_input(user_message, current_category)
+    if not is_valid:
+        logger.warning(f"입력 검증 실패: '{user_message}' -> {error_message}")
+        return ResponseChatServiceDTO(
+            status="validation_failed",
+            message=error_message,
+            stage="collecting_details",
+            currentCategory=current_category
+        )
 
     people_count = session.get("peopleCount", 1)
     new_tags = extract_tags_by_category(user_message, current_category, people_count)
