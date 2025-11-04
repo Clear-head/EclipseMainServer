@@ -219,7 +219,7 @@ def extract_tags_by_category(user_detail: str, category: str, people_count: int 
         people_count: 함께 활동할 인원 수
 
     Returns:
-        추출된 태그 리스트 (5-6개)
+        추출된 태그 리스트 (1개 이상)
     """
     try:
         base_prompt = get_category_prompt(category, user_detail, people_count)
@@ -227,12 +227,12 @@ def extract_tags_by_category(user_detail: str, category: str, people_count: int 
         tag_response = chain.invoke({"user_input": base_prompt})
         tag_list = [tag.strip() for tag in tag_response.split(",") if tag.strip()]
 
-        # 태그가 너무 적으면 재시도
-        if len(tag_list) < 2:
+        # 태그가 0개면 재시도
+        if len(tag_list) == 0:
             tag_response = chain.invoke({"user_input": base_prompt})
             tag_list = [tag.strip() for tag in tag_response.split(",") if tag.strip()]
 
-        # 최소 1개는 보장
+        # 재시도 후에도 0개면 사용자 입력 앞 10자를 태그로 사용
         if len(tag_list) == 0:
             tag_list = [user_detail.strip()[:10]]
 
