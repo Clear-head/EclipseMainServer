@@ -51,11 +51,11 @@ async def get_store_recommendations(session: Dict) -> Dict[str, List[MainScreenC
                 user_keyword=keyword_string,
                 n_results=15,  # 후보를 많이 가져와서 GPT가 선별
                 use_ai_enhancement=False,
-                min_similarity_threshold=0.3,  # 후보 다양성 확보 (필요 시 조정)
+                min_similarity_threshold=0.2,  # 후보 다양성 확보 (필요 시 조정)
                 rerank_candidates_multiplier=5,
-                keyword_weight=0.75,
-                semantic_weight=0.15,
-                rerank_weight=0.1
+                keyword_weight=0.5,
+                semantic_weight=0.3,
+                rerank_weight=0.2
             )
 
             logger.info(f"[{category}] ChromaDB 검색 결과: {len(suggestions)}개")
