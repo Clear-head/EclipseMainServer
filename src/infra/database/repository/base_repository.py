@@ -37,6 +37,7 @@ class BaseRepository:
             columns=None,
             return_dto=None,
             limit=None,
+            desc=None,
             **filters
     ) -> list:
         """
@@ -111,6 +112,9 @@ class BaseRepository:
                         stmt = stmt.where(col.in_(value))
                     else:
                         stmt = stmt.where(col == value)
+
+                if desc is not None:
+                    stmt = stmt.order_by(desc(desc))
 
                 # 5. LIMIT
                 if limit is not None:
