@@ -14,6 +14,7 @@ class MergeUserHistory(BaseModel):
     id: str
     visited_at: datetime
     categories_name: str
+    template_type: str
 
 class ResponseUserHistoryListDto(BaseModel):
     results: Optional[List[MergeUserHistory]]
