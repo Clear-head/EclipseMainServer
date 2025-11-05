@@ -9,7 +9,6 @@ from typing import Optional, List
 from pydantic import BaseModel
 
 
-
 class RequestSetUserReviewDTO(BaseModel):
     history_id: str
     stars: int

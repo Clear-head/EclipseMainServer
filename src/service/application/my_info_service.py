@@ -213,7 +213,6 @@ class UserInfoService:
             )
             for item in result
         ]
-        print(results)
 
         return ResponseUserHistoryListDto(
             results=results
@@ -242,7 +241,7 @@ class UserInfoService:
                     category_id=i.category_id,
                     category_name=i.category_name,
                     duration=i.duration,
-                    transportation_type=i.transportation_type
+                    transportation=i.transportation
                 )
             )
 

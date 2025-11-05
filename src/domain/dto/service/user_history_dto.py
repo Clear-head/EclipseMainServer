@@ -3,7 +3,6 @@ from typing import List, Optional
 
 from pydantic import BaseModel
 
-
 #   request 는 user_like_dto.RequestUserLikeDto 로
 
 """
@@ -28,8 +27,8 @@ class ResponseUserHistoryListDto(BaseModel):
 
 class UserHistoryDto(BaseModel):
     duration: int
-    transportation_type: str
-    category_id: int
+    transportation: str
+    category_id: str
     category_name: str
 
 class ResponseUserHistoryDto(BaseModel):
