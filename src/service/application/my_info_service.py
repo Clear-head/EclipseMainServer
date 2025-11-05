@@ -7,6 +7,7 @@ from src.domain.dto.service.user_reivew_dto import ResponseUserReviewDTO, UserRe
 from src.domain.entities.merge_history_entity import MergeHistoryEntity
 from src.domain.entities.user_entity import UserEntity
 from src.domain.entities.user_history_entity import UserHistoryEntity
+from src.domain.entities.user_like_entity import UserLikeEntity
 from src.infra.database.repository.merge_history_repository import MergeHistoryRepository
 from src.infra.database.repository.reviews_repository import ReviewsRepository
 from src.infra.database.repository.user_history_repository import UserHistoryRepository
@@ -99,7 +100,12 @@ class UserInfoService:
         if not type:
             flag = await repo.delete(user_id=user_id, category_id=data.category_id)
         else:
-            flag = await repo.insert(data)
+            flag = await repo.insert(
+                UserLikeEntity(
+                    user_id=user_id,
+                    category_id=data.category_id
+                )
+            )
 
         if not flag:
             self.logger.error(f"찜 목록 설정 실패 user: {user_id}, category: {data.category_id}")
@@ -196,7 +202,7 @@ class UserInfoService:
 
         result = await repo.select(
             user_id=user_id,
-            desc=MergeHistoryEntity.visited_at
+            order="visited_at"
         )
 
         results = [
@@ -207,6 +213,7 @@ class UserInfoService:
             )
             for item in result
         ]
+        print(results)
 
         return ResponseUserHistoryListDto(
             results=results
@@ -224,7 +231,7 @@ class UserInfoService:
         result = await repo.select(
             user_id=user_id,
             merge_id=merge_history_id,
-            order=UserHistoryEntity.seq
+            order="seq"
         )
 
         tmp = []
