@@ -380,9 +380,11 @@ async def save_selected_template_to_merge(dto: RequestSetUserHistoryDto, user_id
     logger.info(f"try to merge history: {user_id}")
 
     try:
+        if dto.template_type == "1":
+            name = ", ".join([i.category_name for i in dto.category])
+        else:
+            name = "→".join([i.category_name for i in dto.category])
 
-        name = "→".join([i.category_name for i in dto.category])
-        print(name)
         repo = MergeHistoryRepository()
 
         entity = MergeHistoryEntity.from_dto(
