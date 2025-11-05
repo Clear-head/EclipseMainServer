@@ -110,7 +110,7 @@ async def get_store_recommendations(session: Dict) -> Dict[str, List[MainScreenC
                     user_keywords=keywords,
                     category_type=category,
                     personnel=people_count,
-                    max_results=8,
+                    max_results=10,
                     fill_with_original=False  # 핵심: GPT가 적게 골랐다면 그 수만 반환
                 )
 
