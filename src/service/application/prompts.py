@@ -275,7 +275,7 @@ RESPONSE_MESSAGES = {
         "add_more": "좋아! '{current_category}' 활동에 대해 더 추가하고 싶은 내용이 있어?",
         "final_result": "짜잔! 오늘의 추천 리스트야! 이 중에서 마음에 드는 게 있으면 좋겠다! 즐거운 하루 보내!",
         "modification_mode": "어떤 내용을 수정할래? 선택한 활동 중 더 추가하고 싶은 게 있어?",
-        "unclear_response": "미안해! '응' 또는 '추가하기'로 답변해줘.",
+        "unclear_response": "미안해! '다음 질문' 또는 '추가하기'로 답변해줘.",
         "unclear_result_response": "미안해! '후보지 출력' 버튼을 눌러줘."
     },
     "buttons": {

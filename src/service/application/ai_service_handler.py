@@ -212,7 +212,7 @@ def handle_user_message(session: Dict, user_message: str) -> ResponseChatService
         session["pendingTags"] = new_tags
 
     tags = session["pendingTags"]
-    message = f"현재까지 수집된 키워드: {', '.join(tags)}"
+    message = f"현재까지 수집된 키워드\n: {', '.join(tags)}"
 
     session["waitingForUserAction"] = True
 
@@ -226,7 +226,7 @@ def handle_user_message(session: Dict, user_message: str) -> ResponseChatService
             "total": len(session["selectedCategories"])
         },
         showYesNoButtons=True,
-        yesNoQuestion="이 정보로 다음 질문으로 넘어가시겠습니까?",
+        yesNoQuestion="이 정보로 다음 질문으로 넘어갈래?",
         currentCategory=current_category
     )
 
@@ -236,7 +236,7 @@ async def handle_user_action_response(session: Dict, user_response: str) -> Resp
     사용자 버튼 액션 처리 (Next / More / Yes)
     """
     is_next = any(word in user_response.lower() for word in
-                  ["yes", "네", "넵", "예", "좋아", "좋아요", "그래", "맞아", "ㅇㅇ", "기기", "ㄱㄱ", "고고", "네네", "다음"])
+                  ["yes", "응", "고", "네", "넵", "예", "좋아", "좋아요", "그래", "맞아", "ㅇㅇ", "기기", "ㄱㄱ", "고고", "네네", "다음", "다음 질문", "다음질문"])
     is_more = any(word in user_response.lower() for word in ["추가", "더", "더해", "추가하기", "추가요", "더할래"])
 
     # 🔥 결과 출력 확인 단계: Yes(매장 추천 생성)
