@@ -1,53 +1,51 @@
 from fastapi import APIRouter, Depends
 from starlette.responses import JSONResponse
-
-from src.domain.dto.service.change_info_dto import RequestChangeInfoDto
-from src.domain.dto.service.user_history_dto import RequestUserHistoryDetailDto, RequestHistoryDto
-from src.domain.dto.service.user_like_dto import RequestGetUserLikeDTO, RequestSetUserLikeDTO
-from src.domain.dto.service.user_reivew_dto import RequestGetUserReviewDTO
+from src.domain.dto.service.user_like_dto import RequestSetUserLikeDTO
 from src.logger.custom_logger import get_logger
 from src.service.application.my_info_service import UserInfoService
-from src.service.auth.jwt import validate_jwt_token
+from src.service.auth.jwt import get_jwt_user_id
 
 router = APIRouter(
-    prefix="/api/service",
-    dependencies=[Depends(validate_jwt_token)]
+    prefix="/api/users/me"
 )
 logger = get_logger(__name__)
 
 user_info = UserInfoService()
 
 
-@router.post("/set-my-like")
-async def set_my_like(dto: RequestSetUserLikeDTO):
-    return JSONResponse(status_code=200, content=await user_info.set_my_like(dto, True))
-
-
-@router.delete("/set-my-like")
-async def set_my_like(dto: RequestSetUserLikeDTO):
-    return JSONResponse(status_code=200, content=await user_info.set_my_like(dto, False))
-
-
-@router.post("/get-my-like")
-async def my_like(request_data: RequestGetUserLikeDTO) -> JSONResponse:
-    like_list = await user_info.get_user_like(request_data.user_id)
+#   좋아요 조회
+@router.get("/likes")
+async def my_like(user_id:str = Depends(get_jwt_user_id)) -> JSONResponse:
+    like_list = await user_info.get_user_like(user_id)
     return JSONResponse(content=like_list.model_dump())
 
-@router.get("/my-review")
-async def my_review(dto: RequestGetUserReviewDTO):
-    return await user_info.get_user_reviews(dto.user_id)
+
+#   좋아요 설정
+@router.post("/likes")
+async def set_like(dto: RequestSetUserLikeDTO, user_id:str = Depends(get_jwt_user_id)):
+    return JSONResponse(status_code=200, content=await user_info.set_my_like(dto, True, user_id))
 
 
-@router.post("/my-history")
-async def my_history(dto: RequestHistoryDto):
-    return await user_info.get_user_history_list(dto.user_id, dto.template_type)
+#   좋아요 취소
+@router.delete("/likes")
+async def delete_like(dto: RequestSetUserLikeDTO, user_id:str = Depends(get_jwt_user_id)):
+    return JSONResponse(status_code=200, content=await user_info.set_my_like(dto, False, user_id=user_id))
 
 
-@router.post("/my-history-detail")
-async def my_history_detail(dto: RequestUserHistoryDetailDto):
-    return await user_info.get_user_history_detail(dto.user_id, dto.merge_history_id)
+#   리뷰 리스트 조회
+@router.get("/reviews")
+async def get_review(user_id:str = Depends(get_jwt_user_id)):
+    return await user_info.get_user_reviews(user_id)
 
 
-@router.put("/change/{field}")
-async def change_info(field: str, dto: RequestChangeInfoDto):
-    return JSONResponse(status_code=200, content=(await user_info.change_info(dto, field)).model_dump())
+#   히스토리 목록 조회
+@router.get("/histories")
+async def get_history_list(user_id:str = Depends(get_jwt_user_id)):
+    return await user_info.get_user_history_list(user_id)
+
+
+#   히스토리 상세 조회
+@router.get("/histories/detail/{merge_history_id}")
+async def get_history_detail(merge_history_id:str, user_id:str = Depends(get_jwt_user_id)):
+    return await user_info.get_user_history_detail(user_id, merge_history_id)
+
