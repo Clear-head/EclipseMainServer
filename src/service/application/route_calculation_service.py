@@ -371,9 +371,14 @@ class RouteCalculationService:
             
             # 도보 구간
             if mode == 'WALK':
+                start_name = leg.get('start', {}).get('name', '출발지')
+                end_name = leg.get('end', {}).get('name', '도착지')
+                
                 parsed_routes.append({
                     'type': 'WALK',
                     'description': f"도보",
+                    'start_point': start_name,  # ✅ 추가
+                    'end_point': end_name,      # ✅ 추가
                     'duration_minutes': duration_min,
                     'duration_seconds': duration_sec,  # ✅ 초 단위 추가
                     'distance_meters': leg['distance']
