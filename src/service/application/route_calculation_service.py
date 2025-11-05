@@ -37,7 +37,7 @@ class RouteCalculationService:
         self,
         origin: Tuple[float, float],
         destination: Tuple[float, float],
-        transport_type: int
+        transport_type: str
     ) -> Optional[Dict]:
         """
         선택한 교통수단의 경로만 계산 (버튼 클릭 시 호출)
