@@ -48,7 +48,44 @@ async def create_jwt_token(user_id: str) -> tuple:
     return token1, token2
 
 
+async def get_jwt_user_id(jwt: str = Header(None)) -> str:
+
+    if jwt is None:
+        logger.error("Missing token")
+        raise MissingTokenException()
+
+    try:
+        now = int(datetime.now(timezone.utc).timestamp())
+        decoded = jwt_token.decode(jwt, public_key, algorithms=algorithm)
+
+        #   위조된 토큰
+        if (
+                decoded["iss"] != os.environ.get("ISSUE_NAME")
+                or decoded["iat"] > decoded["exp"]
+                or decoded["iat"] > now
+        ):
+            raise jwt_token.InvalidTokenError()
+
+        #   토큰 만료 상황
+        elif decoded["exp"] < now:
+            raise jwt_token.ExpiredSignatureError()
+
+        else:
+            return decoded["userId"]
+
+    except jwt_token.ExpiredSignatureError as e:
+        logger.error(type(e).__name__ + str(e))
+        traceback.print_exc()
+        raise ExpiredAccessTokenException()
+
+    except jwt_token.InvalidTokenError as e:
+        raise InvalidTokenException() from e
+
+
 async def validate_jwt_token(jwt: str = Header(None)):
+    """
+        업데이트로 미사용 처리 기록용으로 남겨둠
+    """
 
     if jwt is None:
         logger.error("Missing token")

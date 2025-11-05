@@ -4,7 +4,8 @@ import uvicorn
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
-from src.router.users import user_controller, service_controller, my_info_controller
+from src.router.users import user_controller, service_controller, my_info_controller, auth_controller, \
+    category_controller
 from src.utils.exception_handler.http_log_handler import setup_exception_handlers
 
 
@@ -17,6 +18,10 @@ setup_exception_handlers(app)
 app.include_router(user_controller.router)
 app.include_router(my_info_controller.router)
 app.include_router(service_controller.router)
+app.include_router(auth_controller.router)
+app.include_router(category_controller.router)
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[

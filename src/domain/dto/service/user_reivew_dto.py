@@ -8,12 +8,9 @@ from typing import Optional, List
 
 from pydantic import BaseModel
 
-class RequestGetUserReviewDTO(BaseModel):
-    user_id: str
 
 
 class RequestSetUserReviewDTO(BaseModel):
-    user_id: str
     history_id: str
     stars: int
     comment: str
@@ -28,6 +25,7 @@ class UserReviewDTO(BaseModel):
     comment: str
     stars: int
     created_at: datetime
+
 
 class ResponseUserReviewDTO(BaseModel):
     review_list: Optional[List[UserReviewDTO]] = []

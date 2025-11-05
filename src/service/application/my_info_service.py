@@ -3,8 +3,7 @@ from src.domain.dto.service.change_info_dto import ResponseChangeInfoDto, Reques
 from src.domain.dto.service.user_history_dto import ResponseUserHistoryListDto, MergeUserHistory, \
     ResponseUserHistoryDto, UserHistoryDto
 from src.domain.dto.service.user_like_dto import UserLikeDTO, ResponseUserLikeDTO, RequestSetUserLikeDTO
-from src.domain.dto.service.user_reivew_dto import ResponseUserReviewDTO, RequestGetUserReviewDTO, \
-    UserReviewDTO
+from src.domain.dto.service.user_reivew_dto import ResponseUserReviewDTO, UserReviewDTO, RequestSetUserReviewDTO
 from src.domain.entities.merge_history_entity import MergeHistoryEntity
 from src.domain.entities.user_entity import UserEntity
 from src.domain.entities.user_history_entity import UserHistoryEntity
@@ -22,11 +21,12 @@ class UserInfoService:
     def __init__(self):
         self.logger = get_logger(__name__)
 
-    async def change_info(self, dto: RequestChangeInfoDto, field: str):
-        self.logger.info(f"try {field} change id: {dto.user_id}")
+    #   내정보 수정
+    async def change_info(self, dto: RequestChangeInfoDto, field: str, user_id):
+        self.logger.info(f"try {field} change id: {user_id}")
         repo = UserRepository()
 
-        result = await repo.select(id=dto.user_id, password=dto.password)
+        result = await repo.select(id=user_id, password=dto.password)
 
         if not result:
             raise UserNotFoundException()
@@ -39,7 +39,7 @@ class UserInfoService:
 
             if field == "nickname":
                 user_entity = UserEntity(
-                    id=dto.user_id,
+                    id=user_id,
                     username=result.username,
                     nickname=dto.change_field,
                     password=result.password,
@@ -48,7 +48,7 @@ class UserInfoService:
 
             elif field == "password":
                 user_entity = UserEntity(
-                    id=dto.user_id,
+                    id=user_id,
                     username=result.username,
                     nickname=result.nickname,
                     password=dto.change_field,
@@ -57,7 +57,7 @@ class UserInfoService:
 
             elif field == "email":
                 user_entity = UserEntity(
-                    id=dto.user_id,
+                    id=user_id,
                     username=result.username,
                     nickname=result.nickname,
                     email=dto.change_field,
@@ -66,7 +66,7 @@ class UserInfoService:
 
             elif field == "address":
                 user_entity = UserEntity(
-                    id=dto.user_id,
+                    id=user_id,
                     username=result.username,
                     nickname=result.nickname,
                     email=result.email,
@@ -76,7 +76,7 @@ class UserInfoService:
 
             elif field == "phone":
                 user_entity = UserEntity(
-                    id=dto.user_id,
+                    id=user_id,
                     username=result.username,
                     nickname=result.nickname,
                     email=result.email,
@@ -84,31 +84,32 @@ class UserInfoService:
                     phone=dto.change_field,
                 )
 
-            await repo.update(dto.user_id, user_entity)
+            await repo.update(user_id, user_entity)
 
         return ResponseChangeInfoDto(
             msg=dto.change_field
         )
 
 
-    async def set_my_like(self, data: RequestSetUserLikeDTO, type: bool) -> str:
-        self.logger.info(f"try {data.user_id} set my like: {type}")
+    #   좋아요 설정
+    async def set_my_like(self, data: RequestSetUserLikeDTO, type: bool, user_id: str) -> str:
+        self.logger.info(f"try {user_id} set my like: {type}")
         repo = UserLikeRepository()
 
         if not type:
-            flag = await repo.delete(user_id=data.user_id, category_id=data.category_id)
+            flag = await repo.delete(user_id=user_id, category_id=data.category_id)
         else:
             flag = await repo.insert(data)
 
         if not flag:
-            self.logger.error(f"찜 목록 설정 실패 user: {data.user_id}, category: {data.category_id}")
-            raise Exception(f"찜 목록 설정 실패 user: {data.user_id}, category: {data.category_id}")
+            self.logger.error(f"찜 목록 설정 실패 user: {user_id}, category: {data.category_id}")
+            raise Exception(f"찜 목록 설정 실패 user: {user_id}, category: {data.category_id}")
 
         else:
             return "success"
 
 
-
+    #   좋아요 목록 조회
     async def get_user_like(self, user_id) -> ResponseUserLikeDTO:
         self.logger.info(f"try {user_id} get user like: {user_id}")
         repo = UserLikeRepository()
@@ -152,13 +153,14 @@ class UserInfoService:
             )
 
 
-    async def set_user_reivew(self, dto: RequestGetUserReviewDTO):
+    #   리뷰 쓰기
+    async def set_user_reivew(self, dto: RequestSetUserReviewDTO):
         repo = ReviewsRepository()
 
         result = await repo.select(id=dto.user_id, category_id=dto.category_id)
 
 
-
+    #   리뷰 리스트 조회
     async def get_user_reviews(self, user_id) -> ResponseUserReviewDTO:
         self.logger.info(f"try {user_id} get user review: {user_id}")
         review_repo = ReviewsRepository()
@@ -186,13 +188,14 @@ class UserInfoService:
             review_list=result
         )
 
-    async def get_user_history_list(self, user_id, template_type):
+
+    #   히스토리 목록 조회
+    async def get_user_history_list(self, user_id):
         self.logger.info(f"try {user_id} get user history list: {user_id}")
         repo = MergeHistoryRepository()
 
         result = await repo.select(
             user_id=user_id,
-            template_type=template_type,
             desc=MergeHistoryEntity.visited_at
         )
 
@@ -210,9 +213,13 @@ class UserInfoService:
         )
 
 
+    #   히스토리 디테일 조회
     async def get_user_history_detail(self, user_id, merge_history_id):
         self.logger.info(f"try {user_id} get user history: {user_id}")
         repo = UserHistoryRepository()
+
+
+        template_type = (await MergeHistoryRepository().select(id=merge_history_id))[0].template_type
 
         result = await repo.select(
             user_id=user_id,
@@ -233,6 +240,7 @@ class UserInfoService:
             )
 
         return ResponseUserHistoryDto(
+            template_type=template_type,
             categories=tmp
         )
 

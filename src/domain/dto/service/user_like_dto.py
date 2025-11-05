@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field
 
 """
 
@@ -9,13 +9,9 @@ from pydantic import BaseModel, Field
 
 """
 
-class RequestGetUserLikeDTO(BaseModel):
-    user_id: str
-
 
 class RequestSetUserLikeDTO(BaseModel):
     category_id: str
-    user_id: str
 
 
 """
@@ -30,13 +26,21 @@ class UserLikeDTO(BaseModel):
     category_name: str
     category_image: str
     sub_category: str
-    do: Optional[str]
-    si: Optional[str]
-    gu: Optional[str]
+    do: Optional[str] = None
+    si: Optional[str] = None
+    gu: Optional[str] = None
     detail_address: str
-    category_address: str = Field(
-        default_factory=lambda x: f"{x['do'] }{x['si'] }{x['gu'] }{x['detail_address']}"
-    )
+    # category_address: str
+
+    @computed_field
+    @property
+    def category_address(self) -> str:
+        return (
+            f"{self.do or ''}"
+            f"{self.si or ''}"
+            f"{self.gu or ''}"
+            f"{self.detail_address or ''}"
+        ).strip()
 
 
     @classmethod

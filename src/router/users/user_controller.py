@@ -1,85 +1,26 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from starlette.responses import JSONResponse
+from urllib3.fields import RequestField
 
-from src.domain.dto.service.request_jwt_dto import RequestAccessTokenDto
-from src.domain.dto.service.user_delete_account_dto import ResponseDeleteAccount
-from src.domain.dto.service.user_login_dto import GetUserLoginDto
-from src.domain.dto.service.user_register_dto import RequestRegisterDto
+from src.domain.dto.service.change_info_dto import RequestChangeInfoDto
+from src.domain.dto.service.user_delete_account_dto import RequestDeleteAccount
 from src.logger.custom_logger import get_logger
-from src.service.application.user_service import UserService
-from src.service.auth.jwt import validate_jwt_token, create_jwt_token
-from src.utils.exception_handler.auth_error_class import MissingTokenException, ExpiredRefreshTokenException
+from src.router.users.auth_controller import user_service
+from src.router.users.my_info_controller import user_info
+from src.service.auth.jwt import get_jwt_user_id
 
 router = APIRouter(prefix="/api/users", tags=["users"])
 logger = get_logger(__name__)
-user_service = UserService()
 
 
-#   로그인
-@router.post('/session')
-async def user_login(user_info: GetUserLoginDto):
-    id = user_info.id
-    password = user_info.password
-
-    return await user_service.login(id, password)
-
-
-#   로그아웃
-@router.put('/session')
-async def user_logout(get_by_user):
-    if get_by_user.body.type == "login":
-        pass
-
-
-#   회원가입
-@router.post('/register')
-async def register(dto: RequestRegisterDto):
-    try:
-        return await user_service.register(dto)
-    except Exception as e:
-        logger.error(f"register failed: {e}")
-        raise e
+@router.put("/me/{field}")
+async def change_info(field: str, dto: RequestChangeInfoDto, user_id:str = Depends(get_jwt_user_id)):
+    return JSONResponse(status_code=200, content=(await user_info.change_info(dto, field, user_id)).model_dump())
 
 
 #   회원탈퇴
-@router.delete('/register')
-async def delete_account(dto: ResponseDeleteAccount):
-    await user_service.delete_account(dto.user_id, dto.password)
+@router.delete('/me')
+async def delete_account(dto: RequestDeleteAccount, user_id:str = Depends(get_jwt_user_id)):
+    await user_service.delete_account(user_id, dto.password)
     return JSONResponse(status_code=200, content={"status": "success"})
 
-
-#   아이디 찾기
-@router.post('/id')
-async def find_user_id():
-    pass
-
-
-#   비밀번호
-@router.post('/password')
-async def find_user_pw():
-    pass
-
-
-#   refresh jwt
-@router.get("/refresh")
-@router.post("/refresh")
-async def to_refresh(dto: RequestAccessTokenDto):
-    jwt = dto.token
-
-    if jwt is None:
-        logger.error("Missing token")
-        raise MissingTokenException()
-
-    validate_result = await validate_jwt_token(jwt)
-    if validate_result == 2:
-        #   todo: 세션에서 삭제
-        #       로그아웃 까지
-        raise ExpiredRefreshTokenException()
-
-    token1, token2 = await create_jwt_token(dto.id)
-
-    return JSONResponse(
-        content={
-            "token": token1
-        }
-    )
