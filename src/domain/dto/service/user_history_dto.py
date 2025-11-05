@@ -6,11 +6,6 @@ from pydantic import BaseModel
 
 #   request 는 user_like_dto.RequestUserLikeDto 로
 
-class RequestHistoryDto(BaseModel):
-    user_id: str
-    template_type: bool
-
-
 """
 
     일정표 히스토리 목록
@@ -30,10 +25,6 @@ class ResponseUserHistoryListDto(BaseModel):
     일정표 히스토리 디테일
 
 """
-class RequestUserHistoryDetailDto(BaseModel):
-    user_id: str
-    merge_history_id: str
-
 
 class UserHistoryDto(BaseModel):
     duration: int
@@ -43,6 +34,7 @@ class UserHistoryDto(BaseModel):
 
 class ResponseUserHistoryDto(BaseModel):
     categories: list[UserHistoryDto]
+    template_type: str
 
 
 """
@@ -58,6 +50,5 @@ class SelectedUserCategory(BaseModel):
 
 
 class RequestSetUserHistoryDto(BaseModel):
-    user_id: str
     template_type: str
     category: list[SelectedUserCategory]

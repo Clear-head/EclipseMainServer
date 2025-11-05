@@ -27,7 +27,6 @@ class ResponseStartMainServiceDTO(BaseModel):
 #   /api/service/chat
 #   채팅 메시지 요청 모델 바디
 class RequestChatServiceDTO(BaseModel):
-    sessionId: str  # 세션 식별자
     message: str  # 사용자 메시지
 
 

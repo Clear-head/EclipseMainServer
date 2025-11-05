@@ -12,38 +12,16 @@ from src.service.application.ai_service_handler import handle_modification_mode,
     handle_user_action_response, save_selected_template_to_merge, save_selected_template
 from src.service.application.main_screen_service import MainScreenService
 from src.service.application.prompts import RESPONSE_MESSAGES
-from src.service.auth.jwt import validate_jwt_token
+from src.service.auth.jwt import get_jwt_user_id
 
 router = APIRouter(
-    prefix="/api/service",
-    dependencies=[Depends(validate_jwt_token)]
+    prefix="/api/service"
 )
 logger = get_logger(__name__)
 
 # 현재는 메모리 기반 딕셔너리 사용 (서버 재시작 시 초기화됨)
 #   수정 예정
 sessions: Dict[str, Dict] = {}
-
-
-#   메인 화면: 로그인 후 바로 보여지는 화면
-@router.post("/main")
-async def to_main_screen(request: Request):
-    main_service_class = MainScreenService()
-
-    content = await main_service_class.to_main()
-    return JSONResponse(
-        content=content.model_dump()
-    )
-
-@router.get("/detail/{category_id}")
-async def to_detail(category_id: str, request: Request):
-
-    main_service_class = MainScreenService()
-    content = await main_service_class.get_category_detail(category_id)
-    return JSONResponse(
-        content=content.model_dump()
-    )
-
 
 """
 
@@ -52,10 +30,10 @@ async def to_detail(category_id: str, request: Request):
 """
 
 @router.post("/start")
-async def start_conversation(data: RequestStartMainServiceDTO, request: Request):
+async def start_conversation(data: RequestStartMainServiceDTO, user_id:str = Depends(get_jwt_user_id)):
 
     # 세션 ID 생성
-    session_id = str(uuid.uuid4())
+    session_id = user_id
 
     # 세션 데이터 초기화
     sessions[session_id] = {
@@ -98,15 +76,15 @@ async def start_conversation(data: RequestStartMainServiceDTO, request: Request)
     )
 
 
-@router.get("/chat")
+#   메시지 전송
 @router.post("/chat")
-async def chat(request: RequestChatServiceDTO):
+async def chat(request: RequestChatServiceDTO, user_id:str = Depends(get_jwt_user_id)):
 
     # 세션 확인
-    if request.sessionId not in sessions:
+    if user_id not in sessions:
         raise HTTPException(status_code=404, detail="세션을 찾을 수 없습니다.")
 
-    session = sessions[request.sessionId]
+    session = sessions[user_id]
 
     # completed 상태 처리 - 대화 완료 후 추가 메시지
     if session.get("stage") == "completed":
@@ -139,11 +117,11 @@ async def chat(request: RequestChatServiceDTO):
     )
 
 
-@router.post("/history")
-async def save_history(request: RequestSetUserHistoryDto):
+@router.post("/histories")
+async def save_history(request: RequestSetUserHistoryDto, user_id:str = Depends(get_jwt_user_id)):
     logger.info("save_history")
-    merge_id = await save_selected_template_to_merge(dto=request)
-    await save_selected_template(dto=request, merge_id=merge_id)
+    merge_id = await save_selected_template_to_merge(dto=request, user_id=user_id)
+    await save_selected_template(dto=request, merge_id=merge_id, user_id=user_id)
 
     return JSONResponse(
         status_code=200,

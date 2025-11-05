@@ -1,6 +1,5 @@
 from pydantic import BaseModel
 
 
-class ResponseDeleteAccount(BaseModel):
-    user_id: str
+class RequestDeleteAccount(BaseModel):
     password: str

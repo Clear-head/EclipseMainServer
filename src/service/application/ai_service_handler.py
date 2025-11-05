@@ -375,8 +375,8 @@ def handle_add_more_tags(session: Dict) -> ResponseChatServiceDTO:
 
 
 #   일정표 저장
-async def save_selected_template_to_merge(dto: RequestSetUserHistoryDto) -> str:
-    logger.info(f"try to merge history: {dto.user_id}")
+async def save_selected_template_to_merge(dto: RequestSetUserHistoryDto, user_id: str) -> str:
+    logger.info(f"try to merge history: {user_id}")
 
     try:
 
@@ -384,7 +384,7 @@ async def save_selected_template_to_merge(dto: RequestSetUserHistoryDto) -> str:
         repo = MergeHistoryRepository()
 
         entity = MergeHistoryEntity.from_dto(
-            user_id=dto.user_id,
+            user_id=user_id,
             categories_name=name,
             template_type=dto.template_type,
         )
@@ -403,15 +403,15 @@ async def save_selected_template_to_merge(dto: RequestSetUserHistoryDto) -> str:
 
 
 
-async def save_selected_template(dto: RequestSetUserHistoryDto, merge_id: str):
-    logger.info(f"try to save history: {dto.user_id}")
+async def save_selected_template(dto: RequestSetUserHistoryDto, merge_id: str, user_id: str):
+    logger.info(f"try to save history: {user_id}")
 
     try:
         repo = UserHistoryRepository()
 
         for i in range(len(dto.category)):
             entity = UserHistoryEntity.from_dto(
-                user_id=dto.user_id,
+                user_id=user_id,
                 order=i,
                 merge_id=merge_id,
                 **dto.category[i].model_dump()
