@@ -206,7 +206,8 @@ class UserInfoService:
             MergeUserHistory(
                 id=item.id,
                 visited_at=item.visited_at,
-                categories_name=item.categories_name
+                categories_name=item.categories_name,
+                template_type=item.template_type
             )
             for item in result
         ]
