@@ -132,7 +132,7 @@ class RouteCalculationService:
                     'distance_meters': route['distance']
                 }
                 
-                logger.info(f"🚗 자동차: {result['duration_minutes']}분 ({result['distance_km']}km)")
+                logger.info(f"자동차: {result['duration_minutes']}분 ({result['distance_km']}km)")
                 return result
             else:
                 logger.error(f"자동차 경로 조회 실패: 상태코드 {response.status_code}")
@@ -239,7 +239,7 @@ class RouteCalculationService:
                     }
                     
                     transfer_text = f", 환승 {transfer_count}회" if transfer_count > 0 else ", 직통"
-                    logger.info(f"🚌 대중교통: {result['duration_minutes']}분 ({result['fare']:,}원{transfer_text})")
+                    logger.info(f"대중교통: {result['duration_minutes']}분 ({result['fare']:,}원{transfer_text})")
                     return result
                 else:
                     logger.warning("대중교통 경로 없음")
@@ -312,7 +312,7 @@ class RouteCalculationService:
                     'distance_meters': properties['totalDistance']
                 }
                 
-                logger.info(f"🚶 도보: {result['duration_minutes']}분 ({result['distance_km']}km)")
+                logger.info(f"도보: {result['duration_minutes']}분 ({result['distance_km']}km)")
                 return result
             else:
                 logger.error(f"도보 경로 조회 실패: 상태코드 {response.status_code}")
