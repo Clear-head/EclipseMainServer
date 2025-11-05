@@ -269,27 +269,27 @@ VALIDATION_PROMPT = """
 # 하드코딩된 메시지 템플릿 - 일관된 대화 흐름 유지
 RESPONSE_MESSAGES = {
     "start": {
-        "first_message": "안녕! 나는 하루야!\n\n{people_count}명이 함께할 거구나! 그리고 {categories_text} 활동을 하고 싶다고 했지?\n\n그럼 먼저 '{first_category}' 활동에 대해 좀 더 자세히 말해줄 수 있을까? 어떤 걸 원해?",
+        "first_message": "안녕! 나는 하루야!\n\n{people_count}명이 함께할 거구나! 그리고 {categories_text} 활동을 하고 싶다고 했지?\n\n그럼 먼저 '{first_category}' 활동에 대해 좀 더 자세히 말해줄 수 있어? 어떤 걸 원해?",
         "next_category": "좋아! 그럼 '{next_category}' 활동은 어떤 걸 원해?",
         "all_completed": "모든 활동에 대한 질문이 끝났어! 이제 후보지를 출력할래?",
         "add_more": "좋아! '{current_category}' 활동에 대해 더 추가하고 싶은 내용이 있어?",
         "final_result": "짜잔! 오늘의 추천 리스트야! 이 중에서 마음에 드는 게 있으면 좋겠다! 즐거운 하루 보내!",
-        "modification_mode": "어떤 내용을 수정하시겠습니까? 선택한 활동 중 더 추가하고 싶은 것이 있나요?",
-        "unclear_response": "죄송해요! '네' 또는 '추가하기'로 답변해주세요.",
-        "unclear_result_response": "죄송해요! '후보지 출력' 버튼을 눌러주세요."
+        "modification_mode": "어떤 내용을 수정할래? 선택한 활동 중 더 추가하고 싶은 게 있어?",
+        "unclear_response": "미안해! '응' 또는 '추가하기'로 답변해줘.",
+        "unclear_result_response": "미안해! '후보지 출력' 버튼을 눌러줘."
     },
     "buttons": {
-        "yes_no_question": "이 정보로 다음 질문으로 넘어가시겠습니까?",
-        "result_question": "후보지를 출력하시겠습니까?"
+        "yes_no_question": "이 정보로 다음 질문으로 넘어갈래?",
+        "result_question": "후보지를 출력할래?"
     },
     "validation": {
-        "too_short": "좀 더 구체적으로 말씀해주세요!!",
-        "only_special_chars": "의미있는 단어로 말씀해주세요!!",
-        "keyboard_pattern": "구체적인 선호사항을 알려주세요!!",
-        "repetitive": "어떤 걸 원하시는지 구체적으로 말씀해주세요!!",
-        "only_numbers": "어떤 종류의 장소를 원하시는지 말씀해주세요!!",
-        "ambiguous": "좀 더 명확하게 설명해주시겠어요?",
-        "too_long": "입력이 너무 깁니다. 간단하게 요약해서 말씀해주세요!!"
+        "too_short": "좀 더 구체적으로 말해줘!!",
+        "only_special_chars": "의미있는 단어로 말해줘!!",
+        "keyboard_pattern": "구체적인 선호사항을 알려줘!!",
+        "repetitive": "어떤 걸 원하는지 구체적으로 말해줘!!",
+        "only_numbers": "어떤 종류의 장소를 원하는지 말해줘!!",
+        "ambiguous": "좀 더 명확하게 설명해줄래?",
+        "too_long": "입력이 너무 길어. 간단하게 요약해서 말해줘!!"
     }
 }
 
