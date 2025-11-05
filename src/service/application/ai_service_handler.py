@@ -11,9 +11,10 @@ from src.domain.entities.merge_history_entity import MergeHistoryEntity
 from src.domain.entities.user_history_entity import UserHistoryEntity
 from src.infra.database.repository.merge_history_repository import MergeHistoryRepository
 from src.infra.database.repository.user_history_repository import UserHistoryRepository
-from src.service.application.prompts import RESPONSE_MESSAGES
-from src.service.application.utils import extract_tags_by_category, format_collected_data_for_server, validate_user_input
 from src.logger.custom_logger import get_logger
+from src.service.application.prompts import RESPONSE_MESSAGES
+from src.service.application.utils import extract_tags_by_category, format_collected_data_for_server, \
+    validate_user_input
 
 logger = get_logger(__name__)
 

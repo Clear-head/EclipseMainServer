@@ -1,12 +1,9 @@
-from src.domain import dto
 from src.domain.dto.service.change_info_dto import ResponseChangeInfoDto, RequestChangeInfoDto
 from src.domain.dto.service.user_history_dto import ResponseUserHistoryListDto, MergeUserHistory, \
     ResponseUserHistoryDto, UserHistoryDto
 from src.domain.dto.service.user_like_dto import UserLikeDTO, ResponseUserLikeDTO, RequestSetUserLikeDTO
 from src.domain.dto.service.user_reivew_dto import ResponseUserReviewDTO, UserReviewDTO, RequestSetUserReviewDTO
-from src.domain.entities.merge_history_entity import MergeHistoryEntity
 from src.domain.entities.user_entity import UserEntity
-from src.domain.entities.user_history_entity import UserHistoryEntity
 from src.domain.entities.user_like_entity import UserLikeEntity
 from src.infra.database.repository.merge_history_repository import MergeHistoryRepository
 from src.infra.database.repository.reviews_repository import ReviewsRepository
