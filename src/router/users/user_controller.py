@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends
 from starlette.responses import JSONResponse
-from urllib3.fields import RequestField
 
 from src.domain.dto.service.change_info_dto import RequestChangeInfoDto
 from src.domain.dto.service.user_delete_account_dto import RequestDeleteAccount

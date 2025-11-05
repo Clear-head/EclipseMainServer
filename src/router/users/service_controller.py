@@ -1,7 +1,6 @@
-import uuid
 from typing import Dict
 
-from fastapi import APIRouter, HTTPException, Request, Depends
+from fastapi import APIRouter, HTTPException, Depends
 from starlette.responses import JSONResponse
 
 from src.domain.dto.service.haru_service_dto import (RequestStartMainServiceDTO, ResponseStartMainServiceDTO
@@ -10,7 +9,6 @@ from src.domain.dto.service.user_history_dto import RequestSetUserHistoryDto
 from src.logger.custom_logger import get_logger
 from src.service.application.ai_service_handler import handle_modification_mode, handle_user_message, \
     handle_user_action_response, save_selected_template_to_merge, save_selected_template
-from src.service.application.main_screen_service import MainScreenService
 from src.service.application.prompts import RESPONSE_MESSAGES
 from src.service.auth.jwt import get_jwt_user_id
 

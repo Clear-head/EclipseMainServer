@@ -3,7 +3,7 @@ from starlette.responses import JSONResponse
 
 from src.logger.custom_logger import get_logger
 from src.service.application.main_screen_service import MainScreenService
-from src.service.auth.jwt import validate_jwt_token, get_jwt_user_id
+from src.service.auth.jwt import get_jwt_user_id
 
 router = APIRouter(
     prefix="/api/categories"
