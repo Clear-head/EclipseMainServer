@@ -101,6 +101,8 @@ async def get_store_recommendations(session: Dict) -> Dict[str, List[MainScreenC
                         'business_hour': store.get('business_hour', ''),
                         'phone': store.get('phone', ''),
                         'menu': store.get('menu', '') or '정보없음',
+                        'lat': str(store.get('latitude', '')) if store.get('latitude') else None,  # 🔥 추가
+                        'lng': str(store.get('longitude', '')) if store.get('longitude') else None,  # 🔥 추가
                     })
 
                 logger.info(f"[{category}] 후보 매장 상세 조회 및 변환 완료: {len(stores_as_dicts)}개")
@@ -124,7 +126,9 @@ async def get_store_recommendations(session: Dict) -> Dict[str, List[MainScreenC
                             title=store.get('title', ''),
                             image_url=store.get('image_url', ''),
                             detail_address=store.get('detail_address', ''),
-                            sub_category=store.get('sub_category', '')
+                            sub_category=store.get('sub_category', ''),
+                            lat=store.get('lat'),  # 🔥 추가
+                            lng=store.get('lng')   # 🔥 추가
                         )
                     )
 
@@ -428,4 +432,3 @@ async def save_selected_template(dto: RequestSetUserHistoryDto, merge_id: str, u
 
     logger.info(f"Inserting history successes: {dto}")
     return True
-
