@@ -5,11 +5,12 @@
 
 import os
 from typing import Dict, Optional, Tuple
+
 import requests
 from dotenv import load_dotenv
 
-from src.utils.path import path_dic
 from src.logger.custom_logger import get_logger
+from src.utils.path import path_dic
 
 load_dotenv(dotenv_path=path_dic["env"])
 logger = get_logger(__name__)
@@ -36,7 +37,7 @@ class RouteCalculationService:
         self,
         origin: Tuple[float, float],
         destination: Tuple[float, float],
-        transport_type: int
+        transport_type: str
     ) -> Optional[Dict]:
         """
         선택한 교통수단의 경로만 계산 (버튼 클릭 시 호출)

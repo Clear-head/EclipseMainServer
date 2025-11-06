@@ -11,6 +11,7 @@ from langchain_openai import ChatOpenAI
 
 from .prompts import SYSTEM_PROMPT, get_category_prompt, VALIDATION_PROMPT, RESPONSE_MESSAGES
 
+
 # =============================================================================
 # LLM 체인 초기화
 # =============================================================================
