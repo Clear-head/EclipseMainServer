@@ -248,6 +248,7 @@ class UserInfoService:
                 "transportation": "transportation",
                 "seq": "seq",
                 "duration": "duration",
+                "description": "description"
             }
         )
 
@@ -270,7 +271,8 @@ class UserInfoService:
                     seq=i.seq,
                     category_type=i.type,
                     sub_category=i.sub_category,
-                    category_detail_address=address
+                    category_detail_address=address,
+                    description=i.description
                 )
             )
 

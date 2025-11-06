@@ -420,7 +420,7 @@ async def save_selected_template(dto: RequestSetUserHistoryDto, merge_id: str, u
         for i in range(len(dto.category)):
             entity = UserHistoryEntity.from_dto(
                 user_id=user_id,
-                order=i,
+                seq=i,
                 merge_id=merge_id,
                 **dto.category[i].model_dump()
             )
