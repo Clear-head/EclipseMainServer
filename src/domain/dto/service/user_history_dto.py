@@ -27,10 +27,11 @@ class ResponseUserHistoryListDto(BaseModel):
 """
 
 class UserHistoryDto(BaseModel):
-    duration: int
-    transportation: str
+    duration: Optional[int]
+    transportation: Optional[str]
     category_id: str
     category_name: str
+    seq: int
 
 class ResponseUserHistoryDto(BaseModel):
     categories: list[UserHistoryDto]
