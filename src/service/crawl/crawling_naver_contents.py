@@ -237,76 +237,116 @@ class NaverMapContentCrawler:
         배치 단위 크롤링 (CrawlingManager 사용 + 검색 상태 유지)
         
         ✅ 한 번 검색 후 상태 유지하며 매장별로 크롤링
+        ✅ 첫 번째 매장 실패 시 최대 2번 재시도
         """
-        try:
-            # ✅ 네이버 지도 검색 (한 번만)
-            await page.goto(self.naver_map_url, wait_until='domcontentloaded')
-            await asyncio.sleep(3)
-            
-            search_input_selector = '.input_search'
-            await page.wait_for_selector(search_input_selector)
-            await page.fill(search_input_selector, '')
-            await asyncio.sleep(0.5)
-            
-            await page.fill(search_input_selector, keyword)
-            await page.press(search_input_selector, 'Enter')
-            await asyncio.sleep(5)
-            
-            # searchIframe 대기
-            await page.wait_for_selector('iframe#searchIframe', timeout=10000)
-            search_frame_locator = page.frame_locator('iframe#searchIframe')
-            search_frame = page.frame('searchIframe')
-            
-            if not search_frame:
-                self.logger.error("searchIframe을 찾을 수 없습니다.")
-                return 0
-            
-            await asyncio.sleep(3)
-            
-            # ✅ 전체 페이지 미리 로드 (한 번만)
-            await self._load_all_pages(search_frame_locator, search_frame)
-            
-            item_selector = '#_pcmap_list_scroll_container > ul > li'
-            
-            # 이 배치에서 처리할 이름들
-            batch_names = name_list[batch_start:batch_end]
-            
-            # 이미 처리한 이름들 (중복 방지)
-            processed_names = set()
-            
-            # 매장 정보 리스트 생성 (CrawlingManager용)
-            stores = []
-            for idx, target_name in enumerate(batch_names):
-                stores.append({
-                    'name': target_name,
-                    'global_idx': batch_start + idx
-                })
-            
-            # ✅ CrawlingManager로 크롤링 + 저장
-            crawling_manager = CrawlingManager("콘텐츠")
-            
-            await crawling_manager.execute_crawling_with_save(
-                stores=stores,
-                crawl_func=lambda store, idx, total_stores: self._crawl_single_item_wrapper(
-                    page, search_frame_locator, item_selector, store, total, processed_names
-                ),
-                save_func=lambda idx, total_stores, store_data_tuple, store_name: self._save_wrapper(
-                    idx, store_data_tuple, batch_start, total  # ✅ idx와 batch_start 전달
-                ),
-                delay=delay
-            )
-            
-            # 성공/실패 카운트 업데이트
-            self.success_count += crawling_manager.success_count
-            self.fail_count += crawling_manager.fail_count
-            
-            return batch_end
-            
-        except Exception as e:
-            self.logger.error(f"배치 처리 중 오류: {e}")
-            import traceback
-            self.logger.error(traceback.format_exc())
-            return 0
+        max_retry = 2  # 최대 재시도 횟수
+        retry_count = 0
+        
+        while retry_count <= max_retry:
+            try:
+                # ✅ 네이버 지도 검색 (한 번만)
+                await page.goto(self.naver_map_url, wait_until='domcontentloaded')
+                await asyncio.sleep(3)
+                
+                search_input_selector = '.input_search'
+                await page.wait_for_selector(search_input_selector)
+                await page.fill(search_input_selector, '')
+                await asyncio.sleep(0.5)
+                
+                await page.fill(search_input_selector, keyword)
+                await page.press(search_input_selector, 'Enter')
+                await asyncio.sleep(5)
+                
+                # searchIframe 대기
+                await page.wait_for_selector('iframe#searchIframe', timeout=10000)
+                search_frame_locator = page.frame_locator('iframe#searchIframe')
+                search_frame = page.frame('searchIframe')
+                
+                if not search_frame:
+                    self.logger.error("searchIframe을 찾을 수 없습니다.")
+                    
+                    # 첫 번째 시도가 아니면 재시도
+                    if retry_count < max_retry:
+                        retry_count += 1
+                        self.logger.warning(f"재시도 {retry_count}/{max_retry}: 5초 후 다시 시도...")
+                        await asyncio.sleep(5)
+                        continue
+                    else:
+                        return 0
+                
+                await asyncio.sleep(3)
+                
+                # ✅ 전체 페이지 미리 로드 (한 번만)
+                await self._load_all_pages(search_frame_locator, search_frame)
+                
+                item_selector = '#_pcmap_list_scroll_container > ul > li'
+                
+                # 이 배치에서 처리할 이름들
+                batch_names = name_list[batch_start:batch_end]
+                
+                # 이미 처리한 이름들 (중복 방지)
+                processed_names = set()
+                
+                # 매장 정보 리스트 생성 (CrawlingManager용)
+                stores = []
+                for idx, target_name in enumerate(batch_names):
+                    stores.append({
+                        'name': target_name,
+                        'global_idx': batch_start + idx
+                    })
+                
+                # ✅ CrawlingManager로 크롤링 + 저장
+                crawling_manager = CrawlingManager("콘텐츠")
+                
+                await crawling_manager.execute_crawling_with_save(
+                    stores=stores,
+                    crawl_func=lambda store, idx, total_stores: self._crawl_single_item_wrapper(
+                        page, search_frame_locator, item_selector, store, total, processed_names
+                    ),
+                    save_func=lambda idx, total_stores, store_data_tuple, store_name: self._save_wrapper(
+                        idx, store_data_tuple, batch_start, total
+                    ),
+                    delay=delay
+                )
+                
+                # ✅ 첫 번째 매장 크롤링 실패 체크
+                if crawling_manager.fail_count > 0 and crawling_manager.success_count == 0:
+                    # 첫 번째 매장을 못 찾은 경우
+                    if retry_count < max_retry:
+                        retry_count += 1
+                        self.logger.warning(f"첫 번째 매장 '{batch_names[0]}' 크롤링 실패")
+                        self.logger.warning(f"재시도 {retry_count}/{max_retry}: 10초 후 다시 시도...")
+                        
+                        # 실패 카운트 초기화 (재시도 시 중복 카운트 방지)
+                        self.fail_count -= crawling_manager.fail_count
+                        
+                        await asyncio.sleep(10)
+                        continue
+                    else:
+                        self.logger.error(f"첫 번째 매장 '{batch_names[0]}' {max_retry}번 재시도 후에도 실패")
+                
+                # 성공/실패 카운트 업데이트
+                self.success_count += crawling_manager.success_count
+                self.fail_count += crawling_manager.fail_count
+                
+                # 성공적으로 완료되면 반복 종료
+                return batch_end
+                
+            except Exception as e:
+                self.logger.error(f"배치 처리 중 오류: {e}")
+                import traceback
+                self.logger.error(traceback.format_exc())
+                
+                # 첫 번째 매장인데 오류 발생 시 재시도
+                if retry_count < max_retry:
+                    retry_count += 1
+                    self.logger.warning(f"재시도 {retry_count}/{max_retry}: 10초 후 다시 시도...")
+                    await asyncio.sleep(10)
+                    continue
+                else:
+                    return 0
+        
+        return 0
     
     async def _load_all_pages(self, search_frame_locator, search_frame):
         """
