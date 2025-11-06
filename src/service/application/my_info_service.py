@@ -227,8 +227,7 @@ class UserInfoService:
 
         result = await repo.select(
             user_id=user_id,
-            merge_id=merge_history_id,
-            order="seq"
+            merge_id=merge_history_id
         )
 
         tmp = []
@@ -239,9 +238,12 @@ class UserInfoService:
                     category_id=i.category_id,
                     category_name=i.category_name,
                     duration=i.duration,
-                    transportation=i.transportation
+                    transportation=i.transportation,
+                    seq=i.seq
                 )
             )
+
+        tmp = sorted(tmp, key=lambda x: x.seq)
 
         return ResponseUserHistoryDto(
             template_type=template_type,
