@@ -202,7 +202,7 @@ async def main():
     """메인 함수"""
     logger.info("공공데이터포털 맛집 크롤러 시작 (병렬 처리)")
     
-    headless_mode = False
+    headless_mode = True
     delay_seconds = 15
     
     crawler = NaverMapPublicDataCrawler(headless=headless_mode)

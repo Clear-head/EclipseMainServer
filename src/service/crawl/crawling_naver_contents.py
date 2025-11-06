@@ -664,7 +664,7 @@ async def main():
     logger.info("네이버 지도 콘텐츠 크롤러 시작 (이름 기반 매칭)")
     
     try:
-        crawler = NaverMapContentCrawler(headless=False)
+        crawler = NaverMapContentCrawler(headless=True)
         
         await crawler.crawl_by_keywords(
             keywords=None,
