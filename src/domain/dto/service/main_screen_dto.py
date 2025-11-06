@@ -15,6 +15,8 @@ class MainScreenCategoryList(BaseModel):
     image_url: str
     detail_address: str
     sub_category: str
+    lat: Optional[str] = None
+    lng: Optional[str] = None
     # stars: int
 
 

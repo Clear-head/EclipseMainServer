@@ -3,7 +3,6 @@ from typing import List, Optional
 
 from pydantic import BaseModel
 
-
 #   request 는 user_like_dto.RequestUserLikeDto 로
 
 """
@@ -15,6 +14,7 @@ class MergeUserHistory(BaseModel):
     id: str
     visited_at: datetime
     categories_name: str
+    template_type: str
 
 class ResponseUserHistoryListDto(BaseModel):
     results: Optional[List[MergeUserHistory]]
@@ -27,10 +27,11 @@ class ResponseUserHistoryListDto(BaseModel):
 """
 
 class UserHistoryDto(BaseModel):
-    duration: int
-    transportation_type: str
-    category_id: int
+    duration: Optional[int]
+    transportation: Optional[str]
+    category_id: str
     category_name: str
+    seq: int
 
 class ResponseUserHistoryDto(BaseModel):
     categories: list[UserHistoryDto]

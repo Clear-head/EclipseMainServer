@@ -348,7 +348,7 @@ RESPONSE_MESSAGES = {
     "start": {
         "first_message": "안녕! 나는 하루야!\n\n{people_count}명이 함께할 거구나! 그리고 {categories_text} 활동을 하고 싶다고 했지?\n\n그럼 먼저 '{first_category}' 활동에 대해 좀 더 자세히 말해줄 수 있어? 어떤 걸 원해?",
         "next_category": "좋아! 그럼 '{next_category}' 활동은 어떤 걸 원해?",
-        "all_completed": "모든 활동에 대한 질문이 끝났어! 이제 후보지를 출력할래?",
+        "all_completed": "모든 활동에 대한 질문이 끝났어!",
         "add_more": "좋아! '{current_category}' 활동에 대해 더 추가하고 싶은 내용이 있어?",
         "final_result": "짜잔! 오늘의 추천 리스트야! 이 중에서 마음에 드는 게 있으면 좋겠다! 즐거운 하루 보내!",
         "modification_mode": "어떤 내용을 수정할래? 선택한 활동 중 더 추가하고 싶은 게 있어?",

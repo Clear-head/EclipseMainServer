@@ -1,17 +1,18 @@
-import uuid
 from typing import Dict
 
-from fastapi import APIRouter, HTTPException, Request, Depends
+from fastapi import APIRouter, HTTPException, Depends
 from starlette.responses import JSONResponse
 
+from src.domain.dto.service.cal_transprot_dto import RequestCalculateTransPortDto, ResponseCalculateTransPortDto, \
+    PublicTransportationRoutesDto
 from src.domain.dto.service.haru_service_dto import (RequestStartMainServiceDTO, ResponseStartMainServiceDTO
 , RequestChatServiceDTO, ResponseChatServiceDTO)
 from src.domain.dto.service.user_history_dto import RequestSetUserHistoryDto
 from src.logger.custom_logger import get_logger
 from src.service.application.ai_service_handler import handle_modification_mode, handle_user_message, \
     handle_user_action_response, save_selected_template_to_merge, save_selected_template
-from src.service.application.main_screen_service import MainScreenService
 from src.service.application.prompts import RESPONSE_MESSAGES
+from src.service.application.route_calculation_service import RouteCalculationService
 from src.service.auth.jwt import get_jwt_user_id
 
 router = APIRouter(
@@ -117,6 +118,35 @@ async def chat(request: RequestChatServiceDTO, user_id:str = Depends(get_jwt_use
     )
 
 
+@router.post("/cal-route")
+async def calculate_route(dto: RequestCalculateTransPortDto):
+    dist = await RouteCalculationService().calculate_route_by_transport_type(
+        transport_type=dto.transport_type,
+        destination=dto.destination,
+        origin=dto.origin,
+    )
+
+    routes = []
+
+    if dist.get("routes", 0) == 0:
+        for i in dist.get("routes"):
+            routes.append(
+                PublicTransportationRoutesDto(
+                    description=i.get("description"),
+                    duration_min=i.get("duration_minutes")
+                )
+            )
+
+    result = ResponseCalculateTransPortDto(
+        duration=dist.get("duration_seconds"),
+        distance=dist.get("distance_meters"),
+        routes=routes
+    )
+
+    return result
+
+
+#   하루랑 채팅 결과 저장
 @router.post("/histories")
 async def save_history(request: RequestSetUserHistoryDto, user_id:str = Depends(get_jwt_user_id)):
     logger.info("save_history")

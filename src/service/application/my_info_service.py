@@ -1,12 +1,9 @@
-from src.domain import dto
 from src.domain.dto.service.change_info_dto import ResponseChangeInfoDto, RequestChangeInfoDto
 from src.domain.dto.service.user_history_dto import ResponseUserHistoryListDto, MergeUserHistory, \
     ResponseUserHistoryDto, UserHistoryDto
 from src.domain.dto.service.user_like_dto import UserLikeDTO, ResponseUserLikeDTO, RequestSetUserLikeDTO
 from src.domain.dto.service.user_reivew_dto import ResponseUserReviewDTO, UserReviewDTO, RequestSetUserReviewDTO
-from src.domain.entities.merge_history_entity import MergeHistoryEntity
 from src.domain.entities.user_entity import UserEntity
-from src.domain.entities.user_history_entity import UserHistoryEntity
 from src.domain.entities.user_like_entity import UserLikeEntity
 from src.infra.database.repository.merge_history_repository import MergeHistoryRepository
 from src.infra.database.repository.reviews_repository import ReviewsRepository
@@ -209,11 +206,11 @@ class UserInfoService:
             MergeUserHistory(
                 id=item.id,
                 visited_at=item.visited_at,
-                categories_name=item.categories_name
+                categories_name=item.categories_name,
+                template_type=item.template_type
             )
             for item in result
         ]
-        print(results)
 
         return ResponseUserHistoryListDto(
             results=results
@@ -230,8 +227,7 @@ class UserInfoService:
 
         result = await repo.select(
             user_id=user_id,
-            merge_id=merge_history_id,
-            order="seq"
+            merge_id=merge_history_id
         )
 
         tmp = []
@@ -242,9 +238,12 @@ class UserInfoService:
                     category_id=i.category_id,
                     category_name=i.category_name,
                     duration=i.duration,
-                    transportation_type=i.transportation_type
+                    transportation=i.transportation,
+                    seq=i.seq
                 )
             )
+
+        tmp = sorted(tmp, key=lambda x: x.seq)
 
         return ResponseUserHistoryDto(
             template_type=template_type,
