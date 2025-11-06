@@ -16,7 +16,8 @@ class UserHistoryEntity(BaseEntity):
     category_id: str
     category_name: str
     duration: Optional[int]               #   초단위
-    transportation: str
+    transportation: Optional[str]
+    description: Optional[str]
 
 
     @field_validator("user_id", "visited_at")
@@ -27,7 +28,7 @@ class UserHistoryEntity(BaseEntity):
         return value
 
     @classmethod
-    def from_dto(cls, user_id, merge_id, order, category_id, category_name, transportation, duration=None, visited_at=None, id=None):
+    def from_dto(cls, user_id, merge_id, order, category_id, category_name, transportation, duration=None, visited_at=None, id=None, description=None):
         return cls(
             id=id if id is not None else generate_uuid(),
             user_id=user_id,
@@ -37,5 +38,6 @@ class UserHistoryEntity(BaseEntity):
             category_name=category_name,
             duration=duration,
             transportation=transportation,
-            visited_at=datetime.now()
+            visited_at=datetime.now(),
+            description=description
         )

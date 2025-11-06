@@ -1,4 +1,4 @@
-from sqlalchemy import MetaData, Column, String, DateTime, Table, ForeignKey, Integer
+from sqlalchemy import MetaData, Column, String, DateTime, Table, ForeignKey, Integer, Text
 
 meta = MetaData()
 
@@ -13,5 +13,6 @@ user_history_table = Table(
     Column('category_id', String(255), ForeignKey('category.id')),
     Column("category_name", String(255), ForeignKey('category.name')),
     Column("duration", Integer),
-    Column("transportation", String(1))
+    Column("transportation", String(1)),
+    Column("description", Text)
 )
