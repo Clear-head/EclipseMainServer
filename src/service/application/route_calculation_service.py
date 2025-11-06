@@ -95,21 +95,21 @@ class RouteCalculationService:
         logger.info(f"경로 계산 요청 - 교통수단: {transport_type}, 출발: {origin_str}, 도착: {destination_str}")
         
         # 교통수단별 계산
-        if transport_type == 0:  # 도보
+        if transport_type == "0":  # 도보
             result = await self._get_walk_route(origin_str, destination_str)
             if result:
                 result['transport_type'] = 0
                 result['transport_name'] = '도보'
             return result
             
-        elif transport_type == 1:  # 대중교통
+        elif transport_type == "1":  # 대중교통
             result = await self._get_transit_route(origin_str, destination_str)
             if result:
                 result['transport_type'] = 1
                 result['transport_name'] = '대중교통'
             return result
             
-        elif transport_type == 2:  # 자동차
+        elif transport_type == "2":  # 자동차
             result = await self._get_car_route(origin_str, destination_str)
             if result:
                 result['transport_type'] = 2
@@ -282,7 +282,7 @@ class RouteCalculationService:
                     logger.warning("대중교통 경로 없음")
                     return None
             else:
-                logger.error(f"대중교통 경로 조회 실패: 상태코드 {response.status_code}")
+                logger.error(f"대중교통 경로 조회 실패: 상태코드 {response.status_code}\n{response.text}")
                 return None
                 
         except Exception as e:

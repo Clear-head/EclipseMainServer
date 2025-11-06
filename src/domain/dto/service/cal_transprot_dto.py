@@ -15,7 +15,7 @@ class PublicTransportationRoutesDto(BaseModel):
 
 
 class ResponseCalculateTransPortDto(BaseModel):
-    duration: int           #   이동 시간(초)
-    distance: float         #   이동 거리(m)
-    routes: Optional[List[PublicTransportationRoutesDto]]   #   대중교통용
+    duration: Optional[int] = None           #   이동 시간(초)
+    distance: Optional[float] = None         #   이동 거리(m)
+    routes: Optional[List[PublicTransportationRoutesDto]] = None   #   대중교통용
 

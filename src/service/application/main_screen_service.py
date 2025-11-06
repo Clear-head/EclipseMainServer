@@ -8,6 +8,7 @@ from src.infra.database.repository.reviews_repository import ReviewsRepository
 from src.infra.database.repository.tags_repository import TagsRepository
 from src.infra.database.repository.user_like_repository import UserLikeRepository
 from src.infra.database.repository.users_repository import UserRepository
+from src.utils.make_address import add_address
 
 
 class MainScreenService:
@@ -38,12 +39,7 @@ class MainScreenService:
                 if tag_entity is not None:
                     tags.extend(tag_entity[0].name)
 
-            address = (
-                    (item.do+" " if item.do is not None else "")+
-                    (item.si+" " if item.si is not None else "")+
-                    (item.gu+" " if item.gu is not None else "")+
-                    (item.detail_address if item.detail_address is not None else "")
-            )
+            address = add_address(item.do, item.si, item.gu, item.detail_address)
 
             tmp = MainScreenCategoryList(
                 id=item.id,
@@ -98,19 +94,25 @@ class MainScreenService:
         #   reviews
         reviews_list = []
         review_entity_list = await self.reviews_repo.select(category_id=category.id)
-        for review_entity in review_entity_list:
-            nickname = (await user_repo.select(id=review_entity.user_id))[0].nickname
-            star = review_entity.star
-            comment = review_entity.comment
-            reviews_list.append(
-                DetailCategoryReview(
-                    nickname=nickname,
-                    star=star,
-                    comment=comment,
+        if review_entity_list:
+            for review_entity in review_entity_list:
+                nickname = (await user_repo.select(id=review_entity.user_id))[0].nickname
+                star = review_entity.star
+                comment = review_entity.comment
+                reviews_list.append(
+                    DetailCategoryReview(
+                        nickname=nickname,
+                        star=star,
+                        comment=comment,
+                    )
                 )
-            )
 
         return ResponseDetailCategoryDTO(
+            id=category_id,
+            title=category.name,
+            image_url=category.image,
+            sub_category=category.sub_category,
+            detail_address= add_address(category.do, category.si, category.gu, category.detail_address),
             is_like=is_like,
             tags=tag_names,
             reviews=reviews_list,

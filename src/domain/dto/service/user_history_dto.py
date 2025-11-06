@@ -31,6 +31,9 @@ class UserHistoryDto(BaseModel):
     transportation: Optional[str]
     category_id: str
     category_name: str
+    sub_category: str
+    category_type: str
+    category_detail_address: Optional[str]
     seq: int
 
 class ResponseUserHistoryDto(BaseModel):

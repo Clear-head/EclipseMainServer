@@ -128,7 +128,13 @@ async def calculate_route(dto: RequestCalculateTransPortDto):
 
     routes = []
 
-    if dist.get("routes", 0) == 0:
+    if dist is None:
+        return ResponseCalculateTransPortDto(
+            duration=None,
+            distance=None
+        )
+
+    if (dist is not None) and (dist.get("routes", 0) != 0):
         for i in dist.get("routes"):
             routes.append(
                 PublicTransportationRoutesDto(
