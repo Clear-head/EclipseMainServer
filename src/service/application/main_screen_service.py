@@ -94,17 +94,18 @@ class MainScreenService:
         #   reviews
         reviews_list = []
         review_entity_list = await self.reviews_repo.select(category_id=category.id)
-        for review_entity in review_entity_list:
-            nickname = (await user_repo.select(id=review_entity.user_id))[0].nickname
-            star = review_entity.star
-            comment = review_entity.comment
-            reviews_list.append(
-                DetailCategoryReview(
-                    nickname=nickname,
-                    star=star,
-                    comment=comment,
+        if review_entity_list:
+            for review_entity in review_entity_list:
+                nickname = (await user_repo.select(id=review_entity.user_id))[0].nickname
+                star = review_entity.star
+                comment = review_entity.comment
+                reviews_list.append(
+                    DetailCategoryReview(
+                        nickname=nickname,
+                        star=star,
+                        comment=comment,
+                    )
                 )
-            )
 
         return ResponseDetailCategoryDTO(
             id=category_id,
