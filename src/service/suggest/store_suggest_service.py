@@ -1,138 +1,100 @@
 """
 개선된 매장 제안 서비스 (키워드 매칭 + 시맨틱 검색 하이브리드)
-- database_config.json에서 chroma 설정 자동 로드
-- 로컬/원격 Chroma DB 모두 지원
 """
-from typing import List, Dict, Optional, Tuple
-import asyncio
-import math
-import re
-import traceback
+from typing import List, Dict, Optional
 import json
-
-import torch
+import asyncio
+from pathlib import Path
 from sentence_transformers import SentenceTransformer, CrossEncoder
-import chromadb
-from chromadb.config import Settings
+import torch
+import re
 
-from infra.vector_database.chroma_connector import AsyncHttpClient
+from src.utils.path import path_dic
+from src.infra.vector_database.chroma_connector import AsyncHttpClient
 from src.infra.external.query_enchantment import QueryEnhancementService
 from src.logger.custom_logger import get_logger
-from src.utils.path import path_dic
 
 logger = get_logger(__name__)
 
 
 class StoreSuggestService:
-    """
-    매장 제안 서비스
+    """개선된 매장 제안 서비스 (키워드 매칭 중심)"""
     
-    database_config.json의 chroma 설정을 자동으로 로드하여 사용합니다.
-    - mode: "local" - 로컬 PersistentClient 사용
-    - mode: "remote" - 원격 HTTP 서버 사용
-    
-    Usage:
-        svc = StoreSuggestService()
-        await svc.init_async()
-        results = await svc.suggest_stores(user_keyword="분위기 좋은 카페")
-    """
-
     def __init__(self, use_reranker: bool = True):
         """
         Args:
-            use_reranker: Cross-Encoder re-ranker 사용 여부
+            use_reranker: Re-ranking 모델 사용 여부
         """
-        logger.info("=" * 60)
-        logger.info("매장 제안 서비스 초기화 중...")
-        logger.info("=" * 60)
+        logger.info("개선된 매장 제안 서비스 초기화 중...")
         
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        logger.info(f"✓ 사용 디바이스: {self.device}")
-
-        # database_config.json에서 chroma 설정 로드
-        self.chroma_config = self._load_chroma_config()
-        logger.info(
-            f"✓ Chroma 설정: mode={self.chroma_config['mode']}, "
-            f"host={self.chroma_config.get('host', 'N/A')}, "
-            f"port={self.chroma_config.get('port', 'N/A')}"
-        )
-
+        logger.info(f"사용 중인 디바이스: {self.device}")
+        
+        # 설정 파일 로드
+        self.config = self._load_config()
+        self.chroma_config = self.config.get("chroma", {})
+        
+        # ChromaDB 클라이언트 초기화 (비동기)
+        self.client = None
+        self.store_collection = None
+        
         # 임베딩 모델 로드
         logger.info("임베딩 모델 로딩 중: intfloat/multilingual-e5-large")
         self.embedding_model = SentenceTransformer(
             "intfloat/multilingual-e5-large",
             device=self.device
         )
-        logger.info("✓ 임베딩 모델 로딩 완료")
-
-        # Re-ranker 모델 로드
+        logger.info(f"임베딩 모델 로딩 완료")
+        
+        # Re-ranking 모델 로드 (한국어 특화)
         self.use_reranker = use_reranker
         self.reranker = None
+        
         if self.use_reranker:
             try:
                 logger.info("Re-ranking 모델 로딩 중: BAAI/bge-reranker-base")
                 self.reranker = CrossEncoder(
-                    "BAAI/bge-reranker-base",
+                    'BAAI/bge-reranker-base',
                     max_length=512,
                     device=self.device
                 )
-                logger.info("✓ Re-ranking 모델 로딩 완료")
+                logger.info(f"Re-ranking 모델 로딩 완료")
             except Exception as e:
-                logger.error(f"✗ Re-ranking 모델 로딩 실패: {e}")
+                logger.error(f"Re-ranking 모델 로딩 실패: {e}")
                 self.use_reranker = False
-
+        
         self.query_enhancer = QueryEnhancementService()
-
-        # Chroma 클라이언트/컬렉션 (init_async에서 초기화)
-        self.client = None
-        self.store_collection = None
+    
+    def _load_config(self) -> Dict:
+        """database_config.json 파일 로드"""
+        config_path = path_dic.get("database_config")
         
-        logger.info("=" * 60)
-
-    def _load_chroma_config(self) -> Dict:
-        """database_config.json에서 chroma 설정 로드"""
-        config_path = path_dic["database_config"]
+        if not config_path or not Path(config_path).exists():
+            logger.error(f"설정 파일을 찾을 수 없습니다: {config_path}")
+            raise FileNotFoundError(f"설정 파일 없음: {config_path}")
         
-        try:
-            with open(config_path, "r", encoding="utf-8") as f:
-                config = json.load(f)
-            
-            chroma_config = config.get("chroma", {})
-            
-            # 기본값 설정
-            chroma_config.setdefault("mode", "local")
-            chroma_config.setdefault("host", "localhost")
-            chroma_config.setdefault("port", 8081)
-            chroma_config.setdefault("ssl", False)
-            chroma_config.setdefault("path", "./chroma_db")
-            
-            return chroma_config
-            
-        except Exception as e:
-            logger.error(f"database_config.json 로드 실패: {e}")
-            # 기본값 반환
-            return {
-                "mode": "local",
-                "host": "localhost",
-                "port": 8081,
-                "ssl": False,
-                "path": "./chroma_db"
-            }
-
-    async def init_async(self):
-        """
-        비동기 초기화: Chroma DB 연결
-        database_config.json의 설정에 따라 로컬/원격 자동 선택
-        """
+        logger.info(f"설정 파일 로드: {config_path}")
+        
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = json.load(f)
+        
+        logger.info(f"설정 파일 로드 완료 (버전: {config.get('version')})")
+        return config
+    
+    async def _initialize_client(self):
+        """ChromaDB 클라이언트 초기화 (비동기)"""
+        if self.client is not None:
+            return  # 이미 초기화됨
+        
         mode = self.chroma_config.get("mode", "local")
         
         if mode == "remote":
-            # 원격 HTTP 서버 연결
-            host = self.chroma_config["host"]
-            port = self.chroma_config["port"]
+            # 원격 서버 연결
+            host = self.chroma_config.get("host", "localhost")
+            port = self.chroma_config.get("port", 8081)
             ssl = self.chroma_config.get("ssl", False)
             
-            logger.info(f"원격 Chroma 서버 연결 중: {host}:{port}")
+            logger.info(f"원격 ChromaDB 서버 연결 중: {host}:{port} (SSL: {ssl})")
             
             try:
                 self.client = await AsyncHttpClient(
@@ -141,101 +103,116 @@ class StoreSuggestService:
                     ssl=ssl
                 )
                 
-                # 연결 테스트
-                heartbeat = await self.client.heartbeat()
-                logger.info(f"✓ 서버 연결 성공: {heartbeat}")
-                
-                # 컬렉션 로드
-                self.store_collection = await self.client.get_collection("stores")
-                count = await self.store_collection.count()
-                logger.info(f"✓ 매장 컬렉션 로드 완료: {count}개 매장")
+                # 연결 확인
+                await self.client.heartbeat()
+                logger.info("원격 ChromaDB 서버 연결 성공")
                 
             except Exception as e:
-                logger.error(f"✗ 원격 Chroma 서버 연결 실패: {e}")
-                logger.error(traceback.format_exc())
-                raise RuntimeError(
-                    f"Chroma 서버({host}:{port})에 연결할 수 없습니다.\n"
-                    f"서버 실행 확인: chroma run --path ./chroma_db --host 0.0.0.0 --port {port}\n"
-                    f"방화벽 확인: 포트 {port}가 열려있는지 확인하세요."
-                )
-                
-        else:
-            # 로컬 PersistentClient 사용
-            path = self.chroma_config.get("path", "./chroma_db")
-            logger.info(f"로컬 Chroma DB 열기: {path}")
-            
-            try:
-                self.client = chromadb.PersistentClient(
-                    path=path,
-                    settings=Settings(
-                        anonymized_telemetry=False,
-                        allow_reset=True
-                    )
-                )
-                self.store_collection = self.client.get_collection(name="stores")
-                count = await asyncio.to_thread(self.store_collection.count)
-                logger.info(f"✓ 로컬 매장 컬렉션 로드 완료: {count}개 매장")
-                
-            except Exception as e:
-                logger.error(f"✗ 로컬 Chroma DB 로드 실패: {e}")
-                logger.error(traceback.format_exc())
+                logger.error(f"원격 ChromaDB 서버 연결 실패: {e}")
                 raise
-
+        
+        else:
+            # 로컬 모드 (PersistentClient)
+            import chromadb
+            from chromadb.config import Settings
+            
+            persist_directory = self.chroma_config.get("path", "./chroma_db")
+            logger.info(f"로컬 ChromaDB 초기화 중: {persist_directory}")
+            
+            # 동기 클라이언트를 비동기 래퍼로 감싸기
+            sync_client = chromadb.PersistentClient(
+                path=persist_directory,
+                settings=Settings(
+                    anonymized_telemetry=False,
+                    allow_reset=True
+                )
+            )
+            
+            # 간단한 비동기 래퍼
+            class _AsyncLocalClient:
+                def __init__(self, sync_client):
+                    self._sync = sync_client
+                
+                async def get_collection(self, name: str):
+                    from src.infra.vector_database.chroma_connector import AsyncHttpClient
+                    # AsyncHttpClient의 _AsyncCollection과 호환되는 래퍼
+                    sync_col = await asyncio.to_thread(self._sync.get_collection, name)
+                    
+                    class _AsyncCollection:
+                        def __init__(self, sync_collection):
+                            self._sync = sync_collection
+                        
+                        async def query(self, *args, **kwargs):
+                            return await asyncio.to_thread(self._sync.query, *args, **kwargs)
+                        
+                        async def count(self):
+                            return await asyncio.to_thread(self._sync.count)
+                        
+                        @property
+                        def name(self):
+                            return self._sync.name
+                    
+                    return _AsyncCollection(sync_col)
+            
+            self.client = _AsyncLocalClient(sync_client)
+            logger.info("로컬 ChromaDB 초기화 완료")
+        
+        # 컬렉션 로드
+        try:
+            self.store_collection = await self.client.get_collection(name="stores")
+            count = await self.store_collection.count()
+            logger.info(f"매장 컬렉션 로드 완료: {count}개 매장")
+        except Exception as e:
+            logger.error(f"매장 컬렉션을 찾을 수 없습니다: {e}")
+            raise
+    
     @staticmethod
     def convert_type_to_code(type_korean: str) -> str:
         """한글 타입을 코드로 변환"""
         type_map = {"음식점": "0", "카페": "1", "콘텐츠": "2"}
         return type_map.get(type_korean, "")
-
+    
     def extract_keywords(self, text: str) -> List[str]:
         """텍스트에서 키워드 추출 (쉼표, 공백 기준)"""
-        keywords = re.split(r"[,\s]+", text)
+        keywords = re.split(r'[,\s]+', text)
         keywords = [k.strip() for k in keywords if k.strip()]
         return keywords
-
+    
     def calculate_keyword_score(self, query_keywords: List[str], document: str) -> float:
         """
-        키워드 매칭 점수 계산 (간단 BM25 스타일)
+        키워드 매칭 점수 계산 (BM25 스타일)
+        
+        Args:
+            query_keywords: 검색 키워드 리스트
+            document: 문서 텍스트
+            
+        Returns:
+            float: 키워드 매칭 점수 (0~1)
         """
         if not query_keywords:
             return 0.0
-
+        
         doc_lower = document.lower()
+        
         matches = 0
         total_occurrences = 0
-
+        
         for keyword in query_keywords:
             keyword_lower = keyword.lower()
             count = doc_lower.count(keyword_lower)
             if count > 0:
                 matches += 1
                 total_occurrences += count
-
+        
         match_ratio = matches / len(query_keywords)
+        
+        import math
         frequency_score = math.log1p(total_occurrences) / 5.0
+        
         final_score = (match_ratio * 0.7) + (min(frequency_score, 1.0) * 0.3)
+        
         return final_score
-
-    def preprocess_keywords(self, keywords: List[str]) -> List[str]:
-        """
-        키워드 전처리 (동의어 치환)
-        """
-        synonym_map = {
-            "중국집": "중식당",
-            "중국요리": "중식당",
-            "중국음식": "중식당",
-            "한식집": "한식",
-            # 필요에 따라 추가
-        }
-
-        processed_keywords = []
-        for keyword in keywords:
-            processed = synonym_map.get(keyword.strip(), keyword.strip())
-            processed_keywords.append(processed)
-            if processed != keyword.strip():
-                logger.info(f"키워드 치환: '{keyword}' → '{processed}'")
-        return processed_keywords
-
+    
     def hybrid_rerank(
         self,
         search_query: str,
@@ -246,82 +223,107 @@ class StoreSuggestService:
         distances: List[float],
         keyword_weight: float = 0.5,
         semantic_weight: float = 0.3,
-        rerank_weight: float = 0.2,
-    ) -> List[Tuple[str, Dict, str, float, Dict]]:
+        rerank_weight: float = 0.2
+    ) -> List[tuple]:
         """
         하이브리드 Re-ranking: 키워드 + 시맨틱 + Cross-Encoder
+        
+        Args:
+            search_query: 검색 쿼리
+            query_keywords: 검색 키워드 리스트
+            ids: 매장 ID 리스트
+            metadatas: 메타데이터 리스트
+            documents: 문서 리스트
+            distances: 거리 리스트
+            keyword_weight: 키워드 매칭 가중치
+            semantic_weight: 시맨틱 유사도 가중치
+            rerank_weight: Re-ranker 가중치
+            
+        Returns:
+            List[tuple]: (id, metadata, document, final_score, score_details)
         """
         logger.info(f"하이브리드 Re-ranking 시작: {len(ids)}개 문서")
+        logger.info(f"가중치 - 키워드:{keyword_weight}, 시맨틱:{semantic_weight}, Re-rank:{rerank_weight}")
+        
         results = []
-
+        
         # Cross-Encoder 점수 계산
         rerank_scores = None
         if self.use_reranker and self.reranker is not None:
             try:
                 pairs = [[search_query, doc] for doc in documents]
                 rerank_scores = self.reranker.predict(pairs)
-                logger.info("✓ Cross-Encoder 점수 계산 완료")
+                logger.info("Cross-Encoder 점수 계산 완료")
             except Exception as e:
-                logger.error(f"✗ Cross-Encoder 실행 오류: {e}")
-
+                logger.error(f"Cross-Encoder 실행 오류: {e}")
+                rerank_scores = None
+        
+        # 각 문서에 대해 점수 계산
         for i in range(len(ids)):
             keyword_score = self.calculate_keyword_score(query_keywords, documents[i])
-            semantic_score = max(0.0, 1.0 - distances[i])
-
+            semantic_score = max(0, 1 - distances[i])
+            
             if rerank_scores is not None:
-                rerank_score = (rerank_scores[i] + 10) / 20.0
-                rerank_score = max(0.0, min(1.0, rerank_score))
+                rerank_score = (rerank_scores[i] + 10) / 20
+                rerank_score = max(0, min(1, rerank_score))
             else:
                 rerank_score = semantic_score
-
+            
             final_score = (
-                keyword_score * keyword_weight
-                + semantic_score * semantic_weight
-                + rerank_score * rerank_weight
+                keyword_score * keyword_weight +
+                semantic_score * semantic_weight +
+                rerank_score * rerank_weight
             )
-
+            
             score_details = {
-                "keyword": round(keyword_score, 4),
-                "semantic": round(semantic_score, 4),
-                "rerank": round(rerank_score, 4),
-                "final": round(final_score, 4),
+                'keyword': round(keyword_score, 4),
+                'semantic': round(semantic_score, 4),
+                'rerank': round(rerank_score, 4),
+                'final': round(final_score, 4)
             }
-
-            results.append((ids[i], metadatas[i], documents[i], final_score, score_details))
-
+            
+            results.append((
+                ids[i],
+                metadatas[i],
+                documents[i],
+                final_score,
+                score_details
+            ))
+        
         results.sort(key=lambda x: x[3], reverse=True)
-        logger.info("✓ 하이브리드 Re-ranking 완료")
-        if results:
-            logger.info(f"상위 3개 점수: {[r[4] for r in results[:3]]}")
+        
+        logger.info("하이브리드 Re-ranking 완료")
+        logger.info(f"상위 3개 점수: {[r[4] for r in results[:3]]}")
+        
         return results
-
-    async def _collection_query(self, query_embeddings, n_results, where_filter, include):
-        """컬렉션 쿼리 실행 (동기/비동기 자동 처리)"""
-        if self.store_collection is None:
-            raise RuntimeError("Chroma 컬렉션이 초기화되지 않았습니다. init_async()를 호출하세요.")
-
-        query_fn = getattr(self.store_collection, "query", None)
-        if query_fn is None:
-            raise RuntimeError("store_collection에 query 메서드가 없습니다.")
-
-        if asyncio.iscoroutinefunction(query_fn):
-            # 비동기 메서드
-            return await query_fn(
-                query_embeddings=query_embeddings,
-                n_results=n_results,
-                where=where_filter,
-                include=include
-            )
-        else:
-            # 동기 메서드 - to_thread로 실행
-            return await asyncio.to_thread(
-                query_fn,
-                query_embeddings=query_embeddings,
-                n_results=n_results,
-                where=where_filter,
-                include=include
-            )
-
+    
+    def preprocess_keywords(self, keywords: List[str]) -> List[str]:
+        """
+        키워드 전처리 (동의어 치환)
+        
+        Args:
+            keywords: 원본 키워드 리스트
+            
+        Returns:
+            List[str]: 치환된 키워드 리스트
+        """
+        synonym_map = {
+            "중국집": "중식당",
+            "중국요리": "중식당",
+            "중국음식": "중식당",
+            "한식집": "한식",
+        }
+        
+        processed_keywords = []
+        for keyword in keywords:
+            processed = synonym_map.get(keyword.strip(), keyword.strip())
+            processed_keywords.append(processed)
+            
+            if processed != keyword.strip():
+                logger.info(f"키워드 치환: '{keyword}' → '{processed}'")
+        
+        return processed_keywords
+    
     async def suggest_stores(
         self,
         personnel: Optional[int] = None,
@@ -334,206 +336,174 @@ class StoreSuggestService:
         rerank_candidates_multiplier: int = 5,
         keyword_weight: float = 0.75,
         semantic_weight: float = 0.2,
-        rerank_weight: float = 0.05,
+        rerank_weight: float = 0.1
     ) -> List[Dict]:
-        """
-        개선된 매장 제안 (비동기)
+        """개선된 매장 제안 (키워드 중심 하이브리드 검색)"""
         
-        Args:
-            personnel: 인원 수
-            region: 지역 (예: "강남구")
-            category_type: 카테고리 타입 (예: "카페", "음식점", "콘텐츠")
-            user_keyword: 사용자 검색 키워드
-            n_results: 반환할 결과 개수
-            use_ai_enhancement: AI 쿼리 개선 사용 여부
-            min_similarity_threshold: 최소 유사도 임계값
-            rerank_candidates_multiplier: Re-ranking 후보 배수
-            keyword_weight: 키워드 매칭 가중치
-            semantic_weight: 시맨틱 유사도 가중치
-            rerank_weight: Re-ranker 가중치
-            
-        Returns:
-            List[Dict]: 매장 제안 결과 리스트
-        """
+        # 클라이언트 초기화 (최초 1회만)
+        await self._initialize_client()
+        
         logger.info("=" * 60)
-        logger.info("매장 제안 요청")
+        logger.info("개선된 매장 제안 요청")
         logger.info(f"  - 인원: {personnel}명")
         logger.info(f"  - 지역: {region}")
         logger.info(f"  - 타입: {category_type}")
-        logger.info(f"  - 키워드: {user_keyword}")
+        logger.info(f"  - 원본 키워드: {user_keyword}")
         logger.info("=" * 60)
-
+        
         # 키워드 추출 및 전처리
         query_keywords = self.extract_keywords(user_keyword)
+        logger.info(f"추출된 키워드: {query_keywords}")
+        
         query_keywords = self.preprocess_keywords(query_keywords)
         logger.info(f"전처리된 키워드: {query_keywords}")
-
+        
         # 검색 쿼리 생성
         if use_ai_enhancement:
-            try:
-                search_query = await self.query_enhancer.enhance_query(
-                    personnel=personnel,
-                    category_type=category_type,
-                    user_keyword=user_keyword
-                )
-            except Exception as e:
-                logger.error(f"쿼리 개선 실패: {e}")
-                search_query = " ".join([category_type or "", user_keyword]).strip()
+            search_query = await self.query_enhancer.enhance_query(
+                personnel=personnel,
+                category_type=category_type,
+                user_keyword=user_keyword
+            )
         else:
             query_parts = []
             if category_type:
                 query_parts.append(category_type)
             query_parts.extend(query_keywords)
             search_query = " ".join(query_parts) if query_parts else user_keyword
-
+        
         logger.info(f"최종 검색 쿼리: {search_query}")
-
+        
         # 메타데이터 필터
         where_filter = None
         filter_conditions = []
+        
         if region:
             filter_conditions.append({"region": region})
+        
         if category_type:
             type_code = self.convert_type_to_code(category_type)
             if type_code:
                 filter_conditions.append({"type_code": type_code})
-
+        
         if len(filter_conditions) > 1:
             where_filter = {"$and": filter_conditions}
         elif len(filter_conditions) == 1:
             where_filter = filter_conditions[0]
-
-        # 쿼리 임베딩 생성
+        
+        # 쿼리 임베딩
         query_embedding = self.embedding_model.encode(
             search_query,
             convert_to_tensor=True,
             show_progress_bar=False
         )
+        
         if self.device == "cuda":
             query_embedding = query_embedding.cpu()
-
-        emb_list = query_embedding.numpy().tolist()
+        
+        # ChromaDB 검색 (비동기)
         search_n_results = n_results * rerank_candidates_multiplier
-
-        # Chroma DB 검색
+        
         try:
-            results = await self._collection_query(
-                query_embeddings=[emb_list],
+            results = await self.store_collection.query(
+                query_embeddings=[query_embedding.numpy().tolist()],
                 n_results=search_n_results,
-                where_filter=where_filter,
+                where=where_filter,
                 include=["metadatas", "documents", "distances"]
             )
             
-            ids = results.get("ids", [[]])[0]
-            metadatas = results.get("metadatas", [[]])[0]
-            documents = results.get("documents", [[]])[0]
-            distances = results.get("distances", [[]])[0]
-            
-            logger.info(f"✓ ChromaDB 검색 완료: {len(ids)}개")
+            logger.info(f"ChromaDB 검색 결과: {len(results['ids'][0])}개")
             
         except Exception as e:
-            logger.error(f"✗ ChromaDB 검색 중 오류: {e}")
+            logger.error(f"ChromaDB 검색 중 오류: {e}")
+            import traceback
             logger.error(traceback.format_exc())
             return []
-
-        if not ids:
+        
+        if not results['ids'][0]:
             logger.warning("검색 결과가 없습니다.")
             return []
-
+        
         # 하이브리드 Re-ranking
-        try:
-            reranked_results = await asyncio.to_thread(
-                self.hybrid_rerank,
-                search_query,
-                query_keywords,
-                ids,
-                metadatas,
-                documents,
-                distances,
-                keyword_weight,
-                semantic_weight,
-                rerank_weight,
-            )
-        except Exception as e:
-            logger.error(f"✗ Re-ranking 중 오류: {e}")
-            logger.error(traceback.format_exc())
-            return []
-
+        reranked_results = self.hybrid_rerank(
+            search_query=search_query,
+            query_keywords=query_keywords,
+            ids=results['ids'][0],
+            metadatas=results['metadatas'][0],
+            documents=results['documents'][0],
+            distances=results['distances'][0],
+            keyword_weight=keyword_weight,
+            semantic_weight=semantic_weight,
+            rerank_weight=rerank_weight
+        )
+        
         # 결과 포맷팅
-        suggestions: List[Dict] = []
+        suggestions = []
+        
         for store_id, metadata, document, final_score, score_details in reranked_results:
             try:
                 if final_score < min_similarity_threshold:
                     continue
-
+                
                 suggestion = {
-                    "store_id": metadata.get("store_id"),
-                    "region": metadata.get("region"),
-                    "type": metadata.get("type"),
-                    "business_hour": metadata.get("business_hour"),
-                    "similarity_score": final_score,
-                    "score_breakdown": score_details,
-                    "document": document,
-                    "search_query": search_query,
+                    'store_id': metadata.get('store_id'),
+                    'region': metadata.get('region'),
+                    'type': metadata.get('type'),
+                    'business_hour': metadata.get('business_hour'),
+                    'similarity_score': final_score,
+                    'score_breakdown': score_details,
+                    'document': document,
+                    'search_query': search_query
                 }
+                
                 suggestions.append(suggestion)
                 
                 if len(suggestions) >= n_results:
                     break
-                    
+                
             except Exception as e:
                 logger.error(f"결과 처리 중 오류: {e}")
                 continue
-
-        logger.info(f"✓ 최종 제안 결과: {len(suggestions)}개")
-        for i, sug in enumerate(suggestions[:3], 1):
-            logger.info(
-                f"  순위 {i}: 점수={sug['similarity_score']:.4f}, "
-                f"세부={sug['score_breakdown']}"
-            )
-        logger.info("=" * 60)
-
-        return suggestions
-
-    async def get_store_details(self, store_ids: List[str]) -> List[Dict]:
-        """
-        매장 상세 정보 조회
         
-        Args:
-            store_ids: 매장 ID 리스트
-            
-        Returns:
-            List[Dict]: 매장 상세 정보 리스트
-        """
+        logger.info(f"최종 제안 결과: {len(suggestions)}개")
+        
+        # 상위 3개 결과 로깅
+        for i, sug in enumerate(suggestions[:3], 1):
+            logger.info(f"순위 {i}: 최종점수={sug['similarity_score']:.4f}, 세부={sug['score_breakdown']}")
+        
+        return suggestions
+    
+    async def get_store_details(self, store_ids: List[str]) -> List[Dict]:
+        """매장 상세 정보 조회"""
         from src.infra.database.repository.category_repository import CategoryRepository
-
+        
         category_repo = CategoryRepository()
         store_details = []
-
+        
         for store_id in store_ids:
             try:
                 stores = await category_repo.select(id=store_id)
                 if stores and len(stores) > 0:
                     store = stores[0]
                     store_dict = {
-                        "id": store.id,
-                        "name": store.name,
-                        "do": store.do,
-                        "si": store.si,
-                        "gu": store.gu,
-                        "detail_address": store.detail_address,
-                        "sub_category": store.sub_category,
-                        "business_hour": store.business_hour,
-                        "phone": store.phone,
-                        "type": store.type,
-                        "image": store.image,
-                        "latitude": store.latitude,
-                        "longitude": store.longitude,
-                        "menu": store.menu,
+                        'id': store.id,
+                        'name': store.name,
+                        'do': store.do,
+                        'si': store.si,
+                        'gu': store.gu,
+                        'detail_address': store.detail_address,
+                        'sub_category': store.sub_category,
+                        'business_hour': store.business_hour,
+                        'phone': store.phone,
+                        'type': store.type,
+                        'image': store.image,
+                        'latitude': store.latitude,
+                        'longitude': store.longitude,
+                        'menu': store.menu
                     }
                     store_details.append(store_dict)
             except Exception as e:
                 logger.error(f"매장 ID '{store_id}' 조회 중 오류: {e}")
                 continue
-
+        
         return store_details
