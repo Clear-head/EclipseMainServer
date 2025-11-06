@@ -13,6 +13,7 @@ from src.infra.database.repository.users_repository import UserRepository
 from src.infra.database.tables.table_category import category_table
 from src.logger.custom_logger import get_logger
 from src.utils.exception_handler.auth_error_class import UserNotFoundException, DuplicateUserInfoError
+from src.utils.make_address import add_address
 
 
 class UserInfoService:
@@ -227,19 +228,49 @@ class UserInfoService:
 
         result = await repo.select(
             user_id=user_id,
-            merge_id=merge_history_id
+            merge_id=merge_history_id,
+            joins=[
+                {
+                    "table": category_table,
+                    "on": {"category_id": "id"},
+                    "alias": "category"
+                }
+            ],
+            columns={
+                "category.id": "id",
+                "category.name": "category_name",
+                "category.type": "type",
+                "category.sub_category": "sub_category",
+                "category.do": "do",
+                "category.si": "si",
+                "category.gu": "gu",
+                "category.detail_address": "detail_address",
+                "transportation": "transportation",
+                "seq": "seq",
+                "duration": "duration",
+            }
         )
+
+
+
 
         tmp = []
 
         for i in result:
+
+            address = add_address(i.do, i.si, i.gu, i.detail_address)
+
+
             tmp.append(
                 UserHistoryDto(
-                    category_id=i.category_id,
+                    category_id=i.id,
                     category_name=i.category_name,
                     duration=i.duration,
                     transportation=i.transportation,
-                    seq=i.seq
+                    seq=i.seq,
+                    category_type=i.type,
+                    sub_category=i.sub_category,
+                    category_detail_address=address
                 )
             )
 
