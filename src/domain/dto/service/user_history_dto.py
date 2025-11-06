@@ -27,13 +27,14 @@ class ResponseUserHistoryListDto(BaseModel):
 """
 
 class UserHistoryDto(BaseModel):
-    duration: Optional[int]
-    transportation: Optional[str]
+    duration: Optional[int] = None
+    transportation: Optional[str] = None
     category_id: str
     category_name: str
     sub_category: str
     category_type: str
-    category_detail_address: Optional[str]
+    category_detail_address: Optional[str] = None
+    description: Optional[str] = None
     seq: int
 
 class ResponseUserHistoryDto(BaseModel):
@@ -49,8 +50,9 @@ class ResponseUserHistoryDto(BaseModel):
 class SelectedUserCategory(BaseModel):
     category_id: str
     category_name: str
-    duration: int
-    transportation: str
+    duration: Optional[int] = None
+    transportation: Optional[str] = None
+    description: Optional[str] = None
 
 
 class RequestSetUserHistoryDto(BaseModel):
