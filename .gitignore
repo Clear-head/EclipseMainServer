@@ -215,3 +215,4 @@ src/service/crawl/test_run.py
 src/service/test.py
 src/requirements.txt
 .vscode/settings.json
+src/resources/crawl/crawlers.json
