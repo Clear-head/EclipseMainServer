@@ -7,12 +7,19 @@ from starlette.middleware.cors import CORSMiddleware
 from src.router.users import user_controller, service_controller, my_info_controller, auth_controller, \
     category_controller
 from src.utils.exception_handler.http_log_handler import setup_exception_handlers
-
+from src.service.scheduler.crawling_scheduler import scheduler
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-
+    # 시작 시 스케줄러 실행
+    scheduler.start()
+    
     yield
+    
+    # 종료 시 스케줄러 정리
+    scheduler.shutdown()
+
+
 app = FastAPI(lifespan=lifespan)
 setup_exception_handlers(app)
 app.include_router(auth_controller.router)
