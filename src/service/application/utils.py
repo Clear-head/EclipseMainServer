@@ -124,17 +124,18 @@ def quick_validation(user_message: str) -> Tuple[bool, str]:
     return True, ""
 
 
-def llm_validation(user_message: str, category: str) -> Tuple[bool, str]:
+def llm_validation(user_message: str, category: str) -> Tuple[str, str]:
     """
-    2차 검증: LLM 기반 정밀 검증
-    애매한 케이스를 LLM으로 판단
+    LLM 기반 검증 + 랜덤 판별
     
     Args:
         user_message: 사용자 입력 메시지
-        category: 현재 카테고리 (카페, 음식점, 콘텐츠)
+        category: 현재 카테고리
         
     Returns:
-        (is_valid, error_message)
+        (result_type, error_message)
+        - result_type: "random" | "valid" | "invalid"
+        - error_message: 검증 실패 시 메시지 (valid/random인 경우 빈 문자열)
     """
     try:
         prompt = VALIDATION_PROMPT.format(
@@ -146,39 +147,40 @@ def llm_validation(user_message: str, category: str) -> Tuple[bool, str]:
         response_lower = response.strip().lower()
         
         # LLM 응답 파싱
-        if "의미없음" in response_lower or "무의미" in response_lower or "invalid" in response_lower:
-            return False, VALIDATION_MESSAGES["ambiguous"]
+        if "랜덤" in response_lower or "random" in response_lower:
+            return "random", ""
+        elif "의미있음" in response_lower or "valid" in response_lower:
+            return "valid", ""
         else:
-            return True, ""
+            return "invalid", VALIDATION_MESSAGES["ambiguous"]
             
     except Exception as e:
-        # LLM 오류 시 관대하게 처리 (통과시킴)
+        # LLM 오류 시 관대하게 처리 (일반 추천으로 진행)
         print(f"LLM 검증 오류: {e}")
-        return True, ""
+        return "valid", ""
 
 
-def validate_user_input(user_message: str, category: str = "카페") -> Tuple[bool, str]:
+def validate_user_input(user_message: str, category: str = "카페") -> Tuple[str, str]:
     """
-    하이브리드 입력 검증 함수 (통합)
-    
-    1단계: 규칙 기반 빠른 필터링 (quick_validation)
-    2단계: 모든 입력에 대해 LLM 검증 (llm_validation)
+    하이브리드 입력 검증 함수 (검증 + 랜덤 판별)
     
     Args:
         user_message: 사용자 입력 메시지
         category: 현재 카테고리
         
     Returns:
-        (is_valid, error_message)
+        (result_type, error_message)
+        - result_type: "random" | "valid" | "invalid"
+        - error_message: 검증 실패 시 메시지
     """
-    # 1단계: 규칙 기반 검증 (명백히 무의미한 것만 차단)
+    # 1단계: 규칙 기반 빠른 필터링 (명백히 무의미한 것만 차단)
     is_valid, error_msg = quick_validation(user_message)
     
     if not is_valid:
-        # 명백히 무효한 입력 -> 즉시 거부 (LLM 호출 안 함)
-        return False, error_msg
+        # 명백히 무효한 입력 → 즉시 거부 (LLM 호출 안 함)
+        return "invalid", error_msg
     
-    # 2단계: 모든 입력에 대해 LLM 검증 수행
+    # 2단계: LLM 검증 + 랜덤 판별 (1회 호출로 두 가지 판단)
     print(f"🤖 LLM 검증 시작: '{user_message}'")
     return llm_validation(user_message, category)
 

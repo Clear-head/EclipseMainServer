@@ -18,36 +18,15 @@ from src.service.application.utils import extract_tags_by_category, format_colle
 
 logger = get_logger(__name__)
 
-
-CHOICE_AVOIDANCE_KEYWORDS = [
-    "아무거나", "상관없어", "상관없어요", "다좋아", "다 좋아", "다 괜찮",
-    "알아서", "맡길게", "편한대로", "편한 대로", "대충골라", "대충 골라",
-    "적당히골라", "적당히 골라", "기대안할게", "기대 안할게", "기대안",
-    "뭐든", "anything", "둘다좋아", "둘 다 좋아"
-]
-
-
-def is_choice_avoidance_message(message: str) -> bool:
-    if not message:
-        return False
-
-    normalized = message.strip().lower().replace(" ", "")
-
-    if "말고" in normalized or "싫" in normalized:
-        return False
-
-    return any(keyword in normalized for keyword in CHOICE_AVOIDANCE_KEYWORDS)
-
-
 async def get_store_recommendations(session: Dict) -> Dict[str, List[MainScreenCategoryList]]:
     """
-    세션의 collectedData를 기반으로 매장 추천 (GPT-4.1 필터링 적용, 부족 시 채우지 않음)
+    세션의 collectedData를 기반으로 매장 추천
     """
     from src.service.suggest.store_suggest_service import StoreSuggestService
     from src.infra.external.query_enchantment import QueryEnhancementService
 
     logger.info("=" * 60)
-    logger.info("매장 추천 시작 (GPT-4.1 필터링 적용: 부족분 채우지 않음)")
+    logger.info("매장 추천 시작")
     logger.info("=" * 60)
 
     suggest_service = StoreSuggestService()
@@ -65,87 +44,33 @@ async def get_store_recommendations(session: Dict) -> Dict[str, List[MainScreenC
     logger.info(f"지역: {region}")
     logger.info(f"인원: {people_count}명")
     logger.info(f"수집된 태그: {collected_tags}")
+    logger.info(f"랜덤 카테고리: {random_categories}")
 
     for category in categories_to_process:
         keywords = collected_tags.get(category, [])
         keyword_string = ", ".join(keywords) if keywords else ""
+        
+        # 🔥 랜덤 추천 여부 확인
+        is_random = category in random_categories
 
-        logger.info(f"[{category}] 키워드: {keyword_string}")
-        if category in random_categories and not keywords:
-            logger.info(f"[{category}] 랜덤 추천 모드 - 키워드 없이 검색 진행")
+        logger.info(f"[{category}] 키워드: {keyword_string if keyword_string else '(없음 - 랜덤 추천)'}")
 
         try:
-            # 1단계: 후보 충분히 확보 (더 많은 후보 추출)
-            suggestions = await suggest_service.suggest_stores(
-                personnel=people_count,
-                region=region,
-                category_type=category,
-                user_keyword=keyword_string,
-                n_results=15,  # 후보를 많이 가져와서 GPT가 선별
-                use_ai_enhancement=False,
-                min_similarity_threshold=0.2,  # 후보 다양성 확보 (필요 시 조정)
-                rerank_candidates_multiplier=5,
-                keyword_weight=0.5,
-                semantic_weight=0.3,
-                rerank_weight=0.2
-            )
-
-            logger.info(f"[{category}] ChromaDB 검색 결과: {len(suggestions)}개")
-
-            store_ids = [sug.get('store_id') for sug in suggestions if sug.get('store_id')]
-
-            if store_ids:
-                store_details = await suggest_service.get_store_details(store_ids)
-
-                # ChromaDB 결과(점수 등)를 id->data 맵으로 보관
-                id_to_chroma = {}
-                for sug in suggestions:
-                    sid = sug.get('store_id')
-                    if sid:
-                        id_to_chroma[sid] = {
-                            'similarity_score': sug.get('similarity_score'),
-                            'score_breakdown': sug.get('score_breakdown'),
-                            'document': sug.get('document')
-                        }
-
-                # MainScreenCategoryList 형식으로 변환 (GPT 입력용 dict 리스트 생성)
-                stores_as_dicts = []
-                for store in store_details:
-                    address = (
-                        (store.get('do', '') + " " if store.get('do') else "") +
-                        (store.get('si', '') + " " if store.get('si') else "") +
-                        (store.get('gu', '') + " " if store.get('gu') else "") +
-                        (store.get('detail_address', '') if store.get('detail_address') else "")
-                    ).strip()
-
-                    stores_as_dicts.append({
-                        'id': store.get('id', ''),
-                        'title': store.get('name', ''),
-                        'image_url': store.get('image', ''),
-                        'detail_address': address,
-                        'sub_category': store.get('sub_category', ''),
-                        'business_hour': store.get('business_hour', ''),
-                        'phone': store.get('phone', ''),
-                        'menu': store.get('menu', '') or '정보없음',
-                        'lat': str(store.get('latitude', '')) if store.get('latitude') else None,  # 🔥 추가
-                        'lng': str(store.get('longitude', '')) if store.get('longitude') else None,  # 🔥 추가
-                    })
-
-                logger.info(f"[{category}] 후보 매장 상세 조회 및 변환 완료: {len(stores_as_dicts)}개")
-
-                # 2단계: GPT-4.1 필터링 호출 (부족분 채우지 않음)
-                filtered_dicts = await query_enhancer.filter_recommendations_with_gpt(
-                    stores=stores_as_dicts,
-                    user_keywords=keywords,
+            # 🔥 랜덤인 경우: DB에서 직접 조회
+            if is_random:
+                logger.info(f"[{category}] 랜덤 추천 모드 - DB에서 직접 조회")
+                
+                stores_as_dicts = await suggest_service.get_random_stores_from_db(
+                    region=region,
                     category_type=category,
-                    personnel=people_count,
-                    max_results=10,
-                    fill_with_original=False  # 핵심: GPT가 적게 골랐다면 그 수만 반환
+                    n_results=10
                 )
-
-                # dict -> MainScreenCategoryList 변환 및 recommendations 저장
+                
+                logger.info(f"[{category}] DB 랜덤 조회 결과: {len(stores_as_dicts)}개")
+                
+                # dict -> MainScreenCategoryList 변환
                 filtered_list = []
-                for store in filtered_dicts:
+                for store in stores_as_dicts:
                     filtered_list.append(
                         MainScreenCategoryList(
                             id=store.get('id', ''),
@@ -153,17 +78,95 @@ async def get_store_recommendations(session: Dict) -> Dict[str, List[MainScreenC
                             image_url=store.get('image_url', ''),
                             detail_address=store.get('detail_address', ''),
                             sub_category=store.get('sub_category', ''),
-                            lat=store.get('lat'),  # 🔥 추가
-                            lng=store.get('lng')   # 🔥 추가
+                            lat=store.get('lat'),
+                            lng=store.get('lng')
                         )
                     )
-
+                
                 recommendations[category] = filtered_list
-                logger.info(f"[{category}] 최종 추천 갯수: {len(filtered_list)}개")
-
+                logger.info(f"[{category}] 랜덤 추천 완료: {len(filtered_list)}개")
+                
             else:
-                recommendations[category] = []
-                logger.warning(f"[{category}] 추천 후보 없음")
+                # 🔥 일반 추천: ChromaDB + GPT 필터링
+                logger.info(f"[{category}] 일반 추천 모드 - ChromaDB 검색")
+                
+                suggestions = await suggest_service.suggest_stores(
+                    personnel=people_count,
+                    region=region,
+                    category_type=category,
+                    user_keyword=keyword_string,
+                    n_results=15,
+                    use_ai_enhancement=False,
+                    min_similarity_threshold=0.2,
+                    rerank_candidates_multiplier=5,
+                    keyword_weight=0.5,
+                    semantic_weight=0.3,
+                    rerank_weight=0.2
+                )
+
+                logger.info(f"[{category}] ChromaDB 검색 결과: {len(suggestions)}개")
+
+                store_ids = [sug.get('store_id') for sug in suggestions if sug.get('store_id')]
+
+                if store_ids:
+                    store_details = await suggest_service.get_store_details(store_ids)
+
+                    # MainScreenCategoryList 형식으로 변환
+                    stores_as_dicts = []
+                    for store in store_details:
+                        address = (
+                            (store.get('do', '') + " " if store.get('do') else "") +
+                            (store.get('si', '') + " " if store.get('si') else "") +
+                            (store.get('gu', '') + " " if store.get('gu') else "") +
+                            (store.get('detail_address', '') if store.get('detail_address') else "")
+                        ).strip()
+
+                        stores_as_dicts.append({
+                            'id': store.get('id', ''),
+                            'title': store.get('name', ''),
+                            'image_url': store.get('image', ''),
+                            'detail_address': address,
+                            'sub_category': store.get('sub_category', ''),
+                            'business_hour': store.get('business_hour', ''),
+                            'phone': store.get('phone', ''),
+                            'menu': store.get('menu', '') or '정보없음',
+                            'lat': str(store.get('latitude', '')) if store.get('latitude') else None,
+                            'lng': str(store.get('longitude', '')) if store.get('longitude') else None,
+                        })
+
+                    logger.info(f"[{category}] 후보 매장 상세 조회 완료: {len(stores_as_dicts)}개")
+
+                    # GPT-4.1 필터링
+                    filtered_dicts = await query_enhancer.filter_recommendations_with_gpt(
+                        stores=stores_as_dicts,
+                        user_keywords=keywords,
+                        category_type=category,
+                        personnel=people_count,
+                        max_results=10,
+                        fill_with_original=False
+                    )
+
+                    # dict -> MainScreenCategoryList 변환
+                    filtered_list = []
+                    for store in filtered_dicts:
+                        filtered_list.append(
+                            MainScreenCategoryList(
+                                id=store.get('id', ''),
+                                title=store.get('title', ''),
+                                image_url=store.get('image_url', ''),
+                                detail_address=store.get('detail_address', ''),
+                                sub_category=store.get('sub_category', ''),
+                                lat=store.get('lat'),
+                                lng=store.get('lng')
+                            )
+                        )
+
+                    recommendations[category] = filtered_list
+                    logger.info(f"[{category}] GPT 필터링 완료: {len(filtered_list)}개")
+
+                else:
+                    recommendations[category] = []
+                    logger.warning(f"[{category}] 추천 후보 없음")
 
         except Exception as e:
             logger.error(f"[{category}] 추천 중 오류: {e}")
@@ -214,8 +217,15 @@ def handle_user_message(session: Dict, user_message: str) -> ResponseChatService
         )
 
     current_category = selected_categories[current_index]
+    people_count = session.get("peopleCount", 1)
 
-    if is_choice_avoidance_message(user_message):
+    # 🔥 LLM으로 검증 + 랜덤 판별 (1회 호출)
+    result_type, error_message = validate_user_input(user_message, current_category)
+
+    # 🔥 Case 1: 랜덤 추천 요청
+    if result_type == "random":
+        logger.info(f"LLM 판단: 랜덤 추천 요청 - '{user_message}'")
+        
         session.setdefault("collectedTags", {})
         session.setdefault("randomCategories", [])
         session["randomCategoryPending"] = current_category
@@ -237,10 +247,9 @@ def handle_user_message(session: Dict, user_message: str) -> ResponseChatService
             progress=progress
         )
 
-    # ✅ 입력 검증 (하이브리드 방식)
-    is_valid, error_message = validate_user_input(user_message, current_category)
-    if not is_valid:
-        logger.warning(f"입력 검증 실패: '{user_message}' -> {error_message}")
+    # 🔥 Case 2: 의미없는 입력
+    if result_type == "invalid":
+        logger.warning(f"LLM 판단: 의미없는 입력 - '{user_message}'")
         return ResponseChatServiceDTO(
             status="validation_failed",
             message=error_message,
@@ -248,7 +257,9 @@ def handle_user_message(session: Dict, user_message: str) -> ResponseChatService
             currentCategory=current_category
         )
 
-    people_count = session.get("peopleCount", 1)
+    # 🔥 Case 3: 의미있는 입력 → 태그 추출
+    logger.info(f"LLM 판단: 의미있는 입력 - '{user_message}'")
+    
     new_tags = extract_tags_by_category(user_message, current_category, people_count)
 
     if "collectedTags" not in session:
