@@ -383,6 +383,13 @@ RESPONSE_MESSAGES = {
         "yes_no_question": "이 정보로 다음 질문으로 넘어갈래?",
         "result_question": "후보지를 출력할래?"
     },
+    "random": {
+        "ask": "혹시 아무거나 괜찮다면 랜덤으로 추천해줄 수도 있어. 랜덤 추천을 받아볼까?",
+        "ask_question": "랜덤하게 추천을 받아볼래?",
+        "ready": "좋아! 랜덤 추천을 준비해둘게.",
+        "decline": "알겠어! 그럼 원하는 걸 조금 더 알려줄 수 있을까?",
+        "summary_tag": "랜덤 추천"
+    },
     "validation": {
         "too_short": "좀 더 구체적으로 말해줘!!",
         "only_special_chars": "의미있는 단어로 말해줘!!",

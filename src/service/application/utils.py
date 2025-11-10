@@ -267,6 +267,7 @@ def format_collected_data_for_server(session: Dict) -> List[Dict]:
     people_count = session.get("peopleCount", 1)
     selected_categories = session.get("selectedCategories", [])
     collected_tags = session.get("collectedTags", {})
+    random_mode = session.get("randomModeActive", False)
     
     # 인원수 포맷팅 ("2명" 형식)
     people_count_str = f"{people_count}명"
@@ -278,6 +279,9 @@ def format_collected_data_for_server(session: Dict) -> List[Dict]:
     for category in selected_categories:
         # 카테고리별 키워드 추출 (없으면 빈 리스트)
         keywords = collected_tags.get(category, [])
+
+        if random_mode and not keywords:
+            keywords = [RESPONSE_MESSAGES["random"]["summary_tag"]]
         
         # 각 카테고리별 객체 생성
         category_data = {

@@ -19,6 +19,26 @@ from src.service.application.utils import extract_tags_by_category, format_colle
 logger = get_logger(__name__)
 
 
+CHOICE_AVOIDANCE_KEYWORDS = [
+    "아무거나", "상관없어", "상관없어요", "다좋아", "다 좋아", "다 괜찮",
+    "알아서", "맡길게", "편한대로", "편한 대로", "대충골라", "대충 골라",
+    "적당히골라", "적당히 골라", "기대안할게", "기대 안할게", "기대안",
+    "뭐든", "anything", "둘다좋아", "둘 다 좋아"
+]
+
+
+def is_choice_avoidance_message(message: str) -> bool:
+    if not message:
+        return False
+
+    normalized = message.strip().lower().replace(" ", "")
+
+    if "말고" in normalized or "싫" in normalized:
+        return False
+
+    return any(keyword in normalized for keyword in CHOICE_AVOIDANCE_KEYWORDS)
+
+
 async def get_store_recommendations(session: Dict) -> Dict[str, List[MainScreenCategoryList]]:
     """
     세션의 collectedData를 기반으로 매장 추천 (GPT-4.1 필터링 적용, 부족 시 채우지 않음)
@@ -38,15 +58,21 @@ async def get_store_recommendations(session: Dict) -> Dict[str, List[MainScreenC
     region = extract_region_from_address(session.get("play_address", ""))
     people_count = session.get("peopleCount", 1)
     collected_tags = session.get("collectedTags", {})
+    selected_categories = session.get("selectedCategories", [])
+    categories_to_process = selected_categories or list(collected_tags.keys())
+    random_mode = session.get("randomModeActive", False)
 
     logger.info(f"지역: {region}")
     logger.info(f"인원: {people_count}명")
     logger.info(f"수집된 태그: {collected_tags}")
 
-    for category, keywords in collected_tags.items():
+    for category in categories_to_process:
+        keywords = collected_tags.get(category, [])
         keyword_string = ", ".join(keywords) if keywords else ""
 
         logger.info(f"[{category}] 키워드: {keyword_string}")
+        if random_mode and not keywords:
+            logger.info(f"[{category}] 랜덤 추천 모드 - 키워드 없이 검색 진행")
 
         try:
             # 1단계: 후보 충분히 확보 (더 많은 후보 추출)
@@ -189,6 +215,27 @@ def handle_user_message(session: Dict, user_message: str) -> ResponseChatService
 
     current_category = selected_categories[current_index]
 
+    if is_choice_avoidance_message(user_message):
+        session["randomModeRequested"] = True
+        session["randomModeActive"] = False
+        session["stage"] = "confirming_random"
+        session["waitingForUserAction"] = True
+
+        progress = {
+            "current": current_index,
+            "total": len(selected_categories)
+        }
+
+        return ResponseChatServiceDTO(
+            status="success",
+            message=RESPONSE_MESSAGES["random"]["ask"],
+            stage="confirming_random",
+            showYesNoButtons=True,
+            yesNoQuestion=RESPONSE_MESSAGES["random"]["ask_question"],
+            currentCategory=current_category,
+            progress=progress
+        )
+
     # ✅ 입력 검증 (하이브리드 방식)
     is_valid, error_message = validate_user_input(user_message, current_category)
     if not is_valid:
@@ -244,6 +291,52 @@ async def handle_user_action_response(session: Dict, user_response: str) -> Resp
                   ["yes", "응", "고", "네", "넵", "예", "좋아", "좋아요", "그래", "맞아", "ㅇㅇ", "기기", "ㄱㄱ", "고고", "네네", "다음", "다음 질문", "다음질문"])
     is_more = any(word in user_response.lower() for word in ["추가", "더", "더해", "추가하기", "추가요", "더할래"])
 
+    if session.get("stage") == "confirming_random":
+        if is_next:
+            selected_categories = session.get("selectedCategories", [])
+            session["currentCategoryIndex"] = len(selected_categories)
+            session["randomModeRequested"] = False
+            session["randomModeActive"] = True
+            session["waitingForUserAction"] = True
+            session["stage"] = "confirming_results"
+
+            collected_tags = session.setdefault("collectedTags", {})
+            for category in selected_categories:
+                collected_tags.setdefault(category, [])
+
+            return ResponseChatServiceDTO(
+                status="success",
+                message=RESPONSE_MESSAGES["random"]["ready"],
+                stage="confirming_results",
+                showYesNoButtons=True,
+                yesNoQuestion=RESPONSE_MESSAGES["buttons"]["result_question"],
+                availableCategories=selected_categories
+            )
+        else:
+            session["randomModeRequested"] = False
+            session["randomModeActive"] = False
+            session["waitingForUserAction"] = False
+
+            current_index = session.get("currentCategoryIndex", 0)
+            selected_categories = session.get("selectedCategories", [])
+            current_category = selected_categories[current_index] if current_index < len(selected_categories) else None
+
+            progress = None
+            if current_category:
+                progress = {
+                    "current": current_index,
+                    "total": len(selected_categories)
+                }
+
+            return ResponseChatServiceDTO(
+                status="success",
+                message=RESPONSE_MESSAGES["random"]["decline"],
+                stage="collecting_details",
+                currentCategory=current_category,
+                progress=progress,
+                showYesNoButtons=False
+            )
+
     # 🔥 결과 출력 확인 단계: Yes(매장 추천 생성)
     if session.get("stage") == "confirming_results":
         if is_next:
@@ -257,6 +350,8 @@ async def handle_user_action_response(session: Dict, user_response: str) -> Resp
             
             # 세션에 저장
             session["recommendations"] = recommendations
+            session["randomModeActive"] = False
+            session["randomModeRequested"] = False
             session["stage"] = "completed"
             session["waitingForUserAction"] = False
 
