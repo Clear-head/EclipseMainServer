@@ -60,7 +60,7 @@ async def get_store_recommendations(session: Dict) -> Dict[str, List[MainScreenC
     collected_tags = session.get("collectedTags", {})
     selected_categories = session.get("selectedCategories", [])
     categories_to_process = selected_categories or list(collected_tags.keys())
-    random_mode = session.get("randomModeActive", False)
+    random_categories = set(session.get("randomCategories", []))
 
     logger.info(f"지역: {region}")
     logger.info(f"인원: {people_count}명")
@@ -71,7 +71,7 @@ async def get_store_recommendations(session: Dict) -> Dict[str, List[MainScreenC
         keyword_string = ", ".join(keywords) if keywords else ""
 
         logger.info(f"[{category}] 키워드: {keyword_string}")
-        if random_mode and not keywords:
+        if category in random_categories and not keywords:
             logger.info(f"[{category}] 랜덤 추천 모드 - 키워드 없이 검색 진행")
 
         try:
@@ -216,8 +216,9 @@ def handle_user_message(session: Dict, user_message: str) -> ResponseChatService
     current_category = selected_categories[current_index]
 
     if is_choice_avoidance_message(user_message):
-        session["randomModeRequested"] = True
-        session["randomModeActive"] = False
+        session.setdefault("collectedTags", {})
+        session.setdefault("randomCategories", [])
+        session["randomCategoryPending"] = current_category
         session["stage"] = "confirming_random"
         session["waitingForUserAction"] = True
 
@@ -292,41 +293,54 @@ async def handle_user_action_response(session: Dict, user_response: str) -> Resp
     is_more = any(word in user_response.lower() for word in ["추가", "더", "더해", "추가하기", "추가요", "더할래"])
 
     if session.get("stage") == "confirming_random":
-        if is_next:
-            selected_categories = session.get("selectedCategories", [])
-            session["currentCategoryIndex"] = len(selected_categories)
-            session["randomModeRequested"] = False
-            session["randomModeActive"] = True
-            session["waitingForUserAction"] = True
-            session["stage"] = "confirming_results"
+        pending_category = session.get("randomCategoryPending")
 
-            collected_tags = session.setdefault("collectedTags", {})
-            for category in selected_categories:
-                collected_tags.setdefault(category, [])
-
+        if not pending_category:
+            session["stage"] = "collecting_details"
+            session["waitingForUserAction"] = False
             return ResponseChatServiceDTO(
                 status="success",
-                message=RESPONSE_MESSAGES["random"]["ready"],
-                stage="confirming_results",
+                message=RESPONSE_MESSAGES["start"]["unclear_response"],
+                stage="collecting_details",
                 showYesNoButtons=True,
-                yesNoQuestion=RESPONSE_MESSAGES["buttons"]["result_question"],
-                availableCategories=selected_categories
+                yesNoQuestion=RESPONSE_MESSAGES["buttons"]["yes_no_question"]
             )
-        else:
-            session["randomModeRequested"] = False
-            session["randomModeActive"] = False
+
+        if is_next:
+            random_categories = session.setdefault("randomCategories", [])
+            if pending_category not in random_categories:
+                random_categories.append(pending_category)
+
+            collected_tags = session.setdefault("collectedTags", {})
+            collected_tags.setdefault(pending_category, [])
+
+            session["randomCategoryPending"] = None
             session["waitingForUserAction"] = False
+            session["stage"] = "collecting_details"
+
+            next_response = handle_next_category(session)
+            ready_message = RESPONSE_MESSAGES["random"]["ready"]
+
+            if next_response.message:
+                next_response.message = f"{ready_message}\n\n{next_response.message}"
+            else:
+                next_response.message = ready_message
+
+            session["stage"] = next_response.stage
+            return next_response
+        else:
+            session["randomCategoryPending"] = None
+            session["waitingForUserAction"] = False
+            session["stage"] = "collecting_details"
 
             current_index = session.get("currentCategoryIndex", 0)
             selected_categories = session.get("selectedCategories", [])
-            current_category = selected_categories[current_index] if current_index < len(selected_categories) else None
+            current_category = selected_categories[current_index] if current_index < len(selected_categories) else pending_category
 
-            progress = None
-            if current_category:
-                progress = {
-                    "current": current_index,
-                    "total": len(selected_categories)
-                }
+            progress = {
+                "current": current_index,
+                "total": len(selected_categories)
+            } if current_category and selected_categories else None
 
             return ResponseChatServiceDTO(
                 status="success",
@@ -350,8 +364,6 @@ async def handle_user_action_response(session: Dict, user_response: str) -> Resp
             
             # 세션에 저장
             session["recommendations"] = recommendations
-            session["randomModeActive"] = False
-            session["randomModeRequested"] = False
             session["stage"] = "completed"
             session["waitingForUserAction"] = False
 
