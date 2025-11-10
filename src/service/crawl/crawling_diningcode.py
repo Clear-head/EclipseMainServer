@@ -416,7 +416,7 @@ async def main():
     logger.info("DiningCode 음식점 크롤러 시작 (병렬 처리)")
     
     try:
-        crawler = DiningCodeRestaurantCrawler(headless=False)
+        crawler = DiningCodeRestaurantCrawler(headless=True)
         
         await crawler.crawl_all_pages(
             delay=5,

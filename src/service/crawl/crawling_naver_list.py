@@ -399,7 +399,7 @@ async def main(favorite_url='https://map.naver.com/p/favorite/YOUR_URL'):
     logger.info("네이버 지도 즐겨찾기 크롤러 시작 (병렬 처리)")
 
     
-    crawler = NaverMapFavoriteCrawler(headless=False)
+    crawler = NaverMapFavoriteCrawler(headless=True)
     
     await crawler.crawl_favorite_list(
         favorite_url=favorite_url,

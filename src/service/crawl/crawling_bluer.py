@@ -291,7 +291,7 @@ async def main():
     logger.info("Bluer 음식점 크롤러 시작 (병렬 처리)")
     
     try:
-        crawler = BluerRestaurantCrawler(headless=False)
+        crawler = BluerRestaurantCrawler(headless=True)
         
         await crawler.crawl_all_pages(
             delay=5,

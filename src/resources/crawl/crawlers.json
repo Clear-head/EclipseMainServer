@@ -1,0 +1,59 @@
+{
+  "description": "크롤러 목록 (순차 실행). 각 entry의 module은 import 가능한 파이썬 모듈 경로여야 합니다.",
+  "crawlers": [
+    {
+      "name": "공사맛집",
+      "module": "src.service.crawl.crawling_laborers_spot",
+      "function": "main",
+      "args": []
+    },
+    {
+      "name": "다이닝코드",
+      "module": "src.service.crawl.crawling_diningcode",
+      "function": "main",
+      "args": []
+    },
+    {
+      "name": "서울,가보자고",
+      "module": "src.service.crawl.crawling_naver_list",
+      "function": "main",
+      "args": [
+        "https://map.naver.com/p/favorite/sharedPlace/folder/1fea0b9f6dd7481180a819f07e352e2d/pc?c=11.00,0,0,0,dh"
+      ]
+    },
+    {
+      "name": "레드리본",
+      "module": "src.service.crawl.crawling_naver_list",
+      "function": "main",
+      "args": [
+        "https://map.naver.com/p/favorite/sharedPlace/folder/723cd582cd1e43dcac5234ad055c7494/pc?c=10.00,0,0,0,dh"
+      ]
+    },
+    {
+      "name": "블루리본 디저트베이커리",
+      "module": "src.service.crawl.crawling_naver_list",
+      "function": "main",
+      "args": [
+        "https://map.naver.com/p/favorite/sharedPlace/folder/a5b889b0ec9d4bafa6156d25cde3fedd/pc?c=6.00,0,0,0,dh"
+      ]
+    },
+    {
+      "name": "모범음식점",
+      "module": "src.service.crawl.crawling_naver_modelrestaurant",
+      "function": "main",
+      "args": []
+    },
+    {
+      "name": "삼성생명 인생카페",
+      "module": "src.service.crawl.crawling_bluer",
+      "function": "main",
+      "args": []
+    },
+    {
+      "name": "서울의 콘텐츠",
+      "module": "src.service.crawl.crawling_naver_contents",
+      "function": "main",
+      "args": []
+    }
+  ]
+}

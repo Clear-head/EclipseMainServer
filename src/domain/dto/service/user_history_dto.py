@@ -35,6 +35,7 @@ class UserHistoryDto(BaseModel):
     category_type: str
     category_detail_address: Optional[str] = None
     description: Optional[str] = None
+    image: Optional[str] = None
     seq: int
 
 class ResponseUserHistoryDto(BaseModel):

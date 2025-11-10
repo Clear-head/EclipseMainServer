@@ -5,7 +5,7 @@ ChromaDB 데이터 적재 모듈
 import chromadb
 from chromadb.config import Settings
 from chromadb.utils import embedding_functions
-from typing import List, Dict
+from typing import List, Dict, Set
 import torch
 from src.logger.custom_logger import get_logger
 from src.infra.database.repository.category_repository import CategoryRepository
@@ -148,15 +148,54 @@ class StoreChromaDBLoader:
         
         return metadata
     
+    def get_existing_store_ids(self) -> Set[str]:
+        """
+        ChromaDB에 현재 저장된 모든 매장 ID 조회
+        
+        Returns:
+            Set[str]: 매장 ID 집합
+        """
+        try:
+            # 전체 데이터 조회
+            result = self.store_collection.get()
+            existing_ids = set(result['ids']) if result and 'ids' in result else set()
+            logger.info(f"ChromaDB에 현재 저장된 매장 수: {len(existing_ids)}개")
+            return existing_ids
+        except Exception as e:
+            logger.error(f"기존 매장 ID 조회 중 오류: {e}")
+            return set()
+    
+    def delete_stores(self, store_ids: List[str]):
+        """
+        특정 매장들을 ChromaDB에서 삭제
+        
+        Args:
+            store_ids: 삭제할 매장 ID 리스트
+        """
+        if not store_ids:
+            return
+        
+        try:
+            self.store_collection.delete(ids=store_ids)
+            logger.info(f"{len(store_ids)}개 매장 삭제 완료")
+        except Exception as e:
+            logger.error(f"매장 삭제 중 오류: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+    
     async def load_all_stores(self, batch_size: int = 100):
         """
-        DB의 모든 매장 데이터를 ChromaDB에 적재
+        DB의 모든 매장 데이터를 ChromaDB에 적재 (upsert 방식)
+        적재되지 않은 기존 데이터는 자동으로 삭제
         
         Args:
             batch_size: 배치 크기 (한 번에 처리할 매장 수)
         """
         logger.info("ChromaDB 데이터 적재 시작...")
         logger.info(f"GPU 사용 여부: {self.device == 'cuda'}")
+        
+        # 기존 ChromaDB에 저장된 매장 ID 조회
+        existing_ids = self.get_existing_store_ids()
         
         # Repository 초기화
         category_repo = CategoryRepository()
@@ -172,6 +211,9 @@ class StoreChromaDBLoader:
         # 배치 처리
         success_count = 0
         fail_count = 0
+        insert_count = 0
+        update_count = 0
+        processed_ids = set()  # 적재된 매장 ID 추적
         
         for i in range(0, total_stores, batch_size):
             batch = stores[i:i + batch_size]
@@ -186,11 +228,11 @@ class StoreChromaDBLoader:
             
             for store in batch:
                 try:
-                    store_id = store.id
+                    store_id = str(store.id)
                     
                     # 매장별 태그 정보 조회
                     category_tags = await category_tags_repo.select(
-                        category_id=store_id
+                        category_id=store.id
                     )
                     
                     # 태그 상세 정보 가져오기
@@ -217,7 +259,14 @@ class StoreChromaDBLoader:
                     
                     documents.append(doc)
                     metadatas.append(metadata)
-                    ids.append(str(store_id))
+                    ids.append(store_id)
+                    processed_ids.add(store_id)  # 처리된 ID 기록
+                    
+                    # 신규 삽입인지 업데이트인지 체크
+                    if store_id in existing_ids:
+                        update_count += 1
+                    else:
+                        insert_count += 1
                     
                     success_count += 1
                     
@@ -229,26 +278,50 @@ class StoreChromaDBLoader:
                     logger.error(traceback.format_exc())
                     continue
             
-            # ChromaDB에 배치 추가
+            # ChromaDB에 배치 upsert (있으면 업데이트, 없으면 삽입)
             if documents:
                 try:
-                    self.store_collection.add(
+                    self.store_collection.upsert(
                         documents=documents,
                         metadatas=metadatas,
                         ids=ids
                     )
                     logger.info(f"배치 {batch_num}/{total_batches} 적재 완료: {len(documents)}개 매장")
                 except Exception as e:
-                    logger.error(f"ChromaDB 배치 추가 중 오류: {e}")
+                    logger.error(f"ChromaDB 배치 upsert 중 오류: {e}")
                     import traceback
                     logger.error(traceback.format_exc())
                     fail_count += len(documents)
                     success_count -= len(documents)
+                    # 실패한 ID들은 processed_ids에서 제거
+                    for doc_id in ids:
+                        processed_ids.discard(doc_id)
+                        if doc_id in existing_ids:
+                            update_count -= 1
+                        else:
+                            insert_count -= 1
+        
+        # 적재되지 않은 기존 데이터 삭제
+        ids_to_delete = existing_ids - processed_ids
+        delete_count = 0
+        
+        if ids_to_delete:
+            logger.info(f"적재되지 않은 {len(ids_to_delete)}개 매장을 삭제합니다...")
+            self.delete_stores(list(ids_to_delete))
+            delete_count = len(ids_to_delete)
         
         logger.info(f"ChromaDB 데이터 적재 완료!")
-        logger.info(f"성공: {success_count}개, 실패: {fail_count}개")
+        logger.info(f"성공: {success_count}개 (신규: {insert_count}개, 업데이트: {update_count}개)")
+        logger.info(f"실패: {fail_count}개")
+        logger.info(f"삭제: {delete_count}개")
         
-        return success_count, fail_count
+        return {
+            'success': success_count,
+            'fail': fail_count,
+            'insert': insert_count,
+            'update': update_count,
+            'delete': delete_count
+        }
     
     async def load_single_store(self, store_id: str):
         """

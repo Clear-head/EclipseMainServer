@@ -212,7 +212,7 @@ async def main():
         '용산구', '은평구', '종로구', '중구', '중랑구'
     ]
     
-    headless_mode = False
+    headless_mode = True
     delay_seconds = 15
     
     logger.info("서울시 구청 API 크롤러 시작 (병렬 처리)")

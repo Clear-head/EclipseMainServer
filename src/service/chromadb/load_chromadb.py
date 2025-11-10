@@ -17,28 +17,24 @@ logger = get_logger(__name__)
 
 async def main():
     """메인 실행 함수"""
-    # logger.info("=" * 60)
     logger.info("ChromaDB 데이터 적재 시작")
-    # logger.info("=" * 60)
     
     # ChromaDB 로더 초기화 (임베딩 모델 로딩)
     loader = StoreChromaDBLoader(persist_directory="./chroma_db")
     
-    # 기존 데이터 삭제
-    logger.info("기존 ChromaDB 데이터를 삭제합니다...")
-    loader.reset_collection()
-    logger.info("삭제 완료")
-    
-    # 전체 매장 데이터 적재
+    # 전체 매장 데이터 적재 (upsert 방식)
     logger.info("매장 데이터를 ChromaDB에 적재합니다...")
-    success_count, fail_count = await loader.load_all_stores(batch_size=100)
+    logger.info("(기존 데이터는 업데이트, 신규 데이터는 삽입, 삭제된 데이터는 제거)")
+    
+    result = await loader.load_all_stores(batch_size=100)
     
     # 결과 출력
-    # logger.info("=" * 60)
     logger.info("적재 완료!")
-    logger.info(f"성공: {success_count}개")
-    logger.info(f"실패: {fail_count}개")
-    # logger.info("=" * 60)
+    logger.info(f"성공: {result['success']}개")
+    logger.info(f"  - 신규 삽입: {result['insert']}개")
+    logger.info(f"  - 업데이트: {result['update']}개")
+    logger.info(f"실패: {result['fail']}개")
+    logger.info(f"삭제: {result['delete']}개")
     
     # 컬렉션 정보 출력
     info = loader.get_collection_info()
@@ -46,5 +42,5 @@ async def main():
     logger.info(f"  - 컬렉션명: {info.get('collection_name', 'N/A')}")
     logger.info(f"  - 총 문서 수: {info.get('total_documents', 0)}개")
     logger.info(f"  - 임베딩 모델: {info.get('embedding_model', 'N/A')}")
+    logger.info(f"  - 디바이스: {info.get('device', 'N/A')}")
     logger.info(f"  - 메타데이터: {info.get('metadata', {})}")
-    # logger.info("=" * 60)
