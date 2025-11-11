@@ -1,5 +1,7 @@
 from datetime import datetime
 
+from fastapi import HTTPException # 삭제 기능 때매 추가
+
 from src.domain.dto.service.reviews_dto import RequestSetReviewsDto
 from src.domain.dto.service.user_reivew_dto import ResponseUserReviewDTO, UserReviewDTO
 from src.domain.entities.reviews_entity import ReviewsEntity
@@ -49,9 +51,11 @@ class ReviewsService:
             ],
             columns={
                 "id": "review_id",
-                "comment": "comment",
+                "comments": "comment", # 오타인듯?
                 "stars": "stars",
+                "category_id": "category_id", # my_review_screen에 필요
                 "category.name": "category_name",
+                "category.type": "category_type", # my_review_screen에 필요
                 "created_at": "created_at"
             },
             user_id=user_id,
@@ -60,3 +64,26 @@ class ReviewsService:
         return ResponseUserReviewDTO(
             review_list=result
         )
+
+    #   리뷰 삭제 # 삭제 기능 때매 추가
+    async def delete_user_review(self, user_id: str, review_id: str) -> dict:
+        try:
+            self.logger.info(f"try {user_id} delete review: {review_id}")
+
+            review = await self.repo.select(id=review_id, user_id=user_id)
+
+            if not review:
+                raise HTTPException(status_code=404, detail="리뷰를 찾을 수 없습니다.")
+
+            await self.repo.delete(id=review_id, user_id=user_id)
+
+            return {
+                "message": "리뷰가 삭제되었습니다.",
+                "review_id": review_id
+            }
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            self.logger.error(e)
+            raise e
