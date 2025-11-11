@@ -1,14 +1,15 @@
 """
 Copilot API를 사용한 검색 쿼리 개선 및 GPT 기반 추천 필터링 서비스
 """
-import os
 import asyncio
-import aiohttp
-from dotenv import load_dotenv
+import os
 from typing import Optional, List, Dict
 
-from src.utils.path import path_dic
+import aiohttp
+from dotenv import load_dotenv
+
 from src.logger.custom_logger import get_logger
+from src.utils.path import path_dic
 
 load_dotenv(dotenv_path=path_dic["env"])
 logger = get_logger(__name__)

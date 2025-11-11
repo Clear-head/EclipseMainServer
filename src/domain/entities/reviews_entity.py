@@ -8,7 +8,7 @@ class ReviewsEntity(BaseModel):
     user_id: str
     category_id: str
     stars: int
-    comment: str
+    comments: str
     created_at: datetime
 
     @field_validator('id', 'user_id', 'category_id')

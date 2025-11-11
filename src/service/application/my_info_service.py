@@ -2,15 +2,14 @@ from src.domain.dto.service.change_info_dto import ResponseChangeInfoDto, Reques
 from src.domain.dto.service.user_history_dto import ResponseUserHistoryListDto, MergeUserHistory, \
     ResponseUserHistoryDto, UserHistoryDto
 from src.domain.dto.service.user_like_dto import UserLikeDTO, ResponseUserLikeDTO, RequestSetUserLikeDTO
-from src.domain.dto.service.user_reivew_dto import ResponseUserReviewDTO, UserReviewDTO, RequestSetUserReviewDTO
 from src.domain.entities.user_entity import UserEntity
 from src.domain.entities.user_like_entity import UserLikeEntity
 from src.infra.database.repository.merge_history_repository import MergeHistoryRepository
-from src.infra.database.repository.reviews_repository import ReviewsRepository
 from src.infra.database.repository.user_history_repository import UserHistoryRepository
 from src.infra.database.repository.user_like_repository import UserLikeRepository
 from src.infra.database.repository.users_repository import UserRepository
 from src.infra.database.tables.table_category import category_table
+from src.infra.database.tables.table_merge_history import merge_history_table
 from src.logger.custom_logger import get_logger
 from src.utils.exception_handler.auth_error_class import UserNotFoundException, DuplicateUserInfoError
 from src.utils.make_address import add_address
@@ -157,42 +156,6 @@ class UserInfoService:
             )
 
 
-    #   리뷰 쓰기
-    async def set_user_reivew(self, dto: RequestSetUserReviewDTO):
-        repo = ReviewsRepository()
-
-        result = await repo.select(id=dto.user_id, category_id=dto.category_id)
-
-
-    #   리뷰 리스트 조회
-    async def get_user_reviews(self, user_id) -> ResponseUserReviewDTO:
-        self.logger.info(f"try {user_id} get user review: {user_id}")
-        review_repo = ReviewsRepository()
-
-        result = await review_repo.select(
-            return_dto=UserReviewDTO,
-            joins=[
-                {
-                    "table": category_table,
-                    "on": {"category_id": "id"},
-                    "alias": "category"
-                }
-            ],
-            columns={
-                "id": "review_id",
-                "comment": "comment",
-                "stars": "stars",
-                "category.name": "category_name",
-                "created_at": "created_at"
-            },
-            user_id=user_id,
-        )
-
-        return ResponseUserReviewDTO(
-            review_list=result
-        )
-
-
     #   히스토리 목록 조회
     async def get_user_history_list(self, user_id):
         self.logger.info(f"try {user_id} get user history list: {user_id}")
@@ -231,6 +194,11 @@ class UserInfoService:
             merge_id=merge_history_id,
             joins=[
                 {
+                    "table": merge_history_table,
+                    "on": {"merge_id": "id"},
+                    "alias": "merge_history"
+                },
+                {
                     "table": category_table,
                     "on": {"category_id": "id"},
                     "alias": "category"
@@ -249,19 +217,16 @@ class UserInfoService:
                 "transportation": "transportation",
                 "seq": "seq",
                 "duration": "duration",
-                "description": "description"
+                "description": "description",
+                "merge_history.visited_at": "visited_at"
             }
         )
-
-
-
 
         tmp = []
 
         for i in result:
 
             address = add_address(i.do, i.si, i.gu, i.detail_address)
-
 
             tmp.append(
                 UserHistoryDto(
@@ -274,7 +239,8 @@ class UserInfoService:
                     category_type=i.type,
                     sub_category=i.sub_category,
                     category_detail_address=address,
-                    description=i.description
+                    description=i.description,
+                    visited_at=i.visited_at
                 )
             )
 

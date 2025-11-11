@@ -4,9 +4,11 @@
 검색 상태 유지로 불필요한 스크롤 제거
 """
 import asyncio
-from playwright.async_api import async_playwright, TimeoutError, Page
-import sys, os
+import os
+import sys
+
 from dotenv import load_dotenv
+from playwright.async_api import async_playwright, TimeoutError, Page
 
 load_dotenv(dotenv_path="src/.env")
 

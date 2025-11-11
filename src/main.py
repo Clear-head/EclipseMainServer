@@ -6,8 +6,9 @@ from starlette.middleware.cors import CORSMiddleware
 
 from src.router.users import user_controller, service_controller, my_info_controller, auth_controller, \
     category_controller
-from src.utils.exception_handler.http_log_handler import setup_exception_handlers
 from src.service.scheduler.crawling_scheduler import scheduler
+from src.utils.exception_handler.http_log_handler import setup_exception_handlers
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
