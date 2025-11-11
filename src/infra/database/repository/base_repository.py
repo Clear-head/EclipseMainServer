@@ -198,21 +198,18 @@ class BaseRepository:
             self.logger.error(f"delete error in {self.table}: {e}")
             raise e
 
-
     def _build_joins(self, joins: list) -> tuple:
-        """
-            Returns:
-                (join_chain, join_map)
-                join_map: {'user': user_table, 'category': category_table}
-        """
         current_join = self.table
         join_map = {}
+
+        join_map['main'] = self.table
 
         for join_info in joins:
             join_table = join_info['table']
             alias = join_info.get('alias')
             on_conditions = join_info['on']
             join_type = join_info.get('type', 'inner')
+            base_table = join_info.get('base_table')
 
             # alias 저장
             if alias:
@@ -221,7 +218,12 @@ class BaseRepository:
             # JOIN 조건 생성
             conditions = []
             for left_col, right_col in on_conditions.items():
-                left = getattr(current_join.c, left_col)
+                if base_table and base_table in join_map:
+                    source_table = join_map[base_table]
+                else:
+                    source_table = self.table
+
+                left = getattr(source_table.c, left_col)
                 right = getattr(join_table.c, right_col)
                 conditions.append(left == right)
 
