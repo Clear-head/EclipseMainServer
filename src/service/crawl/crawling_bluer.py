@@ -3,9 +3,11 @@ Bluer 웹사이트 음식점 크롤링 모듈 (메모리 최적화 + 봇 우회 
 1단계: 전체 목록 수집 → 2단계: 배치 병렬 크롤링
 """
 import asyncio
-from playwright.async_api import async_playwright, TimeoutError, Page
-import sys, os
+import os
+import sys
+
 from dotenv import load_dotenv
+from playwright.async_api import async_playwright, TimeoutError, Page
 
 load_dotenv(dotenv_path="src/.env")
 

@@ -2,15 +2,17 @@
 ChromaDB 데이터 적재 모듈
 매장 정보를 키워드 중심 문서로 저장합니다.
 """
+from typing import List, Dict, Set
+
 import chromadb
+import torch
 from chromadb.config import Settings
 from chromadb.utils import embedding_functions
-from typing import List, Dict, Set
-import torch
-from src.logger.custom_logger import get_logger
+
 from src.infra.database.repository.category_repository import CategoryRepository
 from src.infra.database.repository.category_tags_repository import CategoryTagsRepository
 from src.infra.database.repository.tags_repository import TagsRepository
+from src.logger.custom_logger import get_logger
 
 logger = get_logger(__name__)
 

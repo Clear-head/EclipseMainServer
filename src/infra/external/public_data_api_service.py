@@ -2,13 +2,14 @@
 공공데이터포털 맛집 API 서비스
 """
 import asyncio
-import aiohttp
+import os
 from typing import List
-from src.logger.custom_logger import get_logger
-import  os
 
-from src.utils.path import path_dic
+import aiohttp
 from dotenv import load_dotenv
+
+from src.logger.custom_logger import get_logger
+from src.utils.path import path_dic
 
 load_dotenv(dotenv_path=path_dic["env"])
 logger = get_logger(__name__)

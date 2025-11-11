@@ -5,14 +5,13 @@
 - 크롤링 시작 시점 이전 last_crawl 을 가진 매장은 삭제
 - ChromaDB 적재 실행
 """
-import asyncio
 import importlib
 import inspect
 from datetime import datetime
 from typing import List, Dict
 
-from src.logger.custom_logger import get_logger
 from src.infra.database.repository.category_repository import CategoryRepository
+from src.logger.custom_logger import get_logger
 from src.service.chromadb.store_chromadb_loader import StoreChromaDBLoader
 from src.utils.crawlers_loader import load_json_resource
 

@@ -2,10 +2,9 @@
 크롤링 스케줄러
 매주 월요일 00시에 모든 크롤링을 실행하고 ChromaDB에 적재
 """
-import asyncio
-from datetime import datetime
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+
 from src.logger.custom_logger import get_logger
 from src.service.scheduler.crawling_job import run_crawling_job
 
