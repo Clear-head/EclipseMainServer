@@ -232,6 +232,65 @@ def extract_tags_by_category(user_detail: str, category: str, people_count: int 
         return fallback_tag
 
 
+def build_tags_progress_message(tags: List[str]) -> str:
+    """
+    추출된 태그 목록을 사용자에게 보여줄 메시지로 포맷팅
+
+    Args:
+        tags: 태그 목록
+
+    Returns:
+        태그 진행 상황 메시지
+    """
+    if not tags:
+        return ""
+
+    tags_template = RESPONSE_MESSAGES.get("tags", {}).get(
+        "current",
+        "현재까지 수집된 키워드\n: {tags}"
+    )
+    return tags_template.format(tags=", ".join(tags))
+
+
+def remove_tag_from_session(session: Dict, category: str, tag_to_remove: str) -> List[str]:
+    """
+    세션에서 특정 태그 제거
+
+    Args:
+        session: 세션 딕셔너리
+        category: 카테고리명
+        tag_to_remove: 제거할 태그
+
+    Returns:
+        제거 후 남은 태그 목록
+    """
+    collected_tags = session.setdefault("collectedTags", {})
+    existing_tags = collected_tags.get(category, [])
+
+    filtered_tags = [tag for tag in existing_tags if tag != tag_to_remove]
+    collected_tags[category] = filtered_tags
+    session["pendingTags"] = filtered_tags
+
+    return filtered_tags
+
+
+def clear_tags_for_category(session: Dict, category: str) -> List[str]:
+    """
+    세션에서 특정 카테고리의 태그 전체 삭제
+
+    Args:
+        session: 세션 딕셔너리
+        category: 카테고리명
+
+    Returns:
+        빈 태그 목록
+    """
+    collected_tags = session.setdefault("collectedTags", {})
+    collected_tags[category] = []
+    session["pendingTags"] = []
+    return []
+
+
 # =============================================================================
 # 수집 데이터 구조화 함수
 # =============================================================================
