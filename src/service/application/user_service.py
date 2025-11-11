@@ -1,7 +1,10 @@
 from starlette.responses import JSONResponse
 
+from src.domain.dto.service.user_delete_account_dto import RequestDeleteAccount
 from src.domain.dto.service.user_login_dto import ToUserLoginDto, AfterLoginUserInfo
 from src.domain.dto.service.user_register_dto import ResponseRegisterDto, RequestRegisterDto
+from src.domain.entities.delete_entity import DeleteEntity
+from src.infra.database.repository.delete_repository import DeleteCauseRepository
 from src.infra.database.repository.users_repository import UserRepository
 from src.logger.custom_logger import get_logger
 from src.service.auth.jwt import create_jwt_token
@@ -70,16 +73,34 @@ class UserService:
             )
 
 
-    async def delete_account(self, id: str, pw: str):
-        result = await self.repository.select(id=id, password=pw)
+    async def delete_account(self, id: str, dto: RequestDeleteAccount):
+        result = await self.repository.select(id=id, password=dto.password)
+
 
         if not result:
             raise UserNotFoundException()
         elif len(result) > 1:
             raise DuplicateUserInfoError()
-
         else:
-            return await self.repository.delete(id=id, password=pw)
+
+            repo = DeleteCauseRepository()
+            tmp = await repo.select(cause = dto.because)
+            if tmp:
+                await repo.update(
+                    dto.because,
+                    item = DeleteEntity(
+                        count=tmp[0].count+1,
+                        cause=dto.because
+                    )
+                )
+            else:
+                await repo.insert(
+                    DeleteEntity(
+                        count=1,
+                        cause=dto.because
+                    )
+                )
+            return await self.repository.delete(id=id, password=dto.password)
 
     async def find_id_pw(self, id: str, pw: str):
         pass
