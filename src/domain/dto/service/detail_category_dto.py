@@ -1,3 +1,4 @@
+from datetime import datetime # 리뷰에 시간 뜨는 것 때문에
 from typing import Optional
 
 from pydantic import BaseModel
@@ -13,6 +14,7 @@ class DetailCategoryReview(BaseModel):
     nickname: str
     stars: int
     comment: str
+    created_at: str # 리뷰에 시간 뜨는 것 때문에
 
 
 #   카드 선택 응답 본문

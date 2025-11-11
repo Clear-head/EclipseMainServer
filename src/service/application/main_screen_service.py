@@ -103,6 +103,7 @@ class MainScreenService:
                         nickname=nickname,
                         stars=review_entity.stars,
                         comment=review_entity.comments,
+                        created_at=review_entity.created_at.isoformat(), # 리뷰에 시간 뜨는 것 때문에
                     )
                 )
 
