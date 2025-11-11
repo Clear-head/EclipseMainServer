@@ -14,9 +14,170 @@ from src.infra.database.repository.user_history_repository import UserHistoryRep
 from src.logger.custom_logger import get_logger
 from src.service.application.prompts import RESPONSE_MESSAGES
 from src.service.application.utils import extract_tags_by_category, format_collected_data_for_server, \
-    validate_user_input, detect_tag_deletion_request
+    validate_user_input, build_tags_progress_message, remove_tag_from_session, clear_tags_for_category
 
 logger = get_logger(__name__)
+
+TAG_ACTION_PREFIX = "__TAG_ACTION__:"
+TAG_ACTION_SEPARATOR = "::"
+TAG_ACTION_REMOVE = "remove"
+TAG_ACTION_CLEAR = "clear"
+
+
+def _parse_tag_action(user_response: str):
+    """
+    태그 관련 사용자 액션 파싱
+
+    형식: "__TAG_ACTION__:<action>::<category>::<tag>"
+    - action: remove | clear
+    - category: 카테고리명
+    - tag: 제거할 태그 (clear의 경우 생략 가능)
+    """
+    if not user_response or not user_response.startswith(TAG_ACTION_PREFIX):
+        return None
+
+    payload = user_response[len(TAG_ACTION_PREFIX):]
+    parts = payload.split(TAG_ACTION_SEPARATOR, 2)
+
+    if not parts or len(parts) < 2:
+        return None
+
+    action = parts[0].strip().lower()
+    category = parts[1].strip()
+    target_tag = parts[2].strip() if len(parts) > 2 else ""
+
+    return action, category, target_tag
+
+
+def _get_current_category(session: Dict) -> str:
+    selected_categories = session.get("selectedCategories", [])
+    current_index = session.get("currentCategoryIndex", 0)
+
+    if 0 <= current_index < len(selected_categories):
+        return selected_categories[current_index]
+    return None
+
+
+def _build_progress(session: Dict) -> Dict[str, int]:
+    selected_categories = session.get("selectedCategories", [])
+    current_index = session.get("currentCategoryIndex", 0)
+    if not selected_categories:
+        return None
+    return {
+        "current": current_index,
+        "total": len(selected_categories)
+    }
+
+
+def _handle_tag_clear(session: Dict, category: str) -> ResponseChatServiceDTO:
+    clear_tags_for_category(session, category)
+    session["waitingForUserAction"] = False
+
+    cleared_message = RESPONSE_MESSAGES["tags"]["cleared"]
+    reask_template = RESPONSE_MESSAGES["start"]["reask_category"]
+    message = f"{cleared_message}\n\n{reask_template.format(current_category=category)}"
+
+    return ResponseChatServiceDTO(
+        status="success",
+        message=message,
+        stage="collecting_details",
+        tags=[],
+        progress=_build_progress(session),
+        showYesNoButtons=False,
+        currentCategory=category
+    )
+
+
+def _handle_tag_remove(session: Dict, category: str, target_tag: str) -> ResponseChatServiceDTO:
+    collected_tags = session.setdefault("collectedTags", {})
+    existing_tags = collected_tags.get(category, [])
+
+    if not existing_tags or target_tag not in existing_tags:
+        not_found_message = RESPONSE_MESSAGES["tags"].get("not_found", "삭제할 태그를 찾지 못했어.")
+        current_message = build_tags_progress_message(existing_tags) if existing_tags else ""
+        combined_message = not_found_message if not current_message else f"{not_found_message}\n\n{current_message}"
+
+        session["waitingForUserAction"] = bool(existing_tags)
+
+        return ResponseChatServiceDTO(
+            status="success",
+            message=combined_message,
+            stage="collecting_details",
+            tags=existing_tags or None,
+            progress=_build_progress(session),
+            showYesNoButtons=bool(existing_tags),
+            yesNoQuestion=RESPONSE_MESSAGES["buttons"]["yes_no_question"] if existing_tags else None,
+            currentCategory=category
+        )
+
+    updated_tags = remove_tag_from_session(session, category, target_tag)
+
+    if updated_tags:
+        removed_message = RESPONSE_MESSAGES["tags"]["removed"].format(removed_tag=target_tag)
+        current_message = build_tags_progress_message(updated_tags)
+        combined_message = f"{removed_message}\n\n{current_message}"
+
+        session["waitingForUserAction"] = True
+
+        return ResponseChatServiceDTO(
+            status="success",
+            message=combined_message,
+            stage="collecting_details",
+            tags=updated_tags,
+            progress=_build_progress(session),
+            showYesNoButtons=True,
+            yesNoQuestion=RESPONSE_MESSAGES["buttons"]["yes_no_question"],
+            currentCategory=category
+        )
+
+    # 모든 태그가 삭제된 경우
+    removed_message = RESPONSE_MESSAGES["tags"]["removed"].format(removed_tag=target_tag)
+    session["waitingForUserAction"] = False
+
+    reask_template = RESPONSE_MESSAGES["start"]["reask_category"]
+    message = f"{removed_message}\n\n{RESPONSE_MESSAGES['tags']['cleared']}\n\n{reask_template.format(current_category=category)}"
+
+    return ResponseChatServiceDTO(
+        status="success",
+        message=message,
+        stage="collecting_details",
+        tags=[],
+        progress=_build_progress(session),
+        showYesNoButtons=False,
+        currentCategory=category
+    )
+
+
+def _handle_tag_action(session: Dict, user_response: str) -> ResponseChatServiceDTO:
+    parsed = _parse_tag_action(user_response)
+
+    if not parsed:
+        return None
+
+    action, category, target_tag = parsed
+    current_category = _get_current_category(session)
+
+    # 현재 카테고리가 없거나 생략된 경우 현재 카테고리로 보정
+    if not category:
+        category = current_category
+
+    if not category:
+        # 카테고리를 식별할 수 없는 예외 상황
+        message = RESPONSE_MESSAGES["validation"]["ambiguous"]
+        session["waitingForUserAction"] = False
+        return ResponseChatServiceDTO(
+            status="validation_failed",
+            message=message,
+            stage="collecting_details",
+        )
+
+    if action == TAG_ACTION_CLEAR:
+        return _handle_tag_clear(session, category)
+    elif action == TAG_ACTION_REMOVE:
+        return _handle_tag_remove(session, category, target_tag)
+
+    return None
+
 
 async def get_store_recommendations(session: Dict) -> Dict[str, List[MainScreenCategoryList]]:
     """
@@ -219,78 +380,6 @@ def handle_user_message(session: Dict, user_message: str) -> ResponseChatService
     current_category = selected_categories[current_index]
     people_count = session.get("peopleCount", 1)
 
-    session.setdefault("collectedTags", {})
-    collected_tags = session["collectedTags"]
-    existing_tags = collected_tags.get(current_category, [])
-    has_delete_intent, tags_to_remove, delete_all = detect_tag_deletion_request(user_message, existing_tags)
-
-    if has_delete_intent:
-        logger.info(f"태그 삭제 요청 감지 - category: {current_category}, delete_all: {delete_all}, targets: {tags_to_remove}")
-
-        progress = {
-            "current": session["currentCategoryIndex"],
-            "total": len(session["selectedCategories"])
-        }
-
-        if not existing_tags:
-            session["pendingTags"] = []
-            session["waitingForUserAction"] = False
-            return ResponseChatServiceDTO(
-                status="success",
-                message=RESPONSE_MESSAGES["start"]["delete_empty"],
-                stage="collecting_details",
-                tags=[],
-                progress=progress,
-                showYesNoButtons=False,
-                currentCategory=current_category
-            )
-
-        if not tags_to_remove:
-            session["pendingTags"] = existing_tags
-            session["waitingForUserAction"] = True
-            current_tags_text = ", ".join(existing_tags) if existing_tags else "없음"
-            message = RESPONSE_MESSAGES["start"]["delete_not_found"].format(current_tags=current_tags_text)
-            show_buttons = bool(existing_tags)
-            yes_no_question = RESPONSE_MESSAGES["buttons"]["yes_no_question"] if show_buttons else None
-
-            return ResponseChatServiceDTO(
-                status="success",
-                message=message,
-                stage="collecting_details",
-                tags=existing_tags,
-                progress=progress,
-                showYesNoButtons=show_buttons,
-                yesNoQuestion=yes_no_question,
-                currentCategory=current_category
-            )
-
-        to_remove_set = set(tags_to_remove)
-        remaining_tags = [tag for tag in existing_tags if tag not in to_remove_set]
-        collected_tags[current_category] = remaining_tags
-        session["pendingTags"] = remaining_tags
-        session["waitingForUserAction"] = True
-
-        removed_tags_text = ", ".join(tags_to_remove)
-        current_tags_text = ", ".join(remaining_tags) if remaining_tags else "없음"
-        message = RESPONSE_MESSAGES["start"]["delete_success"].format(
-            removed_tags=removed_tags_text,
-            current_tags=current_tags_text
-        )
-
-        show_buttons = len(remaining_tags) > 0
-        yes_no_question = RESPONSE_MESSAGES["buttons"]["yes_no_question"] if show_buttons else None
-
-        return ResponseChatServiceDTO(
-            status="success",
-            message=message,
-            stage="collecting_details",
-            tags=remaining_tags,
-            progress=progress,
-            showYesNoButtons=show_buttons,
-            yesNoQuestion=yes_no_question,
-            currentCategory=current_category
-        )
-
     # 🔥 LLM으로 검증 + 랜덤 판별 (1회 호출)
     result_type, error_message = validate_user_input(user_message, current_category)
 
@@ -334,6 +423,9 @@ def handle_user_message(session: Dict, user_message: str) -> ResponseChatService
     
     new_tags = extract_tags_by_category(user_message, current_category, people_count)
 
+    if "collectedTags" not in session:
+        session["collectedTags"] = {}
+
     if current_category in session["collectedTags"]:
         existing_tags = session["collectedTags"][current_category]
         combined_tags = existing_tags + new_tags
@@ -345,7 +437,7 @@ def handle_user_message(session: Dict, user_message: str) -> ResponseChatService
         session["pendingTags"] = new_tags
 
     tags = session["pendingTags"]
-    message = f"현재까지 수집된 키워드\n: {', '.join(tags)}"
+    message = build_tags_progress_message(tags)
 
     session["waitingForUserAction"] = True
 
@@ -368,6 +460,10 @@ async def handle_user_action_response(session: Dict, user_response: str) -> Resp
     """
     사용자 버튼 액션 처리 (Next / More / Yes)
     """
+    tag_action_response = _handle_tag_action(session, user_response)
+    if tag_action_response:
+        return tag_action_response
+
     is_next = any(word in user_response.lower() for word in
                   ["yes", "응", "고", "네", "넵", "예", "좋아", "좋아요", "그래", "맞아", "ㅇㅇ", "기기", "ㄱㄱ", "고고", "네네", "다음", "다음 질문", "다음질문"])
     is_more = any(word in user_response.lower() for word in ["추가", "더", "더해", "추가하기", "추가요", "더할래"])
