@@ -435,9 +435,7 @@ RESPONSE_MESSAGES = {
         "modification_mode": "어떤 내용을 수정할래? 선택한 활동 중 더 추가하고 싶은 게 있어?",
         "unclear_response": "미안해! '다음 질문' 또는 '추가하기'로 답변해줘.",
         "unclear_result_response": "미안해! '후보지 출력' 버튼을 눌러줘.",
-        "delete_success": "다음 키워드를 삭제했어: {removed_tags}\n현재까지 수집된 키워드\n: {current_tags}",
-        "delete_not_found": "삭제하려는 키워드를 찾지 못했어. 현재 키워드\n: {current_tags}",
-        "delete_empty": "아직 삭제할 키워드가 없어. 원하는 걸 더 말해줘!"
+        "reask_category": "태그가 하나도 남지 않았어. '{current_category}' 활동에 대해 다시 알려줄래?"
     },
     "buttons": {
         "yes_no_question": "이 정보로 다음 질문으로 넘어갈래?",
@@ -458,5 +456,11 @@ RESPONSE_MESSAGES = {
         "only_numbers": "어떤 종류의 장소를 원하는지 말해줘!!",
         "ambiguous": "좀 더 명확하게 설명해줄래?",
         "too_long": "입력이 너무 길어. 간단하게 요약해서 말해줘!!"
+    },
+    "tags": {
+        "current": "현재까지 수집된 키워드\n: {tags}",
+        "removed": "'{removed_tag}' 태그를 삭제했어.",
+        "cleared": "태그를 모두 삭제했어.",
+        "not_found": "삭제할 태그를 찾지 못했어. 이미 지워졌는지 확인해줘."
     }
 }

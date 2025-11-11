@@ -12,10 +12,6 @@ from langchain_openai import ChatOpenAI
 from .prompts import SYSTEM_PROMPT, get_category_prompt, VALIDATION_PROMPT, RESPONSE_MESSAGES
 
 
-DELETION_KEYWORDS = ("삭제", "지워", "제거", "없애", "remove", "delete")
-DELETE_ALL_INDICATORS = ("모두", "전체", "전부", "다")
-
-
 # =============================================================================
 # LLM 체인 초기화
 # =============================================================================
@@ -190,61 +186,6 @@ def validate_user_input(user_message: str, category: str = "카페") -> Tuple[st
 
 
 # =============================================================================
-# 태그 삭제 유틸리티
-# =============================================================================
-
-def _normalize_text_for_comparison(text: str) -> str:
-    """
-    비교를 위해 공백을 제거하고 소문자로 변환
-    """
-    return re.sub(r"\s+", "", text).lower()
-
-
-def detect_tag_deletion_request(user_message: str, existing_tags: List[str]) -> Tuple[bool, List[str], bool]:
-    """
-    태그 삭제 의도를 감지하고 삭제 대상 태그를 반환
-
-    Args:
-        user_message: 사용자 입력 문장
-        existing_tags: 현재 카테고리에 저장된 태그 목록
-
-    Returns:
-        (has_delete_intent, tags_to_remove, delete_all)
-    """
-    text = user_message.strip()
-    if not text:
-        return False, [], False
-
-    lowered = text.lower()
-    has_keyword = any(keyword in lowered for keyword in DELETION_KEYWORDS)
-
-    if not has_keyword:
-        return False, [], False
-
-    if not existing_tags:
-        return True, [], False
-
-    normalized_message = _normalize_text_for_comparison(text)
-    tags_to_remove: List[str] = []
-
-    for tag in existing_tags:
-        if not tag:
-            continue
-        normalized_tag = _normalize_text_for_comparison(tag)
-        if tag in text or normalized_tag in normalized_message:
-            tags_to_remove.append(tag)
-
-    delete_all = any(indicator in lowered for indicator in DELETE_ALL_INDICATORS)
-    if delete_all:
-        tags_to_remove = existing_tags.copy()
-
-    # 중복 제거 (입력에 동일 태그가 여러 번 언급된 경우)
-    tags_to_remove = list(dict.fromkeys(tags_to_remove))
-
-    return True, tags_to_remove, delete_all
-
-
-# =============================================================================
 # 태그 추출 함수
 # =============================================================================
 
@@ -289,6 +230,65 @@ def extract_tags_by_category(user_detail: str, category: str, people_count: int 
         # 오류 발생 시 기본 태그 반환
         fallback_tag = [user_detail.strip()[:10]] if user_detail.strip() else ["일반적인"]
         return fallback_tag
+
+
+def build_tags_progress_message(tags: List[str]) -> str:
+    """
+    추출된 태그 목록을 사용자에게 보여줄 메시지로 포맷팅
+
+    Args:
+        tags: 태그 목록
+
+    Returns:
+        태그 진행 상황 메시지
+    """
+    if not tags:
+        return ""
+
+    tags_template = RESPONSE_MESSAGES.get("tags", {}).get(
+        "current",
+        "현재까지 수집된 키워드\n: {tags}"
+    )
+    return tags_template.format(tags=", ".join(tags))
+
+
+def remove_tag_from_session(session: Dict, category: str, tag_to_remove: str) -> List[str]:
+    """
+    세션에서 특정 태그 제거
+
+    Args:
+        session: 세션 딕셔너리
+        category: 카테고리명
+        tag_to_remove: 제거할 태그
+
+    Returns:
+        제거 후 남은 태그 목록
+    """
+    collected_tags = session.setdefault("collectedTags", {})
+    existing_tags = collected_tags.get(category, [])
+
+    filtered_tags = [tag for tag in existing_tags if tag != tag_to_remove]
+    collected_tags[category] = filtered_tags
+    session["pendingTags"] = filtered_tags
+
+    return filtered_tags
+
+
+def clear_tags_for_category(session: Dict, category: str) -> List[str]:
+    """
+    세션에서 특정 카테고리의 태그 전체 삭제
+
+    Args:
+        session: 세션 딕셔너리
+        category: 카테고리명
+
+    Returns:
+        빈 태그 목록
+    """
+    collected_tags = session.setdefault("collectedTags", {})
+    collected_tags[category] = []
+    session["pendingTags"] = []
+    return []
 
 
 # =============================================================================
