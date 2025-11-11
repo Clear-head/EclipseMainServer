@@ -37,6 +37,7 @@ class UserHistoryDto(BaseModel):
     description: Optional[str] = None
     image: Optional[str] = None
     seq: int
+    visited_at: datetime
 
 class ResponseUserHistoryDto(BaseModel):
     categories: list[UserHistoryDto]

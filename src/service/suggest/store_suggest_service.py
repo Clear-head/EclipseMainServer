@@ -1,18 +1,19 @@
 """
 개선된 매장 제안 서비스 (키워드 매칭 + 시맨틱 검색 하이브리드)
 """
-from typing import List, Dict, Optional
-import json
 import asyncio
-from pathlib import Path
-from sentence_transformers import SentenceTransformer, CrossEncoder
-import torch
+import json
 import re
+from pathlib import Path
+from typing import List, Dict, Optional
 
-from src.utils.path import path_dic
-from src.infra.vector_database.chroma_connector import AsyncHttpClient
+import torch
+from sentence_transformers import SentenceTransformer, CrossEncoder
+
 from src.infra.external.query_enchantment import QueryEnhancementService
+from src.infra.vector_database.chroma_connector import AsyncHttpClient
 from src.logger.custom_logger import get_logger
+from src.utils.path import path_dic
 
 logger = get_logger(__name__)
 

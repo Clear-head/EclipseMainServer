@@ -2,13 +2,13 @@ import asyncio
 import os
 import re
 from typing import Optional, Tuple, List
-from dotenv import load_dotenv
 
 import aiohttp
+from dotenv import load_dotenv
 from playwright.async_api import Page
 
-from src.utils.path import path_dic
 from src.logger.custom_logger import get_logger
+from src.utils.path import path_dic
 
 load_dotenv(dotenv_path=path_dic["env"])
 

@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>관리자 대시보드</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            background-color: #f4f6f8;
+            color: #1f2933;
+        }
+
+        header {
+            background: linear-gradient(135deg, #FF8126, #FFA726);
+            color: #ffffff;
+            padding: 24px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 28px;
+        }
+
+        .summary {
+            display: flex;
+            gap: 20px;
+            padding: 24px 40px;
+        }
+
+        .summary-card {
+            flex: 1;
+            background-color: #ffffff;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 8px 20px rgba(255, 129, 38, 0.12);
+        }
+
+        .summary-card h2 {
+            margin: 0 0 16px;
+            font-size: 18px;
+            color: #FF8126;
+        }
+
+        .summary-card p {
+            margin: 4px 0;
+            font-size: 32px;
+            font-weight: 600;
+        }
+
+        main {
+            padding: 0 40px 40px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 24px;
+        }
+
+        section {
+            background-color: #ffffff;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 8px 20px rgba(12, 25, 64, 0.08);
+        }
+
+        section h2 {
+            margin-top: 0;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #FF8126;
+        }
+
+        ul {
+            margin: 12px 0 0;
+            padding-left: 20px;
+            line-height: 1.6;
+        }
+
+        .controls {
+            display: grid;
+            gap: 12px;
+        }
+
+        .controls label {
+            font-size: 14px;
+            color: #52606d;
+        }
+
+        .controls input[type="range"] {
+            width: 100%;
+        }
+
+        .flex-between {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .tag-list,
+        .filter-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .tag {
+            background-color: #FFF1E5;
+            color: #FF8126;
+            padding: 6px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+        }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 200px;
+            margin: 0 auto;
+        }
+
+        .chart-container--wide {
+            max-width: 360px;
+        }
+
+        .chart-legend {
+            list-style: none;
+            padding: 0;
+            margin: 12px 0 0;
+            display: grid;
+            gap: 6px;
+            color: #52606d;
+            font-size: 14px;
+        }
+
+        .chart-legend li {
+            display: flex;
+            align-items: center;
+        }
+
+        .chart-legend .swatch {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .swatch--restaurant {
+            background-color: #FF8126;
+        }
+
+        .swatch--cafe {
+            background-color: #FFA726;
+        }
+
+        .swatch--content {
+            background-color: #E65100;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+        }
+
+        table th,
+        table td {
+            border-bottom: 1px solid #d9e2ec;
+            padding: 10px 8px;
+            text-align: left;
+        }
+
+        table th {
+            font-size: 14px;
+            color: #52606d;
+            background-color: #f5f7fa;
+        }
+
+        .chart-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 24px;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 16px;
+        }
+
+        .chart-row__media {
+            flex: 1;
+            min-width: 260px;
+            max-width: 320px;
+        }
+
+        .chart-row__legend {
+            flex: 1;
+            min-width: 220px;
+            display: grid;
+            gap: 8px;
+            color: #52606d;
+        }
+
+        .chart-row__legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+
+        .chart-row__swatch {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .stat-card {
+            background-color: #f5f7fa;
+            border-radius: 8px;
+            padding: 12px 16px;
+            text-align: center;
+        }
+
+        .stat-card strong {
+            display: block;
+            font-size: 16px;
+            color: #102a43;
+        }
+
+        .stat-card span {
+            font-size: 12px;
+            color: #829ab1;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>오늘 뭐하지? 관리자 대시보드</h1>
+        <div class="flex-between">
+            <span>업데이트: 2025-11-10</span>
+        </div>
+    </header>
+
+    <div class="summary">
+        <article class="summary-card">
+            <h2>총 사용자 수</h2>
+            <p>12,345</p>
+            <span>전일 대비 +2.1%</span>
+        </article>
+        <article class="summary-card">
+            <h2>오늘 활동 추천 생성 수</h2>
+            <p>482</p>
+            <span>전일 대비 +5.6%</span>
+        </article>
+        <article class="summary-card">
+            <h2>인기 카테고리</h2>
+            <div class="chart-container">
+                <canvas id="categoryPie" aria-label="인기 카테고리 비율"></canvas>
+            </div>
+            <ul class="chart-legend">
+                <li><span class="swatch swatch--restaurant"></span>음식점 · 55%</li>
+                <li><span class="swatch swatch--cafe"></span>카페 · 30%</li>
+                <li><span class="swatch swatch--content"></span>콘텐츠 · 15%</li>
+            </ul>
+        </article>
+        <article class="summary-card">
+            <h2>위치 기반 인기 지역</h2>
+            <div class="chart-container chart-container--wide">
+                <canvas id="regionBar" aria-label="지역별 비율 막대차트" style="height: 420px;"></canvas>
+            </div>
+        </article>
+    </div>
+
+    <main>
+        <section>
+            <h2>일정 템플릿 관리</h2>
+            <div class="chart-row">
+                <div class="chart-row__media">
+                    <canvas id="templatePie" aria-label="일정 템플릿 선택 비율"></canvas>
+                </div>
+                <div class="chart-row__legend">
+                    <div class="chart-row__legend-item">
+                        <span class="chart-row__swatch" style="background-color: #FF8126;"></span>
+                        일정표 1 · 52%
+                    </div>
+                    <div class="chart-row__legend-item">
+                        <span class="chart-row__swatch" style="background-color: #FFA726;"></span>
+                        일정표 2 · 31%
+                    </div>
+                    <div class="chart-row__legend-item">
+                        <span class="chart-row__swatch" style="background-color: #E65100;"></span>
+                        일정표 3 · 17%
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>이동수단 선택 관리</h2>
+            <div class="chart-row">
+                <div class="chart-row__media">
+                    <canvas id="mobilityPie" aria-label="이동수단 선택 비율"></canvas>
+                </div>
+                <div class="chart-row__legend">
+                    <div class="chart-row__legend-item">
+                        <span class="chart-row__swatch" style="background-color: #FF8126;"></span>
+                        도보 · 40%
+                    </div>
+                    <div class="chart-row__legend-item">
+                        <span class="chart-row__swatch" style="background-color: #FFA726;"></span>
+                        대중교통 · 35%
+                    </div>
+                    <div class="chart-row__legend-item">
+                        <span class="chart-row__swatch" style="background-color: #E65100;"></span>
+                        자동차 · 25%
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>사용자 관리</h2>
+            <ul>
+                <li>계정 상태 변경</li>
+                <li>신고 관리</li>
+            </ul>
+            <table>
+                <thead>
+                    <tr>
+                        <th>사용자</th>
+                        <th>계정 상태</th>
+                        <th>최근 신고</th>
+                        <th>조치</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>user001</td>
+                        <td>활성</td>
+                        <td>없음</td>
+                        <td><button type="button">비활성화</button></td>
+                    </tr>
+                    <tr>
+                        <td>user214</td>
+                        <td>제한</td>
+                        <td>리뷰 스팸</td>
+                        <td><button type="button">기록 보기</button></td>
+                    </tr>
+                    <tr>
+                        <td>user389</td>
+                        <td>검토 중</td>
+                        <td>허위 정보</td>
+                        <td><button type="button">조치 완료</button></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </main>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    <script>
+        const palette = ['#FF8126', '#FFA726', '#E65100'];
+
+        if (window.ChartDataLabels) {
+            Chart.register(window.ChartDataLabels);
+        }
+
+        function createPieChart(canvasId, labels, data, colors, formatter) {
+            const canvas = document.getElementById(canvasId);
+
+            if (!canvas) {
+                return;
+            }
+
+            const baseData = data.map(() => 0);
+            const chart = new Chart(canvas, {
+                type: 'pie',
+                data: {
+                    labels,
+                    datasets: [{
+                        data: baseData,
+                        backgroundColor: colors,
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    animation: {
+                        animateRotate: true,
+                        animateScale: true,
+                        duration: 1200,
+                        easing: 'easeOutQuart'
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        datalabels: {
+                            formatter,
+                            color: '#ffffff',
+                            font: {
+                                weight: 'bold',
+                                size: 14
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label(context) {
+                                    const label = context.label || '';
+                                    const value = context.parsed;
+                                    const total = context.dataset.data.reduce((acc, curr) => acc + curr, 0);
+                                    const percent = ((value / total) * 100).toFixed(1);
+                                    return `${label}: ${value} (${percent}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            setTimeout(() => {
+                chart.data.datasets[0].data = data;
+                chart.update();
+            }, 100);
+
+            return chart;
+        }
+
+        createPieChart(
+            'categoryPie',
+            ['음식점', '카페', '콘텐츠'],
+            [55, 30, 15],
+            ['#FF8126', '#FFA726', '#E65100'],
+            (value) => `${value}`
+        );
+
+        createPieChart(
+            'templatePie',
+            ['일정표 1', '일정표 2', '일정표 3'],
+            [52, 31, 17],
+            ['#FF8126', '#FFA726', '#E65100'],
+            (value) => `${value}`
+        );
+
+        createPieChart(
+            'mobilityPie',
+            ['도보', '대중교통', '자동차'],
+            [40, 35, 25],
+            ['#FF8126', '#FFA726', '#E65100'],
+            (value) => `${value}`
+        );
+
+        const regionBarEl = document.getElementById('regionBar');
+
+        if (regionBarEl) {
+            const regionStats = [
+                { label: '강남구', value: 142 },
+                { label: '강동구', value: 58 },
+                { label: '강서구', value: 76 },
+                { label: '강북구', value: 45 },
+                { label: '관악구', value: 63 },
+                { label: '광진구', value: 48 },
+                { label: '구로구', value: 52 },
+                { label: '금천구', value: 28 },
+                { label: '노원구', value: 67 },
+                { label: '도봉구', value: 32 },
+                { label: '동대문구', value: 54 },
+                { label: '동작구', value: 61 },
+                { label: '마포구', value: 70 },
+                { label: '서대문구', value: 46 },
+                { label: '성동구', value: 59 },
+                { label: '성북구', value: 57 },
+                { label: '서초구', value: 88 },
+                { label: '송파구', value: 95 },
+                { label: '양천구', value: 50 },
+                { label: '영등포구', value: 72 },
+                { label: '용산구', value: 64 },
+                { label: '은평구', value: 41 },
+                { label: '종로구', value: 37 },
+                { label: '중구', value: 44 },
+                { label: '중랑구', value: 49 }
+            ];
+
+            const regionLabels = regionStats.map(({ label }) => label);
+            const regionValues = regionStats.map(({ value }) => value);
+            const totalRegionValue = regionValues.reduce((acc, curr) => acc + curr, 0);
+
+            new Chart(regionBarEl, {
+                type: 'bar',
+                data: {
+                    labels: regionLabels,
+                    datasets: [{
+                        data: regionValues,
+                        backgroundColor: '#FF8126',
+                        hoverBackgroundColor: '#E65100',
+                        borderRadius: 6,
+                        maxBarThickness: 18
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            ticks: {
+                                color: '#52606d',
+                                callback: (value) => `${value}건`
+                            },
+                            grid: {
+                                color: 'rgba(82, 96, 109, 0.12)'
+                            }
+                        },
+                        y: {
+                            ticks: {
+                                color: '#52606d'
+                            },
+                            grid: {
+                                display: false
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        datalabels: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label(context) {
+                                    const value = context.parsed.x;
+                                    const percent = ((value / totalRegionValue) * 100).toFixed(1);
+                                    return `${context.label}: ${value}건 (${percent}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
+

@@ -2,9 +2,11 @@
 서울시 각 구 API 모범음식점 데이터 크롤링 모듈 (메모리 최적화 + 봇 우회 + 병렬 처리)
 """
 import asyncio
-from playwright.async_api import async_playwright, Page
-import sys, os
+import os
+import sys
+
 from dotenv import load_dotenv
+from playwright.async_api import async_playwright, Page
 
 load_dotenv(dotenv_path="src/.env")
 

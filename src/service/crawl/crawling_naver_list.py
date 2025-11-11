@@ -3,9 +3,11 @@
 배치 단위로 컨텍스트를 재생성하여 메모리 누수 방지
 """
 import asyncio
-from playwright.async_api import async_playwright, TimeoutError, Page
-import sys, os
+import os
+import sys
+
 from dotenv import load_dotenv
+from playwright.async_api import async_playwright, TimeoutError, Page
 
 load_dotenv(dotenv_path="src/.env")
 

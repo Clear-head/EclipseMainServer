@@ -11,7 +11,7 @@ class RequestDetailCategoryDTO(BaseModel):
 #   카드 선택 응답 내부 리뷰
 class DetailCategoryReview(BaseModel):
     nickname: str
-    star: int
+    stars: int
     comment: str
 
 

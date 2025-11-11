@@ -2,8 +2,8 @@ from sqlalchemy import func
 
 from src.domain.entities.category_entity import CategoryEntity
 from src.infra.database.repository import base_repository
-from src.infra.database.tables.table_category import category_table
 from src.infra.database.repository.maria_engine import get_engine
+from src.infra.database.tables.table_category import category_table
 
 
 class CategoryRepository(base_repository.BaseRepository):

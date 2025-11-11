@@ -4,19 +4,17 @@ DiningCode 웹사이트 음식점 크롤링 모듈 (메모리 최적화 + 봇 �
 """
 import asyncio
 import re
+
 from playwright.async_api import async_playwright, TimeoutError, Page
 
-
 from src.logger.custom_logger import get_logger
-
+from src.service.crawl.utils.crawling_manager import CrawlingManager
+from src.service.crawl.utils.human_like_actions import HumanLikeActions
 # 공통 모듈 import
 from src.service.crawl.utils.optimized_browser_manager import OptimizedBrowserManager
-from src.service.crawl.utils.human_like_actions import HumanLikeActions
-from src.service.crawl.utils.scroll_helper import PageNavigator
-from src.service.crawl.utils.store_detail_extractor import StoreDetailExtractor
-from src.service.crawl.utils.store_data_saver import StoreDataSaver
 from src.service.crawl.utils.search_strategy import NaverMapSearchStrategy
-from src.service.crawl.utils.crawling_manager import CrawlingManager
+from src.service.crawl.utils.store_data_saver import StoreDataSaver
+from src.service.crawl.utils.store_detail_extractor import StoreDetailExtractor
 
 
 class DiningCodeRestaurantCrawler:

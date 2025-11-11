@@ -9,14 +9,6 @@ from typing import Optional, List
 from pydantic import BaseModel
 
 
-class RequestSetUserReviewDTO(BaseModel):
-    history_id: str
-    stars: int
-    comment: str
-    visited_at: datetime
-    created_at: datetime
-
-
 class UserReviewDTO(BaseModel):
     review_id: str
     category_id: str
