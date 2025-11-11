@@ -71,8 +71,8 @@ class QueryEnhancementService:
             "content": prompt
         }
     ],
-    "temperature": 0.3,  # 0.2 → 0.3으로 약간 증가 (더 유연한 해석)
-    "max_tokens": 500  # 400 → 500으로 증가 (설명이 길어질 수 있음)
+    "temperature": 0.3,
+    "max_tokens": 100
 }
 
         for attempt in range(1, max_retries + 1):
@@ -198,8 +198,8 @@ class QueryEnhancementService:
                     "content": prompt
                 }
             ],
-            "temperature": 0.2,
-            "max_tokens": 1000
+            "temperature": 0.3,
+            "max_tokens": 100
         }
 
         for attempt in range(1, max_retries + 1):
