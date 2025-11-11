@@ -434,7 +434,10 @@ RESPONSE_MESSAGES = {
         "final_result": "짜잔! 오늘의 추천 리스트야! 이 중에서 마음에 드는 게 있으면 좋겠다! 즐거운 하루 보내!",
         "modification_mode": "어떤 내용을 수정할래? 선택한 활동 중 더 추가하고 싶은 게 있어?",
         "unclear_response": "미안해! '다음 질문' 또는 '추가하기'로 답변해줘.",
-        "unclear_result_response": "미안해! '후보지 출력' 버튼을 눌러줘."
+        "unclear_result_response": "미안해! '후보지 출력' 버튼을 눌러줘.",
+        "delete_success": "다음 키워드를 삭제했어: {removed_tags}\n현재까지 수집된 키워드\n: {current_tags}",
+        "delete_not_found": "삭제하려는 키워드를 찾지 못했어. 현재 키워드\n: {current_tags}",
+        "delete_empty": "아직 삭제할 키워드가 없어. 원하는 걸 더 말해줘!"
     },
     "buttons": {
         "yes_no_question": "이 정보로 다음 질문으로 넘어갈래?",

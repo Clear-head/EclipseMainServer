@@ -12,6 +12,10 @@ from langchain_openai import ChatOpenAI
 from .prompts import SYSTEM_PROMPT, get_category_prompt, VALIDATION_PROMPT, RESPONSE_MESSAGES
 
 
+DELETION_KEYWORDS = ("삭제", "지워", "제거", "없애", "remove", "delete")
+DELETE_ALL_INDICATORS = ("모두", "전체", "전부", "다")
+
+
 # =============================================================================
 # LLM 체인 초기화
 # =============================================================================
@@ -183,6 +187,61 @@ def validate_user_input(user_message: str, category: str = "카페") -> Tuple[st
     # 2단계: LLM 검증 + 랜덤 판별 (1회 호출로 두 가지 판단)
     print(f"🤖 LLM 검증 시작: '{user_message}'")
     return llm_validation(user_message, category)
+
+
+# =============================================================================
+# 태그 삭제 유틸리티
+# =============================================================================
+
+def _normalize_text_for_comparison(text: str) -> str:
+    """
+    비교를 위해 공백을 제거하고 소문자로 변환
+    """
+    return re.sub(r"\s+", "", text).lower()
+
+
+def detect_tag_deletion_request(user_message: str, existing_tags: List[str]) -> Tuple[bool, List[str], bool]:
+    """
+    태그 삭제 의도를 감지하고 삭제 대상 태그를 반환
+
+    Args:
+        user_message: 사용자 입력 문장
+        existing_tags: 현재 카테고리에 저장된 태그 목록
+
+    Returns:
+        (has_delete_intent, tags_to_remove, delete_all)
+    """
+    text = user_message.strip()
+    if not text:
+        return False, [], False
+
+    lowered = text.lower()
+    has_keyword = any(keyword in lowered for keyword in DELETION_KEYWORDS)
+
+    if not has_keyword:
+        return False, [], False
+
+    if not existing_tags:
+        return True, [], False
+
+    normalized_message = _normalize_text_for_comparison(text)
+    tags_to_remove: List[str] = []
+
+    for tag in existing_tags:
+        if not tag:
+            continue
+        normalized_tag = _normalize_text_for_comparison(tag)
+        if tag in text or normalized_tag in normalized_message:
+            tags_to_remove.append(tag)
+
+    delete_all = any(indicator in lowered for indicator in DELETE_ALL_INDICATORS)
+    if delete_all:
+        tags_to_remove = existing_tags.copy()
+
+    # 중복 제거 (입력에 동일 태그가 여러 번 언급된 경우)
+    tags_to_remove = list(dict.fromkeys(tags_to_remove))
+
+    return True, tags_to_remove, delete_all
 
 
 # =============================================================================

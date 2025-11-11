@@ -14,7 +14,7 @@ from src.infra.database.repository.user_history_repository import UserHistoryRep
 from src.logger.custom_logger import get_logger
 from src.service.application.prompts import RESPONSE_MESSAGES
 from src.service.application.utils import extract_tags_by_category, format_collected_data_for_server, \
-    validate_user_input
+    validate_user_input, detect_tag_deletion_request
 
 logger = get_logger(__name__)
 
@@ -219,6 +219,78 @@ def handle_user_message(session: Dict, user_message: str) -> ResponseChatService
     current_category = selected_categories[current_index]
     people_count = session.get("peopleCount", 1)
 
+    session.setdefault("collectedTags", {})
+    collected_tags = session["collectedTags"]
+    existing_tags = collected_tags.get(current_category, [])
+    has_delete_intent, tags_to_remove, delete_all = detect_tag_deletion_request(user_message, existing_tags)
+
+    if has_delete_intent:
+        logger.info(f"태그 삭제 요청 감지 - category: {current_category}, delete_all: {delete_all}, targets: {tags_to_remove}")
+
+        progress = {
+            "current": session["currentCategoryIndex"],
+            "total": len(session["selectedCategories"])
+        }
+
+        if not existing_tags:
+            session["pendingTags"] = []
+            session["waitingForUserAction"] = False
+            return ResponseChatServiceDTO(
+                status="success",
+                message=RESPONSE_MESSAGES["start"]["delete_empty"],
+                stage="collecting_details",
+                tags=[],
+                progress=progress,
+                showYesNoButtons=False,
+                currentCategory=current_category
+            )
+
+        if not tags_to_remove:
+            session["pendingTags"] = existing_tags
+            session["waitingForUserAction"] = True
+            current_tags_text = ", ".join(existing_tags) if existing_tags else "없음"
+            message = RESPONSE_MESSAGES["start"]["delete_not_found"].format(current_tags=current_tags_text)
+            show_buttons = bool(existing_tags)
+            yes_no_question = RESPONSE_MESSAGES["buttons"]["yes_no_question"] if show_buttons else None
+
+            return ResponseChatServiceDTO(
+                status="success",
+                message=message,
+                stage="collecting_details",
+                tags=existing_tags,
+                progress=progress,
+                showYesNoButtons=show_buttons,
+                yesNoQuestion=yes_no_question,
+                currentCategory=current_category
+            )
+
+        to_remove_set = set(tags_to_remove)
+        remaining_tags = [tag for tag in existing_tags if tag not in to_remove_set]
+        collected_tags[current_category] = remaining_tags
+        session["pendingTags"] = remaining_tags
+        session["waitingForUserAction"] = True
+
+        removed_tags_text = ", ".join(tags_to_remove)
+        current_tags_text = ", ".join(remaining_tags) if remaining_tags else "없음"
+        message = RESPONSE_MESSAGES["start"]["delete_success"].format(
+            removed_tags=removed_tags_text,
+            current_tags=current_tags_text
+        )
+
+        show_buttons = len(remaining_tags) > 0
+        yes_no_question = RESPONSE_MESSAGES["buttons"]["yes_no_question"] if show_buttons else None
+
+        return ResponseChatServiceDTO(
+            status="success",
+            message=message,
+            stage="collecting_details",
+            tags=remaining_tags,
+            progress=progress,
+            showYesNoButtons=show_buttons,
+            yesNoQuestion=yes_no_question,
+            currentCategory=current_category
+        )
+
     # 🔥 LLM으로 검증 + 랜덤 판별 (1회 호출)
     result_type, error_message = validate_user_input(user_message, current_category)
 
@@ -261,9 +333,6 @@ def handle_user_message(session: Dict, user_message: str) -> ResponseChatService
     logger.info(f"LLM 판단: 의미있는 입력 - '{user_message}'")
     
     new_tags = extract_tags_by_category(user_message, current_category, people_count)
-
-    if "collectedTags" not in session:
-        session["collectedTags"] = {}
 
     if current_category in session["collectedTags"]:
         existing_tags = session["collectedTags"][current_category]
