@@ -20,6 +20,6 @@ async def change_info(field: str, dto: RequestChangeInfoDto, user_id:str = Depen
 #   회원탈퇴
 @router.delete('/me')
 async def delete_account(dto: RequestDeleteAccount, user_id:str = Depends(get_jwt_user_id)):
-    await user_service.delete_account(user_id, dto.password)
+    await user_service.delete_account(user_id, dto)
     return JSONResponse(status_code=200, content={"status": "success"})
 
