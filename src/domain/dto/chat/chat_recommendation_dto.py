@@ -2,6 +2,8 @@ from typing import List, Optional, Dict
 
 from pydantic import BaseModel
 
+from src.domain.dto.category.category_dto import CategoryListItemDTO
+
 
 # =============================================================================
 # 추천 결과 관련 DTO
@@ -31,5 +33,5 @@ class ResponseChatRecommendationDTO(BaseModel):
     status: str
     message: str
     stage: str
-    recommendations: Optional[Dict[str, List[RecommendationItemDTO]]] = None
+    recommendations: Optional[Dict[str, List[CategoryListItemDTO]]] = None
     collectedData: Optional[List[CollectedDataItemDTO]] = None
