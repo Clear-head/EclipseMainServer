@@ -9,7 +9,7 @@ from src.domain.dto.history.history_dto import RequestSaveHistoryDTO
 from src.domain.dto.transport.transport_dto import RequestCalculateTransportDTO, ResponseCalculateTransportDTO, \
     PublicTransportRouteDTO
 from src.logger.custom_logger import get_logger
-from src.service.application.ai_service_handler import handle_user_message, \
+from src.service.application.conversation_handler import handle_user_message, \
     handle_user_action_response, save_selected_template_to_merge, save_selected_template
 from src.service.application.prompts import RESPONSE_MESSAGES
 from src.service.application.route_calculation_service import RouteCalculationService
