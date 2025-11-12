@@ -48,11 +48,31 @@ async def get_history_detail(merge_history_id:str, user_id:str = Depends(get_jwt
     return await user_info.get_user_history_detail(user_id, merge_history_id)
 
 
+# 🔥 추가: 특정 카테고리 방문 횟수 조회
+@router.get("/histories/visit-count/{category_id}")
+async def get_visit_count(category_id: str, user_id: str = Depends(get_jwt_user_id)):
+    """
+    특정 카테고리(매장)에 방문한 횟수를 조회합니다.
+    """
+    count = await user_info.get_category_visit_count(user_id, category_id)
+    return JSONResponse(content={"visit_count": count})
+
+
 
 #   리뷰 리스트 조회
 @router.get("/reviews")
 async def get_review(user_id:str = Depends(get_jwt_user_id)):
     return await ReviewsService().get_user_reviews(user_id)
+
+
+# 🔥 추가: 특정 카테고리에 작성한 리뷰 개수 조회
+@router.get("/reviews/count/{category_id}")
+async def get_review_count(category_id: str, user_id: str = Depends(get_jwt_user_id)):
+    """
+    특정 카테고리(매장)에 작성한 리뷰 개수를 조회합니다.
+    """
+    count = await ReviewsService().get_user_review_count(user_id, category_id)
+    return JSONResponse(content={"review_count": count})
 
 
 #   리뷰 쓰기
@@ -61,7 +81,7 @@ async def set_reviews(dto: RequestSetReviewsDto, user_id:str = Depends(get_jwt_u
     return JSONResponse(content=await ReviewsService().set_user_review(user_id, dto))
 
 
-#   리뷰 삭제 # 삭제 기능 추가
+#   리뷰 삭제
 @router.delete("/reviews/{review_id}")
 async def delete_review(review_id: str, user_id: str = Depends(get_jwt_user_id)):
     result = await ReviewsService().delete_user_review(user_id, review_id)
