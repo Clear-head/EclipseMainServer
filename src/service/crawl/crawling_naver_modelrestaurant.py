@@ -183,7 +183,7 @@ class NaverMapDistrictCrawler:
     
     def _save_wrapper_with_total(self, batch_start: int, total: int):
         """저장 래퍼 팩토리"""
-        async def wrapper(idx: int, _, store_data_tuple, store_name: str):
+        async def wrapper(idx: int, total_stores: int, store_data_tuple, store_name: str):
             if store_data_tuple is None:
                 return (False, "크롤링 실패")
             
