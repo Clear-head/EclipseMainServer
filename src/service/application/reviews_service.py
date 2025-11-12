@@ -6,6 +6,7 @@ from src.domain.entities.reviews_entity import ReviewsEntity
 from src.infra.database.repository.reviews_repository import ReviewsRepository
 from src.infra.database.tables.table_category import category_table
 from src.logger.custom_logger import get_logger
+from src.utils.exception_handler.service_error_class import NotFoundAnyItemException
 from src.utils.uuid_maker import generate_uuid
 
 
@@ -49,8 +50,10 @@ class ReviewsService:
             ],
             columns={
                 "id": "review_id",
-                "comment": "comment",
+                "comments": "comment",
                 "stars": "stars",
+                "category.id": "category_id",
+                "category.type": "category_type",
                 "category.name": "category_name",
                 "created_at": "created_at"
             },
@@ -60,3 +63,24 @@ class ReviewsService:
         return ResponseUserReviewDTO(
             review_list=result
         )
+
+    #   리뷰 삭제 # 삭제 기능 때매 추가
+    async def delete_user_review(self, user_id: str, review_id: str) -> dict:
+        try:
+            self.logger.info(f"try {user_id} delete review: {review_id}")
+
+            review = await self.repo.select(id=review_id, user_id=user_id)
+
+            if not review:
+                raise NotFoundAnyItemException()
+
+            await self.repo.delete(id=review_id, user_id=user_id)
+
+            return {
+                "message": "리뷰가 삭제되었습니다.",
+                "review_id": review_id
+            }
+
+        except Exception as e:
+            self.logger.error(e)
+            raise e
