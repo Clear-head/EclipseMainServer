@@ -3,30 +3,21 @@ from typing import List, Optional
 
 from pydantic import BaseModel
 
-#   request 는 user_like_dto.RequestUserLikeDto 로
 
-"""
-
-    일정표 히스토리 목록
-
-"""
-class MergeUserHistory(BaseModel):
+# 방문 기록 목록 조회 DTO
+class HistoryListItemDTO(BaseModel):
     id: str
     visited_at: datetime
     categories_name: str
     template_type: str
 
-class ResponseUserHistoryListDto(BaseModel):
-    results: Optional[List[MergeUserHistory]]
+
+class ResponseHistoryListDTO(BaseModel):
+    results: Optional[List[HistoryListItemDTO]]
 
 
-"""
-
-    일정표 히스토리 디테일
-
-"""
-
-class UserHistoryDto(BaseModel):
+# 방문 기록 상세 조회 DTO
+class HistoryDetailItemDTO(BaseModel):
     duration: Optional[int] = None
     transportation: Optional[str] = None
     category_id: str
@@ -39,17 +30,14 @@ class UserHistoryDto(BaseModel):
     seq: int
     visited_at: datetime
 
-class ResponseUserHistoryDto(BaseModel):
-    categories: list[UserHistoryDto]
+
+class ResponseHistoryDetailDTO(BaseModel):
+    categories: List[HistoryDetailItemDTO]
     template_type: str
 
 
-"""
-
-    일정표 저장
-
-"""
-class SelectedUserCategory(BaseModel):
+# 방문 기록 저장 DTO
+class HistoryCategoryItemDTO(BaseModel):
     category_id: str
     category_name: str
     duration: Optional[int] = None
@@ -57,6 +45,11 @@ class SelectedUserCategory(BaseModel):
     description: Optional[str] = None
 
 
-class RequestSetUserHistoryDto(BaseModel):
+class RequestSaveHistoryDTO(BaseModel):
     template_type: str
-    category: list[SelectedUserCategory]
+    category: List[HistoryCategoryItemDTO]
+
+
+# 방문 횟수 조회 DTO
+class ResponseVisitCountDTO(BaseModel):
+    visit_count: int

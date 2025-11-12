@@ -1,8 +1,5 @@
-from starlette.responses import JSONResponse
-
-from src.domain.dto.service.user_delete_account_dto import RequestDeleteAccount
-from src.domain.dto.service.user_login_dto import ToUserLoginDto, AfterLoginUserInfo
-from src.domain.dto.service.user_register_dto import ResponseRegisterDto, RequestRegisterDto
+from src.domain.dto.user.user_account_dto import RequestDeleteAccountDTO
+from src.domain.dto.user.user_auth_dto import UserInfoDTO, ResponseLoginDTO, RequestRegisterDTO, ResponseRegisterDTO
 from src.domain.entities.delete_entity import DeleteEntity
 from src.infra.database.repository.delete_repository import DeleteCauseRepository
 from src.infra.database.repository.users_repository import UserRepository
@@ -33,7 +30,7 @@ class UserService:
         else:
             token1, token2 = await create_jwt_token(select_from_id_pw_result[0].id)
 
-            info = AfterLoginUserInfo(
+            info = UserInfoDTO(
                     username=select_from_id_pw_result[0].username,
                     nickname=select_from_id_pw_result[0].nickname,
                     birth=select_from_id_pw_result[0].birth,
@@ -41,7 +38,7 @@ class UserService:
                     email=select_from_id_pw_result[0].email,
                     address=select_from_id_pw_result[0].address
                 )
-            content = ToUserLoginDto(
+            content = ResponseLoginDTO(
                 message="success",
                 token1=token1,
                 token2=token2,
@@ -53,7 +50,7 @@ class UserService:
     async def logout(self, id: str):
         pass
 
-    async def register(self, dto: RequestRegisterDto):
+    async def register(self, dto: RequestRegisterDTO):
 
         select_from_id_result = await self.repository.select(id=dto.id)
 
@@ -67,13 +64,10 @@ class UserService:
             raise Exception("회원 가입 실패")
 
         else:
-            msg = ResponseRegisterDto(message="success")
-            return JSONResponse(
-                content=msg.model_dump()
-            )
+            return ResponseRegisterDTO(message="success")
 
 
-    async def delete_account(self, id: str, dto: RequestDeleteAccount):
+    async def delete_account(self, id: str, dto: RequestDeleteAccountDTO):
         result = await self.repository.select(id=id, password=dto.password)
 
 

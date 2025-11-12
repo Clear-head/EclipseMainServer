@@ -525,6 +525,9 @@ class StoreSuggestService:
         
         Returns:
             랜덤 매장 리스트 (MainScreenCategoryList 형식)
+            :param n_results:
+            :param region:
+            :param category_type:
         """
         from src.infra.database.repository.category_repository import CategoryRepository
         

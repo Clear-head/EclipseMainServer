@@ -1,7 +1,7 @@
 from datetime import datetime
 
-from src.domain.dto.service.reviews_dto import RequestSetReviewsDto
-from src.domain.dto.service.user_reivew_dto import ResponseUserReviewDTO, UserReviewDTO
+from src.domain.dto.review.review_dto import RequestCreateReviewDTO, ReviewDTO, ResponseReviewListDTO, \
+    ResponseReviewCountDTO, ResponseDeleteReviewDTO
 from src.domain.entities.reviews_entity import ReviewsEntity
 from src.infra.database.repository.reviews_repository import ReviewsRepository
 from src.infra.database.tables.table_category import category_table
@@ -17,7 +17,7 @@ class ReviewsService:
 
 
     #   리뷰 쓰기
-    async def set_user_review(self, user_id:str, dto: RequestSetReviewsDto):
+    async def set_user_review(self, user_id:str, dto: RequestCreateReviewDTO):
         try:
             self.logger.info(f"try {user_id} set user reivew: {dto}")
             await self.repo.insert(ReviewsEntity(
@@ -37,10 +37,10 @@ class ReviewsService:
 
 
     #   리뷰 리스트 조회
-    async def get_user_reviews(self, user_id) -> ResponseUserReviewDTO:
+    async def get_user_reviews(self, user_id)-> ResponseReviewListDTO:
         self.logger.info(f"try {user_id} get user review: {user_id}")
         result = await self.repo.select(
-            return_dto=UserReviewDTO,
+            return_dto=ReviewDTO,
             joins=[
                 {
                     "table": category_table,
@@ -60,12 +60,12 @@ class ReviewsService:
             user_id=user_id,
         )
 
-        return ResponseUserReviewDTO(
+        return ResponseReviewListDTO(
             review_list=result
         )
 
     #   리뷰 삭제
-    async def delete_user_review(self, user_id: str, review_id: str) -> dict:
+    async def delete_user_review(self, user_id: str, review_id: str) -> ResponseDeleteReviewDTO:
         try:
             self.logger.info(f"try {user_id} delete review: {review_id}")
 
@@ -76,10 +76,10 @@ class ReviewsService:
 
             await self.repo.delete(id=review_id, user_id=user_id)
 
-            return {
-                "message": "리뷰가 삭제되었습니다.",
-                "review_id": review_id
-            }
+            return ResponseDeleteReviewDTO(
+                message="리뷰가 삭제되었습니다.",
+                review_id=review_id
+            )
 
         except Exception as e:
             self.logger.error(e)
@@ -87,7 +87,7 @@ class ReviewsService:
 
 
     # 🔥 추가: 특정 카테고리에 작성한 리뷰 개수 조회
-    async def get_user_review_count(self, user_id: str, category_id: str) -> int:
+    async def get_user_review_count(self, user_id: str, category_id: str) -> ResponseReviewCountDTO:
         """
         특정 사용자가 특정 카테고리(매장)에 작성한 리뷰 개수를 조회합니다.
         
@@ -111,9 +111,9 @@ class ReviewsService:
             
             self.logger.info(f"user {user_id} has {count} reviews for category {category_id}")
             
-            return count
+            return ResponseReviewCountDTO(review_count=count)
             
         except Exception as e:
             self.logger.error(f"Error getting review count: {e}")
             # 오류 발생 시 0 반환 (안전한 기본값)
-            return 0
+            return ResponseReviewCountDTO(review_count=0)

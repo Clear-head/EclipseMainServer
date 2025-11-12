@@ -1,5 +1,4 @@
-from src.domain.dto.crawled.insert_category_dto import InsertCategoryDto
-from src.domain.dto.crawled.insert_category_tags_dto import InsertCategoryTagsDTO
+from src.domain.dto.crawl.crawl_category_dto import InsertCrawledCategoryDTO
 from src.domain.entities.category_entity import CategoryEntity
 from src.domain.entities.category_tags_entity import CategoryTagsEntity
 from src.domain.entities.tags_entity import TagsEntity
@@ -8,7 +7,7 @@ from src.infra.database.repository.category_tags_repository import CategoryTagsR
 from src.infra.database.repository.tags_repository import TagsRepository
 from src.logger.custom_logger import get_logger
 
-async def insert_category(dto: InsertCategoryDto):
+async def insert_category(dto: InsertCrawledCategoryDTO):
     logger = get_logger(__name__)
     logger.info(f"Inserting category: {dto.name}")
 
@@ -40,7 +39,7 @@ async def insert_category(dto: InsertCategoryDto):
     return entity.id
 
 
-async def insert_category_tags(dto: InsertCategoryTagsDTO):
+async def insert_category_tags(dto: InsertCrawledCategoryDTO):
     logger = get_logger(__name__)
     logger.info(f"Inserting category tags: {dto}")
 

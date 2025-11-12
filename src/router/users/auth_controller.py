@@ -1,9 +1,13 @@
 from fastapi import APIRouter
 from starlette.responses import JSONResponse
 
-from src.domain.dto.service.request_jwt_dto import RequestAccessTokenDto
-from src.domain.dto.service.user_login_dto import GetUserLoginDto
-from src.domain.dto.service.user_register_dto import RequestRegisterDto
+from src.domain.dto.user.user_auth_dto import (
+    RequestLoginDTO,
+    ResponseLoginDTO,
+    RequestRegisterDTO,
+    ResponseRegisterDTO,
+    RequestRefreshTokenDTO
+)
 from src.logger.custom_logger import get_logger
 from src.service.application.user_service import UserService
 from src.service.auth.jwt import validate_jwt_token, create_jwt_token
@@ -16,7 +20,7 @@ user_service = UserService()
 
 #   로그인
 @router.post('/session')
-async def user_login(user_info: GetUserLoginDto):
+async def user_login(user_info: RequestLoginDTO)->ResponseLoginDTO:
     id = user_info.id
     password = user_info.password
 
@@ -32,7 +36,7 @@ async def user_logout(get_by_user):
 
 #   회원가입
 @router.post('/register')
-async def register(dto: RequestRegisterDto):
+async def register(dto: RequestRegisterDTO)->ResponseRegisterDTO:
     try:
         return await user_service.register(dto)
     except Exception as e:
@@ -54,7 +58,7 @@ async def find_user_pw():
 
 #   refresh jwt
 @router.post("/refresh")
-async def to_refresh(dto: RequestAccessTokenDto):
+async def to_refresh(dto: RequestRefreshTokenDTO):
     jwt = dto.token
 
     if jwt is None:

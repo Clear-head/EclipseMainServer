@@ -1,9 +1,8 @@
 from fastapi import HTTPException
 from sqlalchemy import func
 
-from src.domain.dto.service.detail_category_dto import ResponseDetailCategoryDTO
-from src.domain.dto.service.main_screen_dto import MainScreenCategoryList, ResponseMainScreenDTO
-from src.domain.dto.service.user_reivew_dto import UserReviewDTO
+from src.domain.dto.category.category_detail_dto import ResponseCategoryDetailDTO, ReviewItemDTO
+from src.domain.dto.category.category_dto import ResponseCategoryListDTO, CategoryListItemDTO
 from src.infra.database.repository.category_repository import CategoryRepository
 from src.infra.database.repository.category_tags_repository import CategoryTagsRepository
 from src.infra.database.repository.reviews_repository import ReviewsRepository
@@ -22,7 +21,7 @@ class MainScreenService:
         self.tags_repo = TagsRepository()
 
 
-    async def to_main(self) -> ResponseMainScreenDTO:
+    async def to_main(self) -> ResponseCategoryListDTO:
         categories = await self.category_repo.select(limit=10, order=func.rand())
 
         tags = []
@@ -43,7 +42,7 @@ class MainScreenService:
 
             address = add_address(item.do, item.si, item.gu, item.detail_address)
 
-            tmp = MainScreenCategoryList(
+            tmp = CategoryListItemDTO(
                 id=item.id,
                 image_url=item.image,
                 detail_address=address,
@@ -53,12 +52,12 @@ class MainScreenService:
 
             request_main_screen_body_categories.append(tmp)
 
-        return ResponseMainScreenDTO(
+        return ResponseCategoryListDTO(
             categories=request_main_screen_body_categories,
         )
 
 
-    async def get_category_detail(self, category_id) -> ResponseDetailCategoryDTO:
+    async def get_category_detail(self, category_id) -> ResponseCategoryDetailDTO:
         user_repo = UserRepository()
 
 
@@ -94,13 +93,16 @@ class MainScreenService:
 
 
         #   reviews
+        average_stars = 0
+
         reviews_list = []
         review_entity_list = await self.reviews_repo.select(category_id=category.id)
         if review_entity_list:
             for review_entity in review_entity_list:
                 nickname = (await user_repo.select(id=review_entity.user_id))[0].nickname
+                average_stars += review_entity.stars
                 reviews_list.append(
-                    UserReviewDTO(
+                    ReviewItemDTO(
                         created_at=review_entity.created_at,
                         comment=review_entity.comments,
                         category_id=review_entity.category_id,
@@ -111,7 +113,9 @@ class MainScreenService:
                     )
                 )
 
-        return ResponseDetailCategoryDTO(
+        average_stars = round(average_stars/len(reviews_list), 2) if average_stars > 0 else 0
+
+        return ResponseCategoryDetailDTO(
             id=category_id,
             title=category.name,
             image_url=category.image,
@@ -120,4 +124,5 @@ class MainScreenService:
             is_like=is_like,
             tags=tag_names,
             reviews=reviews_list,
+            average_stars=average_stars
         )

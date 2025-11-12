@@ -1,7 +1,8 @@
 from pydantic import BaseModel, ConfigDict
 
 
-class InsertCategoryTagsDTO(BaseModel):
+# 크롤링 태그 삽입 DTO
+class InsertCrawledTagsDTO(BaseModel):
     tag_id: int
     category_id: str
     count: int
