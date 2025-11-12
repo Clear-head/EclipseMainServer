@@ -306,7 +306,7 @@ class NaverMapContentCrawler:
                         page, search_frame_locator, item_selector, store, total, processed_names
                     ),
                     save_func=lambda idx, total_stores, store_data_tuple, store_name: self._save_wrapper(
-                        idx, store_data_tuple, batch_start, total
+                        idx, total_stores, store_data_tuple, store_name, batch_start, total
                     ),
                     delay=delay
                 )
@@ -418,9 +418,11 @@ class NaverMapContentCrawler:
     async def _save_wrapper(
         self, 
         idx: int,  # ✅ CrawlingManager가 전달하는 배치 내 인덱스 (1부터 시작)
-        store_data_tuple, 
+        total_stores: int,  # ✅ CrawlingManager가 전달하는 배치 내 총 개수
+        store_data_tuple,
+        store_name: str,  # ✅ CrawlingManager가 전달하는 매장명
         batch_start: int,  # ✅ 배치 시작 인덱스
-        total: int
+        total: int  # ✅ 전체 개수
     ) -> tuple:
         """CrawlingManager용 저장 래퍼"""
         if store_data_tuple is None:
