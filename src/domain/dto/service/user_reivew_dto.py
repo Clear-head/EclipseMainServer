@@ -13,9 +13,11 @@ class UserReviewDTO(BaseModel):
     review_id: str
     category_id: str
     category_name: str
+    category_type: Optional[str] = None
     comment: str
     stars: int
     created_at: datetime
+    nickname: Optional[str] = None
 
 
 class ResponseUserReviewDTO(BaseModel):

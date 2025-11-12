@@ -59,3 +59,10 @@ async def get_review(user_id:str = Depends(get_jwt_user_id)):
 @router.post("/reviews")
 async def set_reviews(dto: RequestSetReviewsDto, user_id:str = Depends(get_jwt_user_id)):
     return JSONResponse(content=await ReviewsService().set_user_review(user_id, dto))
+
+
+#   리뷰 삭제 # 삭제 기능 추가
+@router.delete("/reviews/{review_id}")
+async def delete_review(review_id: str, user_id: str = Depends(get_jwt_user_id)):
+    result = await ReviewsService().delete_user_review(user_id, review_id)
+    return JSONResponse(status_code=200, content=result)
