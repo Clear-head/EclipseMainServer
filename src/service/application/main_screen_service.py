@@ -1,8 +1,9 @@
 from fastapi import HTTPException
 from sqlalchemy import func
 
-from src.domain.dto.service.detail_category_dto import ResponseDetailCategoryDTO, DetailCategoryReview
+from src.domain.dto.service.detail_category_dto import ResponseDetailCategoryDTO
 from src.domain.dto.service.main_screen_dto import MainScreenCategoryList, ResponseMainScreenDTO
+from src.domain.dto.service.user_reivew_dto import UserReviewDTO
 from src.infra.database.repository.category_repository import CategoryRepository
 from src.infra.database.repository.category_tags_repository import CategoryTagsRepository
 from src.infra.database.repository.reviews_repository import ReviewsRepository
@@ -99,10 +100,14 @@ class MainScreenService:
             for review_entity in review_entity_list:
                 nickname = (await user_repo.select(id=review_entity.user_id))[0].nickname
                 reviews_list.append(
-                    DetailCategoryReview(
-                        nickname=nickname,
-                        stars=review_entity.stars,
+                    UserReviewDTO(
+                        created_at=review_entity.created_at,
                         comment=review_entity.comments,
+                        category_id=review_entity.category_id,
+                        category_name=category.name,
+                        stars=review_entity.stars,
+                        review_id=review_entity.id,
+                        nickname=nickname,
                     )
                 )
 

@@ -23,7 +23,4 @@ async def to_main_screen(user_id: str = Depends(get_jwt_user_id)):
 async def to_detail(category_id: str, user_id: str = Depends(get_jwt_user_id)):
 
     main_service_class = MainScreenService()
-    content = await main_service_class.get_category_detail(category_id)
-    return JSONResponse(
-        content=content.model_dump()
-    )
+    return await main_service_class.get_category_detail(category_id)
