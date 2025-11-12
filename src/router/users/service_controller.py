@@ -41,17 +41,17 @@ async def start_conversation(
 
     # 세션 데이터 초기화
     sessions[session_id] = {
-        "play_address": data.play_address,
-        "peopleCount": data.peopleCount,
-        "selectedCategories": data.selectedCategories,
-        "collectedTags": {},  # 카테고리별 태그 저장
-        "currentCategoryIndex": 0,  # 현재 질문 중인 카테고리
-        "conversationHistory": [],  # 대화 히스토리
-        "stage": "collecting_details",  # 현재 단계: collecting_details, confirming_results, completed
-        "waitingForUserAction": False,  # 사용자 액션(Next/More 또는 Yes) 대기 중인지
-        "lastUserMessage": "",  # 마지막 사용자 메시지
-        "pendingTags": [],  # 대기 중인 태그들
-        "modificationMode": False,  # 수정 모드인지
+        "play_address": data.play_address,                  #   주소
+        "peopleCount": data.peopleCount,                    #   인원수
+        "selectedCategories": data.selectedCategories,      #   카테고리 타입
+        "collectedTags": {},                                # 카테고리별 태그 저장
+        "currentCategoryIndex": 0,                          # 현재 질문 중인 카테고리
+        "conversationHistory": [],                          # 대화 히스토리
+        "stage": "collecting_details",                      # 현재 단계: collecting_details, confirming_results, completed
+        "waitingForUserAction": False,                      # 사용자 액션(Next/More 또는 Yes) 대기 중인지
+        "lastUserMessage": "",                              # 마지막 사용자 메시지
+        "pendingTags": [],                                  # 대기 중인 태그들
+        "modificationMode": False,                          # 수정 모드인지
     }
 
     # 첫 번째 카테고리에 대한 질문 생성 (인원수와 카테고리 정보 포함)
