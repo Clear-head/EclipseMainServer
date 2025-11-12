@@ -50,12 +50,11 @@ async def get_history_detail(merge_history_id:str, user_id:str = Depends(get_jwt
 
 # 🔥 추가: 특정 카테고리 방문 횟수 조회
 @router.get("/histories/visit-count/{category_id}")
-async def get_visit_count(category_id: str, user_id: str = Depends(get_jwt_user_id))-> int:
+async def get_visit_count(category_id: str, user_id: str = Depends(get_jwt_user_id)):
     """
     특정 카테고리(매장)에 방문한 횟수를 조회합니다.
     """
     return await user_info.get_category_visit_count(user_id, category_id)
-
 
 
 #   리뷰 리스트 조회
@@ -66,12 +65,11 @@ async def get_review(user_id:str = Depends(get_jwt_user_id))-> ResponseReviewLis
 
 # 🔥 추가: 특정 카테고리에 작성한 리뷰 개수 조회
 @router.get("/reviews/count/{category_id}")
-async def get_review_count(category_id: str, user_id: str = Depends(get_jwt_user_id))-> JSONResponse:
+async def get_review_count(category_id: str, user_id: str = Depends(get_jwt_user_id)):
     """
     특정 카테고리(매장)에 작성한 리뷰 개수를 조회합니다.
     """
-    count = await ReviewsService().get_user_review_count(user_id, category_id)
-    return JSONResponse(content={"review_count": count})
+    return await ReviewsService().get_user_review_count(user_id, category_id)
 
 
 #   리뷰 쓰기

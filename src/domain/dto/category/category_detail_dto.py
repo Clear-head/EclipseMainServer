@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional, List
 from pydantic import BaseModel
 
@@ -11,7 +12,7 @@ class ReviewItemDTO(BaseModel):
     category_type: Optional[str] = None
     comment: str
     stars: int
-    created_at: str  # datetime을 문자열로 변환하여 전달
+    created_at: datetime
     nickname: Optional[str] = None
 
 
