@@ -2,11 +2,12 @@
 대화 흐름 제어 핸들러 (추천 생성 + GPT 필터링 호출)
 """
 
-from typing import Dict, List
+from typing import Dict
 
-from src.domain.dto.service.haru_service_dto import ResponseChatServiceDTO
-from src.domain.dto.service.main_screen_dto import MainScreenCategoryList
-from src.domain.dto.service.user_history_dto import RequestSetUserHistoryDto
+from src.domain.dto.category.category_dto import CategoryListItemDTO
+from src.domain.dto.chat.chat_message_dto import ResponseChatMessageDTO
+from src.domain.dto.chat.chat_recommendation_dto import ResponseChatRecommendationDTO
+from src.domain.dto.history.history_dto import RequestSaveHistoryDTO
 from src.domain.entities.merge_history_entity import MergeHistoryEntity
 from src.domain.entities.user_history_entity import UserHistoryEntity
 from src.infra.database.repository.merge_history_repository import MergeHistoryRepository
@@ -69,7 +70,7 @@ def _build_progress(session: Dict) -> Dict[str, int]:
     }
 
 
-def _handle_tag_clear(session: Dict, category: str) -> ResponseChatServiceDTO:
+def _handle_tag_clear(session: Dict, category: str) -> ResponseChatMessageDTO:
     clear_tags_for_category(session, category)
     session["waitingForUserAction"] = False
 
@@ -77,7 +78,7 @@ def _handle_tag_clear(session: Dict, category: str) -> ResponseChatServiceDTO:
     reask_template = RESPONSE_MESSAGES["start"]["reask_category"]
     message = f"{cleared_message}\n\n{reask_template.format(current_category=category)}"
 
-    return ResponseChatServiceDTO(
+    return ResponseChatMessageDTO(
         status="success",
         message=message,
         stage="collecting_details",
@@ -88,7 +89,7 @@ def _handle_tag_clear(session: Dict, category: str) -> ResponseChatServiceDTO:
     )
 
 
-def _handle_tag_remove(session: Dict, category: str, target_tag: str) -> ResponseChatServiceDTO:
+def _handle_tag_remove(session: Dict, category: str, target_tag: str) -> ResponseChatMessageDTO:
     collected_tags = session.setdefault("collectedTags", {})
     existing_tags = collected_tags.get(category, [])
 
@@ -99,7 +100,7 @@ def _handle_tag_remove(session: Dict, category: str, target_tag: str) -> Respons
 
         session["waitingForUserAction"] = bool(existing_tags)
 
-        return ResponseChatServiceDTO(
+        return ResponseChatMessageDTO(
             status="success",
             message=combined_message,
             stage="collecting_details",
@@ -119,7 +120,7 @@ def _handle_tag_remove(session: Dict, category: str, target_tag: str) -> Respons
 
         session["waitingForUserAction"] = True
 
-        return ResponseChatServiceDTO(
+        return ResponseChatMessageDTO(
             status="success",
             message=combined_message,
             stage="collecting_details",
@@ -137,7 +138,7 @@ def _handle_tag_remove(session: Dict, category: str, target_tag: str) -> Respons
     reask_template = RESPONSE_MESSAGES["start"]["reask_category"]
     message = f"{removed_message}\n\n{RESPONSE_MESSAGES['tags']['cleared']}\n\n{reask_template.format(current_category=category)}"
 
-    return ResponseChatServiceDTO(
+    return ResponseChatMessageDTO(
         status="success",
         message=message,
         stage="collecting_details",
@@ -148,7 +149,7 @@ def _handle_tag_remove(session: Dict, category: str, target_tag: str) -> Respons
     )
 
 
-def _handle_tag_action(session: Dict, user_response: str) -> ResponseChatServiceDTO:
+def _handle_tag_action(session: Dict, user_response: str) -> ResponseChatMessageDTO:
     parsed = _parse_tag_action(user_response)
 
     if not parsed:
@@ -165,7 +166,7 @@ def _handle_tag_action(session: Dict, user_response: str) -> ResponseChatService
         # 카테고리를 식별할 수 없는 예외 상황
         message = RESPONSE_MESSAGES["validation"]["ambiguous"]
         session["waitingForUserAction"] = False
-        return ResponseChatServiceDTO(
+        return ResponseChatMessageDTO(
             status="validation_failed",
             message=message,
             stage="collecting_details",
@@ -179,7 +180,7 @@ def _handle_tag_action(session: Dict, user_response: str) -> ResponseChatService
     return None
 
 
-async def get_store_recommendations(session: Dict) -> Dict[str, List[MainScreenCategoryList]]:
+async def get_store_recommendations(session: Dict):
     """
     세션의 collectedData를 기반으로 매장 추천
     """
@@ -233,7 +234,7 @@ async def get_store_recommendations(session: Dict) -> Dict[str, List[MainScreenC
                 filtered_list = []
                 for store in stores_as_dicts:
                     filtered_list.append(
-                        MainScreenCategoryList(
+                        CategoryListItemDTO(
                             id=store.get('id', ''),
                             title=store.get('title', ''),
                             image_url=store.get('image_url', ''),
@@ -311,7 +312,7 @@ async def get_store_recommendations(session: Dict) -> Dict[str, List[MainScreenC
                     filtered_list = []
                     for store in filtered_dicts:
                         filtered_list.append(
-                            MainScreenCategoryList(
+                            CategoryListItemDTO(
                                 id=store.get('id', ''),
                                 title=store.get('title', ''),
                                 image_url=store.get('image_url', ''),
@@ -352,7 +353,7 @@ def extract_region_from_address(address: str) -> str:
     return None
 
 
-def handle_user_message(session: Dict, user_message: str) -> ResponseChatServiceDTO:
+def handle_user_message(session: Dict, user_message: str):
     """
     사용자 메시지 처리 및 태그 생성
     """
@@ -368,7 +369,7 @@ def handle_user_message(session: Dict, user_message: str) -> ResponseChatService
     if current_index >= len(selected_categories):
         session["stage"] = "confirming_results"
         session["waitingForUserAction"] = True
-        return ResponseChatServiceDTO(
+        return ResponseChatMessageDTO(
             status="success",
             message=RESPONSE_MESSAGES["start"]["all_completed"],
             stage="confirming_results",
@@ -398,7 +399,7 @@ def handle_user_message(session: Dict, user_message: str) -> ResponseChatService
             "total": len(selected_categories)
         }
 
-        return ResponseChatServiceDTO(
+        return ResponseChatMessageDTO(
             status="success",
             message=RESPONSE_MESSAGES["random"]["ask"],
             stage="confirming_random",
@@ -411,7 +412,7 @@ def handle_user_message(session: Dict, user_message: str) -> ResponseChatService
     # 🔥 Case 2: 의미없는 입력
     if result_type == "invalid":
         logger.warning(f"LLM 판단: 의미없는 입력 - '{user_message}'")
-        return ResponseChatServiceDTO(
+        return ResponseChatMessageDTO(
             status="validation_failed",
             message=error_message,
             stage="collecting_details",
@@ -441,7 +442,7 @@ def handle_user_message(session: Dict, user_message: str) -> ResponseChatService
 
     session["waitingForUserAction"] = True
 
-    return ResponseChatServiceDTO(
+    return ResponseChatMessageDTO(
         status="success",
         message=message,
         stage="collecting_details",
@@ -456,7 +457,7 @@ def handle_user_message(session: Dict, user_message: str) -> ResponseChatService
     )
 
 
-async def handle_user_action_response(session: Dict, user_response: str) -> ResponseChatServiceDTO:
+async def handle_user_action_response(session: Dict, user_response: str):
     """
     사용자 버튼 액션 처리 (Next / More / Yes)
     """
@@ -474,7 +475,7 @@ async def handle_user_action_response(session: Dict, user_response: str) -> Resp
         if not pending_category:
             session["stage"] = "collecting_details"
             session["waitingForUserAction"] = False
-            return ResponseChatServiceDTO(
+            return ResponseChatMessageDTO(
                 status="success",
                 message=RESPONSE_MESSAGES["start"]["unclear_response"],
                 stage="collecting_details",
@@ -518,7 +519,7 @@ async def handle_user_action_response(session: Dict, user_response: str) -> Resp
                 "total": len(selected_categories)
             } if current_category and selected_categories else None
 
-            return ResponseChatServiceDTO(
+            return ResponseChatMessageDTO(
                 status="success",
                 message=RESPONSE_MESSAGES["random"]["decline"],
                 stage="collecting_details",
@@ -543,7 +544,7 @@ async def handle_user_action_response(session: Dict, user_response: str) -> Resp
             session["stage"] = "completed"
             session["waitingForUserAction"] = False
 
-            return ResponseChatServiceDTO(
+            return ResponseChatRecommendationDTO(
                 status="success",
                 message=RESPONSE_MESSAGES["start"]["final_result"],
                 stage="completed",
@@ -551,7 +552,7 @@ async def handle_user_action_response(session: Dict, user_response: str) -> Resp
                 collectedData=collected_data
             )
         else:
-            return ResponseChatServiceDTO(
+            return ResponseChatMessageDTO(
                 status="success",
                 message=RESPONSE_MESSAGES["start"]["unclear_result_response"],
                 stage="confirming_results",
@@ -565,7 +566,7 @@ async def handle_user_action_response(session: Dict, user_response: str) -> Resp
     elif is_more and not is_next:
         return handle_add_more_tags(session)
     else:
-        return ResponseChatServiceDTO(
+        return ResponseChatMessageDTO(
             status="success",
             message=RESPONSE_MESSAGES["start"]["unclear_response"],
             stage=session["stage"],
@@ -574,7 +575,7 @@ async def handle_user_action_response(session: Dict, user_response: str) -> Resp
         )
 
 
-def handle_next_category(session: Dict) -> ResponseChatServiceDTO:
+def handle_next_category(session: Dict):
     """
     Next 버튼 처리
     """
@@ -586,7 +587,7 @@ def handle_next_category(session: Dict) -> ResponseChatServiceDTO:
     if current_index >= len(selected_categories):
         session["stage"] = "confirming_results"
         session["waitingForUserAction"] = True
-        return ResponseChatServiceDTO(
+        return ResponseChatMessageDTO(
             status="success",
             message=RESPONSE_MESSAGES["start"]["all_completed"],
             stage="confirming_results",
@@ -601,7 +602,7 @@ def handle_next_category(session: Dict) -> ResponseChatServiceDTO:
         next_category = selected_categories[session["currentCategoryIndex"]]
         next_message = RESPONSE_MESSAGES["start"]["next_category"].format(next_category=next_category)
 
-        return ResponseChatServiceDTO(
+        return ResponseChatMessageDTO(
             status="success",
             message=next_message,
             stage="collecting_details",
@@ -614,7 +615,7 @@ def handle_next_category(session: Dict) -> ResponseChatServiceDTO:
         session["stage"] = "confirming_results"
         session["waitingForUserAction"] = True
 
-        return ResponseChatServiceDTO(
+        return ResponseChatMessageDTO(
             status="success",
             message=RESPONSE_MESSAGES["start"]["all_completed"],
             stage="confirming_results",
@@ -623,15 +624,7 @@ def handle_next_category(session: Dict) -> ResponseChatServiceDTO:
             availableCategories=selected_categories
         )
 
-
-def handle_modification_mode(session: Dict, user_message: str) -> ResponseChatServiceDTO:
-    """
-    수정 모드 처리 (현재 미사용)
-    """
-    pass
-
-
-def handle_add_more_tags(session: Dict) -> ResponseChatServiceDTO:
+def handle_add_more_tags(session: Dict) -> ResponseChatMessageDTO:
     """
     More 버튼 처리
     """
@@ -643,7 +636,7 @@ def handle_add_more_tags(session: Dict) -> ResponseChatServiceDTO:
     if current_index >= len(selected_categories):
         session["stage"] = "confirming_results"
         session["waitingForUserAction"] = True
-        return ResponseChatServiceDTO(
+        return ResponseChatMessageDTO(
             status="success",
             message=RESPONSE_MESSAGES["start"]["all_completed"],
             stage="confirming_results",
@@ -654,7 +647,7 @@ def handle_add_more_tags(session: Dict) -> ResponseChatServiceDTO:
 
     current_category = selected_categories[current_index]
 
-    return ResponseChatServiceDTO(
+    return ResponseChatMessageDTO(
         status="success",
         message=RESPONSE_MESSAGES["start"]["add_more"].format(current_category=current_category),
         stage="collecting_details",
@@ -663,7 +656,7 @@ def handle_add_more_tags(session: Dict) -> ResponseChatServiceDTO:
 
 
 #   일정표 저장
-async def save_selected_template_to_merge(dto: RequestSetUserHistoryDto, user_id: str) -> str:
+async def save_selected_template_to_merge(dto: RequestSaveHistoryDTO, user_id: str) -> str:
     logger.info(f"try to merge history: {user_id}")
 
     try:
@@ -694,7 +687,7 @@ async def save_selected_template_to_merge(dto: RequestSetUserHistoryDto, user_id
 
 
 
-async def save_selected_template(dto: RequestSetUserHistoryDto, merge_id: str, user_id: str):
+async def save_selected_template(dto: RequestSaveHistoryDTO, merge_id: str, user_id: str):
     logger.info(f"try to save history: {user_id}")
 
     try:

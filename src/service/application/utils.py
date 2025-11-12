@@ -10,6 +10,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
 
 from .prompts import SYSTEM_PROMPT, get_category_prompt, VALIDATION_PROMPT, RESPONSE_MESSAGES
+from ...domain.dto.chat.chat_recommendation_dto import CollectedDataItemDTO
 
 
 # =============================================================================
@@ -295,7 +296,7 @@ def clear_tags_for_category(session: Dict, category: str) -> List[str]:
 # 수집 데이터 구조화 함수
 # =============================================================================
 
-def format_collected_data_for_server(session: Dict) -> List[Dict]:
+def format_collected_data_for_server(session: Dict) -> List[CollectedDataItemDTO]:
     """
     세션 데이터를 서버로 전송할 형식으로 구조화
     
@@ -345,12 +346,12 @@ def format_collected_data_for_server(session: Dict) -> List[Dict]:
             keywords = [RESPONSE_MESSAGES["random"]["summary_tag"]]
         
         # 각 카테고리별 객체 생성
-        category_data = {
-            "위치": play_address,
-            "인원수": people_count_str,
-            "카테고리 타입": category,
-            "키워드": keywords
-        }
+        category_data = CollectedDataItemDTO(
+            category_type=category,
+            keywords=keywords,
+            location=play_address,
+            human_count=people_count_str
+        )
         
         formatted_data.append(category_data)
     

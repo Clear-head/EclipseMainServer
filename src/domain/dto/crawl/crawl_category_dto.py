@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 
 
-class InsertCategoryDto(BaseModel):
+class InsertCrawledCategoryDTO(BaseModel):
     name: str
     do: str
     si: str

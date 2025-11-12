@@ -3,7 +3,7 @@ from typing import Optional
 
 from pydantic import field_validator, ValidationError
 
-from src.domain.dto.crawled.insert_category_dto import InsertCategoryDto
+from src.domain.dto.crawl.crawl_category_dto import InsertCrawledCategoryDTO
 from src.domain.entities.base_entity import BaseEntity
 from src.utils.uuid_maker import generate_uuid
 
@@ -43,7 +43,7 @@ class CategoryEntity(BaseEntity):
 
 
     @classmethod
-    def from_dto(cls, dto: InsertCategoryDto, id: str = None):
+    def from_dto(cls, dto: InsertCrawledCategoryDTO, id: str = None):
         return cls(
             id = id if id is not None else generate_uuid(),
             **dto.model_dump(),

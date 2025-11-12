@@ -1,12 +1,12 @@
-from src.domain.dto.crawled.insert_category_dto import InsertCategoryDto
-from src.domain.dto.crawled.insert_category_tags_dto import InsertCategoryTagsDTO
+from src.domain.dto.crawl.crawl_category_dto import InsertCrawledCategoryDTO
+from src.domain.dto.crawl.crawl_tags_dto import InsertCrawledTagsDTO
 from src.domain.entities.category_entity import CategoryEntity
 from src.domain.entities.category_tags_entity import CategoryTagsEntity
 from src.infra.database.repository.category_repository import CategoryRepository
 from src.infra.database.repository.category_tags_repository import CategoryTagsRepository
 from src.logger.custom_logger import get_logger
 
-async def update_category(dto: InsertCategoryDto) -> str:
+async def update_category(dto: InsertCrawledCategoryDTO) -> str:
     try:
         logger = get_logger(__name__)
         logger.info(f"Updating category: {dto.name}")
@@ -35,7 +35,7 @@ async def update_category(dto: InsertCategoryDto) -> str:
         logger.error(e)
         raise Exception(f"update category error: {dto.name, e}")
 
-async def update_category_tags(dto: InsertCategoryTagsDTO) -> int:
+async def update_category_tags(dto: InsertCrawledTagsDTO) -> int:
     try:
         logger = get_logger(__name__)
         logger.info(f"Updating category tags")

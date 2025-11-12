@@ -1,7 +1,7 @@
-from src.domain.dto.service.change_info_dto import ResponseChangeInfoDto, RequestChangeInfoDto
-from src.domain.dto.service.user_history_dto import ResponseUserHistoryListDto, MergeUserHistory, \
-    ResponseUserHistoryDto, UserHistoryDto
-from src.domain.dto.service.user_like_dto import UserLikeDTO, ResponseUserLikeDTO, RequestSetUserLikeDTO
+from src.domain.dto.history.history_dto import ResponseHistoryListDTO, HistoryDetailItemDTO, HistoryListItemDTO, \
+    ResponseHistoryDetailDTO
+from src.domain.dto.like.like_dto import ResponseLikeListDTO, LikeItemDTO, RequestToggleLikeDTO
+from src.domain.dto.user.user_profile_dto import RequestUpdateProfileDTO, ResponseUpdateProfileDTO
 from src.domain.entities.user_entity import UserEntity
 from src.domain.entities.user_like_entity import UserLikeEntity
 from src.infra.database.repository.merge_history_repository import MergeHistoryRepository
@@ -20,7 +20,7 @@ class UserInfoService:
         self.logger = get_logger(__name__)
 
     #   내정보 수정
-    async def change_info(self, dto: RequestChangeInfoDto, field: str, user_id):
+    async def change_info(self, dto: RequestUpdateProfileDTO, field: str, user_id):
         self.logger.info(f"try {field} change id: {user_id}")
         repo = UserRepository()
 
@@ -84,13 +84,13 @@ class UserInfoService:
 
             await repo.update(user_id, user_entity)
 
-        return ResponseChangeInfoDto(
+        return ResponseUpdateProfileDTO(
             msg=dto.change_field
         )
 
 
     #   좋아요 설정
-    async def set_my_like(self, data: RequestSetUserLikeDTO, type: bool, user_id: str) -> str:
+    async def set_my_like(self, data: RequestToggleLikeDTO, type: bool, user_id: str) -> str:
         self.logger.info(f"try {user_id} set my like: {type}")
         repo = UserLikeRepository()
 
@@ -113,12 +113,12 @@ class UserInfoService:
 
 
     #   좋아요 목록 조회
-    async def get_user_like(self, user_id) -> ResponseUserLikeDTO:
+    async def get_user_like(self, user_id) -> ResponseLikeListDTO:
         self.logger.info(f"try {user_id} get user like: {user_id}")
         repo = UserLikeRepository()
 
         liked = await repo.select(
-            return_dto=UserLikeDTO,
+            return_dto=LikeItemDTO,
             user_id=user_id,
             joins=[
                 {
@@ -143,12 +143,12 @@ class UserInfoService:
 
         if not liked:
             self.logger.info(f"no like for {user_id}")
-            return ResponseUserLikeDTO(
+            return ResponseLikeListDTO(
                 like_list=[]
             )
 
         else:
-            return ResponseUserLikeDTO(
+            return ResponseLikeListDTO(
                 like_list=liked
             )
 
@@ -164,7 +164,7 @@ class UserInfoService:
         )
 
         results = [
-            MergeUserHistory(
+            HistoryListItemDTO(
                 id=item.id,
                 visited_at=item.visited_at,
                 categories_name=item.categories_name,
@@ -173,7 +173,7 @@ class UserInfoService:
             for item in result
         ]
 
-        return ResponseUserHistoryListDto(
+        return ResponseHistoryListDTO(
             results=results
         )
 
@@ -226,7 +226,7 @@ class UserInfoService:
             address = add_address(i.do, i.si, i.gu, i.detail_address)
 
             tmp.append(
-                UserHistoryDto(
+                HistoryDetailItemDTO(
                     category_id=i.id,
                     category_name=i.category_name,
                     duration=i.duration,
@@ -243,7 +243,7 @@ class UserInfoService:
 
         tmp = sorted(tmp, key=lambda x: x.seq)
 
-        return ResponseUserHistoryDto(
+        return ResponseHistoryDetailDTO(
             template_type=template_type,
             categories=tmp
         )

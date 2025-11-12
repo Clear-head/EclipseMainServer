@@ -3,13 +3,13 @@ from typing import Dict
 from fastapi import APIRouter, HTTPException, Depends
 from starlette.responses import JSONResponse
 
-from src.domain.dto.service.cal_transprot_dto import RequestCalculateTransPortDto, ResponseCalculateTransPortDto, \
-    PublicTransportationRoutesDto
-from src.domain.dto.service.haru_service_dto import (RequestStartMainServiceDTO, ResponseStartMainServiceDTO
-, RequestChatServiceDTO, ResponseChatServiceDTO)
-from src.domain.dto.service.user_history_dto import RequestSetUserHistoryDto
+from src.domain.dto.chat.chat_message_dto import RequestChatMessageDTO, ResponseChatMessageDTO
+from src.domain.dto.chat.chat_session_dto import RequestStartChatSessionDTO, ResponseStartChatSessionDTO
+from src.domain.dto.history.history_dto import RequestSaveHistoryDTO
+from src.domain.dto.transport.transport_dto import RequestCalculateTransportDTO, ResponseCalculateTransportDTO, \
+    PublicTransportRouteDTO
 from src.logger.custom_logger import get_logger
-from src.service.application.ai_service_handler import handle_modification_mode, handle_user_message, \
+from src.service.application.ai_service_handler import handle_user_message, \
     handle_user_action_response, save_selected_template_to_merge, save_selected_template
 from src.service.application.prompts import RESPONSE_MESSAGES
 from src.service.application.route_calculation_service import RouteCalculationService
@@ -31,7 +31,10 @@ sessions: Dict[str, Dict] = {}
 """
 
 @router.post("/start")
-async def start_conversation(data: RequestStartMainServiceDTO, user_id:str = Depends(get_jwt_user_id)):
+async def start_conversation(
+    data: RequestStartChatSessionDTO,
+        user_id:str = Depends(get_jwt_user_id)
+)-> ResponseStartChatSessionDTO:
 
     # 세션 ID 생성
     session_id = user_id
@@ -61,7 +64,7 @@ async def start_conversation(data: RequestStartMainServiceDTO, user_id:str = Dep
         first_category=first_category
     )
 
-    response = ResponseStartMainServiceDTO(
+    return ResponseStartChatSessionDTO(
         status="success",
         sessionId=session_id,
         message=first_message,
@@ -72,14 +75,10 @@ async def start_conversation(data: RequestStartMainServiceDTO, user_id:str = Dep
         }
     )
 
-    return JSONResponse(
-        content=response.model_dump()
-    )
-
 
 #   메시지 전송
 @router.post("/chat")
-async def chat(request: RequestChatServiceDTO, user_id:str = Depends(get_jwt_user_id)):
+async def chat(request: RequestChatMessageDTO, user_id:str = Depends(get_jwt_user_id)):
 
     # 세션 확인
     if user_id not in sessions:
@@ -90,7 +89,7 @@ async def chat(request: RequestChatServiceDTO, user_id:str = Depends(get_jwt_use
     # completed 상태 처리 - 대화 완료 후 추가 메시지
     if session.get("stage") == "completed":
 
-        contents = ResponseChatServiceDTO(
+        contents = ResponseChatMessageDTO(
                 status="success",
                 message="대화가 완료되었습니다. 새로운 대화를 시작하려면 처음부터 다시 시작해주세요.",
                 stage="completed"
@@ -101,11 +100,11 @@ async def chat(request: RequestChatServiceDTO, user_id:str = Depends(get_jwt_use
         )
 
     # modification_mode 처리
-    if session.get("stage") == "modification_mode":
-
-        return JSONResponse(
-            content=handle_modification_mode(session, request.message).model_dump()
-        )
+    # if session.get("stage") == "modification_mode":
+    #
+    #     return JSONResponse(
+    #         content=handle_modification_mode(session, request.message).model_dump()
+    #     )
 
     # 사용자 액션(Next/More 또는 Yes) 응답 처리
     if session.get("waitingForUserAction", False):
@@ -119,7 +118,7 @@ async def chat(request: RequestChatServiceDTO, user_id:str = Depends(get_jwt_use
 
 
 @router.post("/cal-route")
-async def calculate_route(dto: RequestCalculateTransPortDto):
+async def calculate_route(dto: RequestCalculateTransportDTO):
     dist = await RouteCalculationService().calculate_route_by_transport_type(
         transport_type=dto.transport_type,
         destination=dto.destination,
@@ -129,7 +128,7 @@ async def calculate_route(dto: RequestCalculateTransPortDto):
     routes = []
 
     if dist is None:
-        return ResponseCalculateTransPortDto(
+        return ResponseCalculateTransportDTO(
             duration=None,
             distance=None
         )
@@ -137,13 +136,13 @@ async def calculate_route(dto: RequestCalculateTransPortDto):
     if (dist is not None) and (dist.get("routes", 0) != 0):
         for i in dist.get("routes"):
             routes.append(
-                PublicTransportationRoutesDto(
+                PublicTransportRouteDTO(
                     description=i.get("description"),
                     duration_min=i.get("duration_minutes")
                 )
             )
 
-    result = ResponseCalculateTransPortDto(
+    result = ResponseCalculateTransportDTO(
         duration=dist.get("duration_seconds"),
         distance=dist.get("distance_meters"),
         routes=routes
@@ -152,9 +151,9 @@ async def calculate_route(dto: RequestCalculateTransPortDto):
     return result
 
 
-#   하루랑 채팅 결과 저장
+#   하루랑 채팅 결과(일정표) 저장
 @router.post("/histories")
-async def save_history(request: RequestSetUserHistoryDto, user_id:str = Depends(get_jwt_user_id)):
+async def save_history(request: RequestSaveHistoryDTO, user_id:str = Depends(get_jwt_user_id)):
     logger.info("save_history")
     merge_id = await save_selected_template_to_merge(dto=request, user_id=user_id)
     await save_selected_template(dto=request, merge_id=merge_id, user_id=user_id)
