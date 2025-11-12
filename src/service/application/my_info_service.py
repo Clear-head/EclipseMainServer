@@ -137,15 +137,12 @@ class UserInfoService:
                 "category.si": "si",
                 "category.gu": "gu",
                 "category.detail_address": "detail_address",
-                # "stars": "stars",
-                # "created_at": "created_at",
             }
         )
 
 
         if not liked:
             self.logger.info(f"no like for {user_id}")
-            # raise NotFoundAnyItemException()
             return ResponseUserLikeDTO(
                 like_list=[]
             )
@@ -251,3 +248,38 @@ class UserInfoService:
             categories=tmp
         )
 
+
+    # 🔥 추가: 특정 카테고리 방문 횟수 조회
+    async def get_category_visit_count(self, user_id: str, category_id: str) -> int:
+        """
+        특정 사용자가 특정 카테고리(매장)를 방문한 횟수를 조회합니다.
+        user_history 테이블에서 해당 user_id와 category_id가 일치하는 레코드 개수를 반환합니다.
+        
+        Args:
+            user_id: 사용자 ID
+            category_id: 카테고리(매장) ID
+            
+        Returns:
+            int: 방문 횟수
+        """
+        try:
+            self.logger.info(f"try get visit count for user: {user_id}, category: {category_id}")
+            
+            repo = UserHistoryRepository()
+            
+            # user_id와 category_id가 일치하는 히스토리 조회
+            histories = await repo.select(
+                user_id=user_id,
+                category_id=category_id
+            )
+            
+            count = len(histories) if histories else 0
+            
+            self.logger.info(f"user {user_id} visited category {category_id} {count} times")
+            
+            return count
+            
+        except Exception as e:
+            self.logger.error(f"Error getting visit count: {e}")
+            # 오류 발생 시 0 반환 (안전한 기본값)
+            return 0

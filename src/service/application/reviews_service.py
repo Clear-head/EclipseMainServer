@@ -64,7 +64,7 @@ class ReviewsService:
             review_list=result
         )
 
-    #   리뷰 삭제 # 삭제 기능 때매 추가
+    #   리뷰 삭제
     async def delete_user_review(self, user_id: str, review_id: str) -> dict:
         try:
             self.logger.info(f"try {user_id} delete review: {review_id}")
@@ -84,3 +84,36 @@ class ReviewsService:
         except Exception as e:
             self.logger.error(e)
             raise e
+
+
+    # 🔥 추가: 특정 카테고리에 작성한 리뷰 개수 조회
+    async def get_user_review_count(self, user_id: str, category_id: str) -> int:
+        """
+        특정 사용자가 특정 카테고리(매장)에 작성한 리뷰 개수를 조회합니다.
+        
+        Args:
+            user_id: 사용자 ID
+            category_id: 카테고리(매장) ID
+            
+        Returns:
+            int: 해당 매장에 작성한 리뷰 개수
+        """
+        try:
+            self.logger.info(f"try get review count for user: {user_id}, category: {category_id}")
+            
+            # user_id와 category_id가 일치하는 리뷰 조회
+            reviews = await self.repo.select(
+                user_id=user_id,
+                category_id=category_id
+            )
+            
+            count = len(reviews) if reviews else 0
+            
+            self.logger.info(f"user {user_id} has {count} reviews for category {category_id}")
+            
+            return count
+            
+        except Exception as e:
+            self.logger.error(f"Error getting review count: {e}")
+            # 오류 발생 시 0 반환 (안전한 기본값)
+            return 0
