@@ -28,5 +28,6 @@ class ResponseCategoryDetailDTO(BaseModel):
     sub_category: str
     is_like: bool
     tags: Optional[List[str]]
+    menu_preview: Optional[List[str]] = None
     reviews: Optional[List[ReviewItemDTO]]
     average_stars: float = 0.0

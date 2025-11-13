@@ -123,6 +123,17 @@ class MainScreenService:
             detail_address= add_address(category.do, category.si, category.gu, category.detail_address),
             is_like=is_like,
             tags=tag_names,
+            menu_preview=self._extract_menu_preview(category.menu), # 메뉴 컬럼 추가
             reviews=reviews_list,
             average_stars=average_stars
         )
+
+    @staticmethod  # 메뉴 텍스트를 쉼표 기준으로 잘라 최대 limit개까지 목록으로 변환
+    def _extract_menu_preview(menu_text: str | None, limit: int = 10) -> list[str]:
+        if not menu_text:
+            return []
+
+        candidates = [item.strip() for item in menu_text.split(",")]
+        menu_items = [item for item in candidates if item]
+
+        return menu_items[:limit]
