@@ -13,6 +13,8 @@ class CategoryListItemDTO(BaseModel):
     sub_category: str
     lat: Optional[str] = None
     lng: Optional[str] = None
+    review_count: int = 0
+    average_stars: float = 0.0
 
 
 class ResponseCategoryListDTO(BaseModel):
