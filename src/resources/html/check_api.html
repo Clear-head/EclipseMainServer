@@ -105,8 +105,8 @@
             check2Result.innerHTML = '테스트 중...';
             
             try {
-                // 서버 IP로 테스트
-                const testUrl = 'http://192.168.14.95:8000/admin/test';
+                // 현재 서버 주소로 테스트 (동적)
+                const testUrl = `${window.location.origin}/admin/test`;
                 console.log('테스트 URL:', testUrl);
                 const response = await fetch(testUrl);
                 const data = await response.json();
@@ -162,15 +162,20 @@
         // 4. 현재 설정 표시
         function showConfig() {
             const configInfo = document.getElementById('config-info');
-            configInfo.textContent = `API_BASE_URL: http://192.168.14.95:8000
+            configInfo.textContent = `API_BASE_URL: ${window.location.origin} (자동 감지)
 현재 페이지 URL: ${window.location.href}
 프로토콜: ${window.location.protocol}
+호스트: ${window.location.host}
+
+✅ 장점:
+- 서버가 어디서 실행되든 자동 작동
+- 로컬, EC2, 다른 컴퓨터 모두 지원
+- IP 주소 변경 시 코드 수정 불필요
 
 ⚠️ 서버 확인 사항:
 1. 서버가 실행 중인가요? (python -m src.main)
 2. 서버가 8000 포트에서 실행 중인가요?
-3. 서버 IP 주소가 192.168.14.95인가요?
-4. 방화벽에서 8000 포트가 열려있나요?`;
+3. 방화벽에서 8000 포트가 열려있나요?`;
         }
         
         // 페이지 로드 시 실행

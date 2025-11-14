@@ -3,8 +3,9 @@
  * 모든 API 호출을 중앙에서 관리
  */
 
-// 서버 실행 방법: python -m src.main 또는 uvicorn src.main:app --host 0.0.0.0 --port 8000
-const API_BASE_URL = 'http://192.168.14.95:8000'; // 서버 IP 주소
+// 서버 주소 자동 감지 - 현재 페이지의 origin 사용
+// 서버가 어디서 실행되든 (로컬, EC2, 다른 컴퓨터) 자동으로 작동
+const API_BASE_URL = window.location.origin;
 
 /**
  * API 호출 유틸리티 함수
