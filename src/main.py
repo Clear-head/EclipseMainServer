@@ -25,11 +25,8 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 setup_exception_handlers(app)
 
-# 대시보드 HTML 파일 서빙 (루트 경로에 먼저 등록)
+# 대시보드 (HTML 파일 및 API 모두 포함)
 app.include_router(dashboard_controller.router)
-# 대시보드 API (/admin/district-stats)
-app.include_router(dashboard_controller.admin_api_router)
-
 app.include_router(auth_controller.router)
 app.include_router(category_controller.router)
 app.include_router(user_controller.router)
@@ -50,4 +47,4 @@ app.add_middleware(
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8080)
