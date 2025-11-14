@@ -267,6 +267,79 @@
         }, 100);
     }
 
+    // 데이터의 최대값에 따라 Y축 최대값과 간격을 자동 계산하는 함수
+    function calculateAxisSettings(data) {
+        if (!data || data.length === 0) {
+            return { maxValue: 100, stepSize: 10 };
+        }
+
+        const maxDataValue = Math.max(...data);
+        
+        // 최대값이 0이면 기본값 반환
+        if (maxDataValue === 0) {
+            return { maxValue: 100, stepSize: 10 };
+        }
+
+        // 최대값에 여유 공간을 주기 위해 1.1배 (10% 여유)
+        const maxValueWithPadding = Math.ceil(maxDataValue * 1.1);
+
+        // 최대값에 따라 적절한 간격 계산
+        // 1. 최대값의 자릿수 확인
+        const digits = Math.floor(Math.log10(maxValueWithPadding));
+        const magnitude = Math.pow(10, digits);
+        
+        // 2. 최대값을 magnitude로 나눈 값에 따라 간격 결정
+        const normalizedValue = maxValueWithPadding / magnitude;
+        
+        let stepSize;
+        let roundedMax;
+        
+        if (normalizedValue <= 1) {
+            // 1 이하: 0.2, 0.5, 1 단위
+            if (normalizedValue <= 0.2) {
+                stepSize = 0.2 * magnitude;
+                roundedMax = Math.ceil(maxValueWithPadding / (0.2 * magnitude)) * (0.2 * magnitude);
+            } else if (normalizedValue <= 0.5) {
+                stepSize = 0.5 * magnitude;
+                roundedMax = Math.ceil(maxValueWithPadding / (0.5 * magnitude)) * (0.5 * magnitude);
+            } else {
+                stepSize = 1 * magnitude;
+                roundedMax = Math.ceil(maxValueWithPadding / magnitude) * magnitude;
+            }
+        } else if (normalizedValue <= 2) {
+            // 1~2: 0.5 단위
+            stepSize = 0.5 * magnitude;
+            roundedMax = Math.ceil(maxValueWithPadding / (0.5 * magnitude)) * (0.5 * magnitude);
+        } else if (normalizedValue <= 5) {
+            // 2~5: 1 단위
+            stepSize = 1 * magnitude;
+            roundedMax = Math.ceil(maxValueWithPadding / magnitude) * magnitude;
+        } else {
+            // 5 이상: 2 단위
+            stepSize = 2 * magnitude;
+            roundedMax = Math.ceil(maxValueWithPadding / (2 * magnitude)) * (2 * magnitude);
+        }
+
+        // 최소 간격 보장 (너무 작은 간격 방지)
+        if (stepSize < 1) {
+            stepSize = 1;
+            roundedMax = Math.ceil(maxValueWithPadding);
+        }
+
+        // 최대값이 너무 작으면 최소값 보장
+        if (roundedMax < 10) {
+            roundedMax = 10;
+            stepSize = 2;
+        }
+
+        console.log(`[DEBUG] 데이터 최대값: ${maxDataValue}, 계산된 Y축 최대값: ${roundedMax}, 간격: ${stepSize}`);
+
+        return {
+            maxValue: roundedMax,
+            stepSize: stepSize
+        };
+    }
+
     function createDistrictChart(category) {
         const canvas = document.getElementById('districtChart');
         if (!canvas) return;
@@ -281,9 +354,10 @@
         const labels = currentDistrictData.labels;
         const data = currentDistrictData[category];
 
-        // 카테고리별 y축 최대값 설정
-        const maxValue = category === 'restaurant' ? 450 : category === 'cafe' ? 250 : 220;
-        const stepSize = category === 'restaurant' ? 50 : 25;
+        // 데이터의 최대값에 따라 Y축 설정 자동 계산
+        const axisSettings = calculateAxisSettings(data);
+        const maxValue = axisSettings.maxValue;
+        const stepSize = axisSettings.stepSize;
 
         // 기존 차트가 있으면 데이터만 업데이트 (애니메이션 효과)
         if (districtChart) {
