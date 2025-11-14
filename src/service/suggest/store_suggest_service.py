@@ -482,8 +482,9 @@ class StoreSuggestService:
         
         try:
             # 새로운 메서드 사용 (LEFT JOIN으로 리뷰 없는 매장도 포함)
-            store_details_dto = await category_repo.get_stores_with_review_stats(
-                id=store_ids
+            store_details_dto = await category_repo.get_review_statistics(
+                id=store_ids,
+                is_random=False
             )
             
             # DTO를 Dict로 변환
