@@ -389,7 +389,7 @@ async def save_selected_template_to_merge(dto: RequestSaveHistoryDTO, user_id: s
 
     except Exception as e:
         logger.error(f"병합 히스토리 저장 실패: {e}", exc_info=True)
-        raise
+        raise e
 
 
 async def save_selected_template(dto: RequestSaveHistoryDTO, merge_id: str, user_id: str) -> bool:
@@ -413,4 +413,4 @@ async def save_selected_template(dto: RequestSaveHistoryDTO, merge_id: str, user
 
     except Exception as e:
         logger.error(f"일정 히스토리 저장 실패: {e}", exc_info=True)
-        raise
+        raise e
