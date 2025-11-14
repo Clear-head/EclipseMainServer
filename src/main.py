@@ -27,7 +27,8 @@ setup_exception_handlers(app)
 
 # 대시보드 HTML 파일 서빙 (루트 경로에 먼저 등록)
 app.include_router(dashboard_controller.router)
-app.include_router(dashboard_controller.api_router_instance)
+# 대시보드 API (/admin/district-stats)
+app.include_router(dashboard_controller.admin_api_router)
 
 app.include_router(auth_controller.router)
 app.include_router(category_controller.router)
