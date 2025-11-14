@@ -1,5 +1,6 @@
-from sqlalchemy import func
+from sqlalchemy import func, select
 
+from src.domain.dto.category.category_dto import CategoryListItemDTO
 from src.domain.entities.category_entity import CategoryEntity
 from src.infra.database.repository import base_repository
 from src.infra.database.repository.maria_engine import get_engine
@@ -51,8 +52,7 @@ class CategoryRepository(base_repository.BaseRepository):
                         stmt = stmt.where(col.in_(value))
                     else:
                         stmt = stmt.where(col == value)
-                
-                # ORDER BY RANDOM() (MariaDB/MySQL에서는 RAND())
+
                 stmt = stmt.order_by(func.rand())
                 
                 # LIMIT
@@ -72,3 +72,61 @@ class CategoryRepository(base_repository.BaseRepository):
         except Exception as e:
             self.logger.error(f"select_random error in {self.table}: {e}")
             raise e
+
+    #   매장 별 리뷰 수, 별점 평균
+    async def get_review_statistics(
+            self,
+            sub_category: str = None,
+            limit: int = None,
+            offset: int = None
+    ) -> list[CategoryListItemDTO]:
+        from src.infra.database.tables.table_reviews import reviews_table
+
+        engine = await get_engine()
+        async with engine.begin() as conn:
+            # 주소 조합
+            full_address = func.trim(
+                func.concat_ws(' ',
+                               func.nullif(self.table.c.do, ''),
+                               func.nullif(self.table.c.si, ''),
+                               func.nullif(self.table.c.gu, ''),
+                               func.nullif(self.table.c.detail_address, '')
+                               )
+            ).label('detail_address')
+
+            # 기본 쿼리
+            stmt = select(
+                func.count().label('review_count'),
+                func.avg(reviews_table.c.stars).label('average_stars'),
+                self.table.c.id.label('id'),
+                self.table.c.name.label("title"),
+                self.table.c.image.label("image_url"),
+                full_address,
+                self.table.c.sub_category.label("sub_category"),
+                self.table.c.latitude.label('lat'),
+                self.table.c.longitude.label('lng'),
+            ).select_from(
+                self.table.join(
+                    reviews_table,
+                    reviews_table.c.category_id == self.table.c.id
+                )
+            )
+
+
+            if sub_category:
+                stmt = stmt.where(self.table.c.sub_category == sub_category)
+
+            # GROUP BY
+            stmt = stmt.group_by(self.table.c.id).having(func.count() >= 1).order_by(func.rand())
+
+            if limit:
+                stmt = stmt.limit(limit)
+
+
+            # 실행
+            result = await conn.execute(stmt)
+            rows = list(result.mappings())
+
+        print(rows[0])
+        # DTO 변환
+        return [CategoryListItemDTO(**row) for row in rows]

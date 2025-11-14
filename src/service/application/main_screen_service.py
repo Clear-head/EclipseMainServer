@@ -22,7 +22,7 @@ class MainScreenService:
 
 
     async def to_main(self) -> ResponseCategoryListDTO:
-        categories = await self.category_repo.select(limit=10, order=func.rand())
+        categories = await self.category_repo.get_review_statistics(limit=10)
 
         tags = []
 
@@ -40,24 +40,14 @@ class MainScreenService:
                 if tag_entity is not None:
                     tags.extend(tag_entity[0].name)
 
-            address = add_address(item.do, item.si, item.gu, item.detail_address)
-
-            tmp = CategoryListItemDTO(
-                id=item.id,
-                image_url=item.image,
-                detail_address=address,
-                sub_category=item.sub_category,
-                title=item.name
-            )
-
-            request_main_screen_body_categories.append(tmp)
+            # address = add_address(item.do, item.si, item.gu, item.detail_address)
 
         return ResponseCategoryListDTO(
-            categories=request_main_screen_body_categories,
+            categories=categories,
         )
 
 
-    async def get_category_detail(self, category_id) -> ResponseCategoryDetailDTO:
+    async def get_category_detail(self, category_id, user_id) -> ResponseCategoryDetailDTO:
         user_repo = UserRepository()
 
 
@@ -77,7 +67,7 @@ class MainScreenService:
 
         #   is_like
         repo = UserLikeRepository()
-        result = await repo.select(category_id=category.id)
+        result = await repo.select(category_id=category.id, user_id=user_id)
         if result:
             is_like = True
         else:
