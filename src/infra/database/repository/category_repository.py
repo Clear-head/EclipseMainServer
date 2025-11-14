@@ -106,12 +106,22 @@ class CategoryRepository(base_repository.BaseRepository):
                 self.table.c.type.label('type'),
                 self.table.c.latitude.label('lat'),
                 self.table.c.longitude.label('lng'),
-            ).select_from(
-                self.table.join(
-                    reviews_table,
-                    reviews_table.c.category_id == self.table.c.id
-                )
             )
+
+            if is_random:
+                stmt = stmt.select_from(
+                    self.table.join(
+                        reviews_table,
+                        reviews_table.c.category_id == self.table.c.id
+                    )
+                )
+            else:
+                stmt = stmt.select_from(
+                    self.table.outerjoin(
+                        reviews_table,
+                        reviews_table.c.category_id == self.table.c.id
+                    )
+                )
 
 
             for column, value in filters.items():
@@ -127,7 +137,7 @@ class CategoryRepository(base_repository.BaseRepository):
 
             # GROUP BY
             if is_random == 0:
-                stmt = stmt.group_by(self.table.c.id).having(func.count() >= 1).order_by(func.rand())
+                stmt = stmt.group_by(self.table.c.id).order_by(func.rand())
             else:
                 stmt = stmt.group_by(self.table.c.id)
 
