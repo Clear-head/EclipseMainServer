@@ -437,7 +437,7 @@ RESPONSE_MESSAGES = {
         "reask_category": "태그가 하나도 남지 않았어. '{current_category}' 활동에 대해 다시 알려줄래?"
     },
     "buttons": {
-        "yes_no_question": "이 정보로 다음 질문으로 넘어갈래?",
+        "yes_no_question": "그럼 이제 다음 질문으로 넘어갈래?",
         "result_question": "후보지를 출력할래?"
     },
     "random": {
@@ -458,7 +458,7 @@ RESPONSE_MESSAGES = {
     },
     "tags": {
         "current": "현재까지 수집된 키워드\n: {tags}",
-        "removed": "'{removed_tag}' 태그를 삭제했어.",
+        "removed": "'{removed_tag}' 태그를 삭제했어!",
         "cleared": "태그를 모두 삭제했어.",
         "not_found": "삭제할 태그를 찾지 못했어. 이미 지워졌는지 확인해줘."
     }
