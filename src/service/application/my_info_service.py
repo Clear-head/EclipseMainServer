@@ -1,9 +1,10 @@
 from src.domain.dto.history.history_dto import ResponseHistoryListDTO, HistoryDetailItemDTO, HistoryListItemDTO, \
     ResponseHistoryDetailDTO
-from src.domain.dto.like.like_dto import ResponseLikeListDTO, LikeItemDTO, RequestToggleLikeDTO
+from src.domain.dto.like.like_dto import ResponseLikeListDTO, RequestToggleLikeDTO
 from src.domain.dto.user.user_profile_dto import RequestUpdateProfileDTO, ResponseUpdateProfileDTO
 from src.domain.entities.user_entity import UserEntity
 from src.domain.entities.user_like_entity import UserLikeEntity
+from src.infra.database.repository.category_repository import CategoryRepository
 from src.infra.database.repository.merge_history_repository import MergeHistoryRepository
 from src.infra.database.repository.user_history_repository import UserHistoryRepository
 from src.infra.database.repository.user_like_repository import UserLikeRepository
@@ -117,29 +118,7 @@ class UserInfoService:
         self.logger.info(f"try {user_id} get user like: {user_id}")
         repo = UserLikeRepository()
 
-        liked = await repo.select(
-            return_dto=LikeItemDTO,
-            user_id=user_id,
-            joins=[
-                {
-                    "table": category_table,
-                    "on": {"category_id": "id"},
-                    "alias": "category"
-                }
-            ],
-            columns={
-                "category.type": "type",
-                "category.id": "category_id",
-                "category.name": "category_name",
-                "category.image": "category_image",
-                "category.sub_category": "sub_category",
-                "category.do": "do",
-                "category.si": "si",
-                "category.gu": "gu",
-                "category.detail_address": "detail_address",
-            }
-        )
-
+        liked = await repo.select(user_id=user_id)
 
         if not liked:
             self.logger.info(f"no like for {user_id}")
@@ -147,9 +126,39 @@ class UserInfoService:
                 like_list=[]
             )
 
+        # liked = await repo.select(
+        #     return_dto=LikeItemDTO,
+        #     user_id=user_id,
+        #     joins=[
+        #         {
+        #             "table": category_table,
+        #             "on": {"category_id": "id"},
+        #             "alias": "category"
+        #         }
+        #     ],
+        #     columns={
+        #         "category.type": "type",
+        #         "category.id": "category_id",
+        #         "category.name": "category_name",
+        #         "category.image": "category_image",
+        #         "category.sub_category": "sub_category",
+        #         "category.do": "do",
+        #         "category.si": "si",
+        #         "category.gu": "gu",
+        #         "category.detail_address": "detail_address",
+        #     }
+        # )
+
+
+
+
         else:
+            ans = await CategoryRepository().get_review_statistics(
+                id=[i.category_id for i in liked],
+                is_random=1
+            )
             return ResponseLikeListDTO(
-                like_list=liked
+                like_list=ans
             )
 
 

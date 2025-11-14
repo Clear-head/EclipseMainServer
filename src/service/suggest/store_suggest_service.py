@@ -540,6 +540,7 @@ class StoreSuggestService:
         
         repo = CategoryRepository()
         
+<<<<<<< HEAD
         try:
             # INNER JOIN 메서드 사용 (리뷰 있는 매장만)
             random_stores_dto = await repo.get_random_stores_with_reviews(
@@ -573,3 +574,27 @@ class StoreSuggestService:
         except Exception as e:
             logger.error(f"랜덤 매장 조회 중 오류: {e}")
             return []
+=======
+        # DB에서 랜덤 조회
+        # random_stores = await repo.select_random(
+        #     limit=n_results,
+        #     gu=region,
+        #     type=self.convert_type_to_code(category_type)
+        # )
+        random_stores = await repo.get_review_statistics(
+            limit=n_results,
+            gu=region,
+            type=self.convert_type_to_code(category_type),
+            is_random=1
+        )
+        
+        logger.info(f"DB 랜덤 조회 결과: {len(random_stores)}개")
+        
+        # MainScreenCategoryList 형식으로 변환
+        results = []
+        for store in random_stores:
+            
+            results.append(store.model_dump())
+        
+        return results
+>>>>>>> 58258d64c6877e1ee5c063960273ca62b224e911
