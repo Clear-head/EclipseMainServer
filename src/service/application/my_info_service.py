@@ -117,40 +117,13 @@ class UserInfoService:
         self.logger.info(f"try {user_id} get user like: {user_id}")
         repo = UserLikeRepository()
 
-        liked = await repo.select(
-            return_dto=LikeItemDTO,
-            user_id=user_id,
-            joins=[
-                {
-                    "table": category_table,
-                    "on": {"category_id": "id"},
-                    "alias": "category"
-                }
-            ],
-            columns={
-                "category.type": "type",
-                "category.id": "category_id",
-                "category.name": "category_name",
-                "category.image": "category_image",
-                "category.sub_category": "sub_category",
-                "category.do": "do",
-                "category.si": "si",
-                "category.gu": "gu",
-                "category.detail_address": "detail_address",
-            }
-        )
-
+        liked = await repo.get_user_likes_with_review_stats(user_id)
 
         if not liked:
             self.logger.info(f"no like for {user_id}")
-            return ResponseLikeListDTO(
-                like_list=[]
-            )
-
-        else:
-            return ResponseLikeListDTO(
-                like_list=liked
-            )
+            return ResponseLikeListDTO(like_list=[])
+        
+        return ResponseLikeListDTO(like_list=liked)
 
 
     #   히스토리 목록 조회

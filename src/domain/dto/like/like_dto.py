@@ -21,6 +21,8 @@ class LikeItemDTO(BaseModel):
     si: Optional[str] = None
     gu: Optional[str] = None
     detail_address: str
+    review_count: Optional[int] = 0
+    average_rating: Optional[float] = 0.0
 
     @computed_field
     @property
