@@ -22,7 +22,7 @@ class MainScreenService:
 
 
     async def to_main(self) -> ResponseCategoryListDTO:
-        categories = await self.category_repo.get_review_statistics(limit=10)
+        categories = await self.category_repo.get_review_statistics(limit=10, is_random=True)
 
         tags = []
 
@@ -42,6 +42,7 @@ class MainScreenService:
 
             # address = add_address(item.do, item.si, item.gu, item.detail_address)
 
+        print(categories)
         return ResponseCategoryListDTO(
             categories=categories,
         )

@@ -76,7 +76,7 @@ class CategoryRepository(base_repository.BaseRepository):
     #   매장 별 리뷰 수, 별점 평균
     async def get_review_statistics(
             self,
-            is_random: int = 0,              #   0 random
+            is_random: bool = True,              #   0 random
             limit: int = None,
             **filters
     ) -> list[CategoryListItemDTO]:
@@ -96,7 +96,7 @@ class CategoryRepository(base_repository.BaseRepository):
 
             # 기본 쿼리
             stmt = select(
-                func.count().label('review_count'),
+                func.count(reviews_table.c.id).label('review_count'),
                 func.avg(reviews_table.c.stars).label('average_stars'),
                 self.table.c.id.label('id'),
                 self.table.c.name.label("title"),

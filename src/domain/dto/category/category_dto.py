@@ -1,7 +1,6 @@
 from typing import List, Optional
 
-from pydantic import BaseModel
-
+from pydantic import BaseModel, field_validator
 
 
 # 메인 화면 카테고리 리스트 DTO
@@ -16,6 +15,15 @@ class CategoryListItemDTO(BaseModel):
     type: Optional[int] = None
     review_count: int = 0
     average_stars: float = 0.0
+
+
+    @field_validator("average_stars", mode="before")
+    @classmethod
+    def validate_avg_stars(cls, v):
+        if v is None:
+            return 0.0
+        return float(round(v, 2))
+
 
 
 class ResponseCategoryListDTO(BaseModel):
