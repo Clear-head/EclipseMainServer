@@ -189,7 +189,7 @@ main {
 }
 
 #travel {
-    grid-column: 1 / 4;
+    grid-column: span 3;
     min-height: 550px;
 }
 
@@ -218,6 +218,9 @@ section h2 {
 
 .chart-container--wide {
     max-width: none;
+    max-height: 600px;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .chart-legend {
@@ -279,10 +282,10 @@ section h2 {
 }
 
 #travel .chart-row__media--wide {
-    max-width: none;
-    flex: 2;
-    min-height: 400px;
-    height: 400px;
+    max-width: 100%;
+    flex: 1;
+    min-height: 300px;
+    height: 300px;
 }
 
 .chart-row__legend {

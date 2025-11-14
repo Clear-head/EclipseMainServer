@@ -41,34 +41,23 @@
                     </div>
                 </article>
                 <article class="summary-card">
-                    <h2>일정표 생성 기준 인기 지역</h2>
-                    <div class="chart-container chart-container--wide">
-                        <canvas id="regionBar" aria-label="지역별 비율 막대차트" style="height: 420px;"></canvas>
+                    <h2>인기 카테고리 (일정표 생성 기준)</h2>
+                    <div class="chart-container">
+                        <canvas id="categoryPie" aria-label="인기 카테고리 비율"></canvas>
                     </div>
+                    <ul class="chart-legend">
+                        <li><span class="swatch" style="background-color: #FF6F00;"></span>음식점 · 55%</li>
+                        <li><span class="swatch" style="background-color: #FF9800;"></span>카페 · 30%</li>
+                        <li><span class="swatch" style="background-color: #FFB74D;"></span>콘텐츠 · 15%</li>
+                    </ul>
                 </article>
             </div>
 
             <main>
-                <section id="category" class="card">
-                    <h2>인기 카테고리 (일정표 생성 기준)</h2>
-                    <div class="chart-row">
-                        <div class="chart-row__media">
-                            <canvas id="categoryPie" aria-label="인기 카테고리 비율"></canvas>
-                        </div>
-                        <div class="chart-row__legend">
-                            <div class="chart-row__legend-item">
-                                <span class="chart-row__swatch" style="background-color: #FF6F00;"></span>
-                                음식점 · 55%
-                            </div>
-                            <div class="chart-row__legend-item">
-                                <span class="chart-row__swatch" style="background-color: #FF9800;"></span>
-                                카페 · 30%
-                            </div>
-                            <div class="chart-row__legend-item">
-                                <span class="chart-row__swatch" style="background-color: #FFB74D;"></span>
-                                콘텐츠 · 15%
-                            </div>
-                        </div>
+                <section id="region" class="card">
+                    <h2>일정표 생성 기준 인기 지역</h2>
+                    <div class="chart-container chart-container--wide">
+                        <canvas id="regionBar" aria-label="지역별 비율 막대차트" style="height: 400px;"></canvas>
                     </div>
                 </section>
                 <section id="templates" class="card">
@@ -117,7 +106,7 @@
                     </div>
                 </section>
 
-                <section id="travel">
+                <section id="travel" class="card">
                     <h2>평균 이동 시간</h2>
                     <p class="section-subtitle">최근 30일 기준 이동 경로 분석</p>
                     <div class="chart-row">
@@ -474,25 +463,29 @@
                             }]
                         },
                         options: {
-                            indexAxis: 'y',
                             maintainAspectRatio: false,
                             scales: {
                                 x: {
                                     beginAtZero: true,
                                     ticks: {
                                         color: '#52606d',
-                                        callback: (value) => `${value}건`
-                                    },
-                                    grid: {
-                                        color: 'rgba(82, 96, 109, 0.12)'
-                                    }
-                                },
-                                y: {
-                                    ticks: {
-                                        color: '#52606d'
+                                        maxRotation: 45,
+                                        minRotation: 45,
+                                        autoSkip: false
                                     },
                                     grid: {
                                         display: false
+                                    }
+                                },
+                                y: {
+                                    beginAtZero: true,
+                                    ticks: {
+                                        color: '#52606d',
+                                        callback: (value) => `${value}건`
+                                    },
+                                    grid: {
+                                        color: 'rgba(82, 96, 109, 0.12)',
+                                        drawBorder: false
                                     }
                                 }
                             },
