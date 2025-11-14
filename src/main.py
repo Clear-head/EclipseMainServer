@@ -6,6 +6,7 @@ from starlette.middleware.cors import CORSMiddleware
 
 from src.router.users import user_controller, service_controller, my_info_controller, auth_controller, \
     category_controller
+from src.router.admin import monitoring_controller
 from src.service.scheduler.crawling_scheduler import scheduler
 from src.utils.exception_handler.http_log_handler import setup_exception_handlers
 
@@ -28,6 +29,7 @@ app.include_router(category_controller.router)
 app.include_router(user_controller.router)
 app.include_router(my_info_controller.router)
 app.include_router(service_controller.router)
+app.include_router(monitoring_controller.router)
 
 
 app.add_middleware(
@@ -42,4 +44,4 @@ app.add_middleware(
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8080)
+    uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -133,6 +133,7 @@
     </div>
 </body>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="api.js"></script>
 <script>
     // 카테고리별 태그 데이터
     const tagData = {
@@ -169,16 +170,8 @@
         };
     }
 
-    // 초기값 (API 호출 전까지 사용)
-    const districtData = {
-        labels: ['강남구', '강동구', '강서구', '강북구', '관악구', '광진구', '구로구', '금천구', '노원구', '동대문구', '도봉구', '동작구', '마포구', '서대문구', '성동구', '성북구', '서초구', '송파구', '영등포구', '용산구', '양천구', '은평구', '종로구', '중구', '중랑구'],
-        restaurant: [268, 256, 284, 272, 261, 244, 230, 238, 196, 188, 276, 248, 240, 298, 220, 310, 268, 205, 322, 288, 312, 336, 402, 384, 318],
-        cafe: [124, 118, 142, 136, 128, 119, 101, 110, 92, 88, 134, 120, 115, 162, 108, 140, 126, 94, 150, 132, 148, 155, 210, 198, 156],
-        content: [86, 90, 104, 112, 96, 88, 76, 82, 64, 60, 98, 92, 84, 128, 72, 118, 94, 68, 136, 124, 132, 150, 194, 182, 148]
-    };
-    
-    // 전역 변수로 업데이트 가능하도록 설정
-    let currentDistrictData = districtData;
+    // 전역 변수로 업데이트 가능하도록 설정 (API에서 데이터를 받아올 때까지 null)
+    let currentDistrictData = null;
 
     function createTagChart(category) {
         const canvas = document.getElementById('tagChart');
@@ -277,6 +270,12 @@
     function createDistrictChart(category) {
         const canvas = document.getElementById('districtChart');
         if (!canvas) return;
+
+        // 데이터가 없으면 차트를 생성하지 않음
+        if (!currentDistrictData) {
+            console.warn('차트 데이터가 없습니다. API에서 데이터를 먼저 로드하세요.');
+            return;
+        }
 
         const ctx = canvas.getContext('2d');
         const labels = currentDistrictData.labels;
@@ -413,28 +412,70 @@
             });
         });
         
-        // 자치구 차트 생성 (음식점)
-        createDistrictChart('restaurant');
+        // DB에서 데이터 가져오기 (API 호출)
+        console.log('API 모듈 확인:', typeof api, typeof api?.getDistrictStats);
         
-        // DB에서 데이터 가져오기 (API 호출 예시)
-        // 실제 API 엔드포인트로 변경 필요
-        /*
-        fetch('/api/admin/district-stats')
-            .then(response => response.json())
-            .then(dbData => {
-                // 쿼리 결과를 현재 형식으로 변환
-                currentDistrictData = transformDistrictData(dbData);
-                
-                // 차트 업데이트
-                if (districtChart) {
-                    createDistrictChart('restaurant');
-                }
-            })
-            .catch(error => {
-                console.error('데이터 로딩 오류:', error);
-                // 오류 발생 시 기본 데이터 사용
-            });
-        */
+        if (typeof api !== 'undefined' && api.getDistrictStats) {
+            console.log('API 호출 시작...');
+            api.getDistrictStats()
+                .then(dbData => {
+                    console.log('받은 데이터:', dbData);
+                    if (dbData && Array.isArray(dbData) && dbData.length > 0) {
+                        console.log('데이터 변환 시작, 개수:', dbData.length);
+                        // 쿼리 결과를 현재 형식으로 변환
+                        currentDistrictData = transformDistrictData(dbData);
+                        console.log('변환된 데이터:', currentDistrictData);
+                        
+                        // 차트 생성 (음식점)
+                        createDistrictChart('restaurant');
+                    } else {
+                        console.error('데이터가 없거나 빈 배열입니다. 받은 데이터:', dbData);
+                        // 차트 영역에 에러 메시지 표시
+                        const canvas = document.getElementById('districtChart');
+                        if (canvas) {
+                            const ctx = canvas.getContext('2d');
+                            ctx.clearRect(0, 0, canvas.width, canvas.height);
+                            ctx.fillStyle = '#52606d';
+                            ctx.font = '16px Arial';
+                            ctx.textAlign = 'center';
+                            ctx.fillText('데이터를 불러올 수 없습니다.', canvas.width / 2, canvas.height / 2);
+                            ctx.fillText('서버에 데이터가 없을 수 있습니다.', canvas.width / 2, canvas.height / 2 + 20);
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('데이터 로딩 오류 상세:', error);
+                    console.error('에러 타입:', error.constructor.name);
+                    console.error('에러 메시지:', error.message);
+                    // 차트 영역에 에러 메시지 표시
+                    const canvas = document.getElementById('districtChart');
+                    if (canvas) {
+                        const ctx = canvas.getContext('2d');
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+                        ctx.fillStyle = '#F44336';
+                        ctx.font = '16px Arial';
+                        ctx.textAlign = 'center';
+                        ctx.fillText('API 연결 오류', canvas.width / 2, canvas.height / 2 - 20);
+                        ctx.fillText(error.message || '서버를 확인하세요.', canvas.width / 2, canvas.height / 2);
+                        ctx.fillText('콘솔을 확인하세요.', canvas.width / 2, canvas.height / 2 + 20);
+                    }
+                });
+        } else {
+            console.error('API 모듈을 찾을 수 없습니다.');
+            console.error('api 객체:', typeof api);
+            console.error('api.getDistrictStats:', typeof api?.getDistrictStats);
+            // 차트 영역에 에러 메시지 표시
+            const canvas = document.getElementById('districtChart');
+            if (canvas) {
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#F44336';
+                ctx.font = '16px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('API 모듈을 찾을 수 없습니다.', canvas.width / 2, canvas.height / 2 - 10);
+                ctx.fillText('api.js 파일이 로드되었는지 확인하세요.', canvas.width / 2, canvas.height / 2 + 10);
+            }
+        }
     });
 </script>
 </html>
