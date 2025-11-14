@@ -11,7 +11,7 @@
         <aside class="sidebar">
             <div class="sidebar__brand">오늘 뭐하지?</div>
             <nav class="sidebar__nav" aria-label="사이드바">
-                <a class="sidebar__tab" href="dashboard.html">대시보드</a>
+                <a class="sidebar__tab" href="dashboard.html">통계 관리</a>
                 <a class="sidebar__tab" href="data.html">데이터 관리</a>
                 <a class="sidebar__tab is-active" href="users.html">사용자 관리</a>
             </nav>
@@ -20,8 +20,8 @@
             <header>
                 <h1>사용자 관리</h1>
             </header>
-            <main>
-                <section class="summary-card">
+            <main class="users-main">
+                <section class="summary-card users-card-wide">
                     <h2>계정 및 신고 현황</h2>
                     <div class="card__body">
                         <table>
@@ -57,7 +57,7 @@
                     </div>
                 </section>
 
-                <section class="summary-card">
+                <section class="summary-card users-card-wide">
                     <h2>계정 삭제 이유</h2>
                     <div class="chart-row" style="margin-top: 18px;">
                         <div class="chart-row__media">
@@ -92,8 +92,8 @@
                     </div>
                 </section>
 
-                <section class="summary-card">
-                    <h2>사용자 문의 사항</h2>
+                <section class="summary-card users-card-full">
+                    <h2>사용자 문의 및 신고 사항</h2>
                     <div class="card__body">
                         <h3 style="margin-top: 0; margin-bottom: 16px; font-size: 16px; color: #52606d; font-weight: 600;">일반 문의 사항</h3>
                         <table style="margin-bottom: 32px;">
@@ -112,56 +112,56 @@
                                     <td>user001</td>
                                     <td>앱 사용 방법 문의... <button type="button" style="padding: 4px 8px; font-size: 12px; margin-left: 4px;" onclick="showFullInquiry(this)">더보기</button></td>
                                     <td>2025-11-04 14:23</td>
-                                    <td><button type="button" onclick="toggleStatus(this)" style="padding: 4px 12px; font-size: 12px; background-color: #F44336; color: #ffffff; border: none; border-radius: 4px; cursor: pointer;">미완료</button></td>
+                                    <td class="status-cell" data-is-processed="0">미완료</td>
                                 </tr>
                                 <tr>
                                     <td>2</td>
                                     <td>user142</td>
                                     <td>검색 기능 오류... <button type="button" style="padding: 4px 8px; font-size: 12px; margin-left: 4px;" onclick="showFullInquiry(this)">더보기</button></td>
                                     <td>2025-11-03 09:47</td>
-                                    <td><button type="button" onclick="toggleStatus(this)" style="padding: 4px 12px; font-size: 12px; background-color: #F44336; color: #ffffff; border: none; border-radius: 4px; cursor: pointer;">미완료</button></td>
+                                    <td class="status-cell" data-is-processed="0">미완료</td>
                                 </tr>
                                 <tr>
                                     <td>3</td>
                                     <td>user289</td>
                                     <td>필터 기능 추가 요청... <button type="button" style="padding: 4px 8px; font-size: 12px; margin-left: 4px;" onclick="showFullInquiry(this)">더보기</button></td>
                                     <td>2025-11-02 16:55</td>
-                                    <td><button type="button" onclick="toggleStatus(this)" style="padding: 4px 12px; font-size: 12px; background-color: #F44336; color: #ffffff; border: none; border-radius: 4px; cursor: pointer;">미완료</button></td>
+                                    <td class="status-cell" data-is-processed="0">미완료</td>
                                 </tr>
                                 <tr>
                                     <td>4</td>
                                     <td>user356</td>
                                     <td>비밀번호 재설정... <button type="button" style="padding: 4px 8px; font-size: 12px; margin-left: 4px;" onclick="showFullInquiry(this)">더보기</button></td>
                                     <td>2025-11-01 11:30</td>
-                                    <td><button type="button" onclick="toggleStatus(this)" style="padding: 4px 12px; font-size: 12px; background-color: #F44336; color: #ffffff; border: none; border-radius: 4px; cursor: pointer;">미완료</button></td>
+                                    <td class="status-cell" data-is-processed="0">미완료</td>
                                 </tr>
                                 <tr class="inquiry-hidden" style="display: none;">
                                     <td>5</td>
                                     <td>user478</td>
                                     <td>결제 오류 문의... <button type="button" style="padding: 4px 8px; font-size: 12px; margin-left: 4px;" onclick="showFullInquiry(this)">더보기</button></td>
                                     <td>2025-10-31 15:42</td>
-                                    <td><button type="button" onclick="toggleStatus(this)" style="padding: 4px 12px; font-size: 12px; background-color: #F44336; color: #ffffff; border: none; border-radius: 4px; cursor: pointer;">미완료</button></td>
+                                    <td class="status-cell" data-is-processed="0">미완료</td>
                                 </tr>
                                 <tr class="inquiry-hidden" style="display: none;">
                                     <td>6</td>
                                     <td>user523</td>
                                     <td>다크모드 추가 요청... <button type="button" style="padding: 4px 8px; font-size: 12px; margin-left: 4px;" onclick="showFullInquiry(this)">더보기</button></td>
                                     <td>2025-10-30 10:18</td>
-                                    <td><button type="button" onclick="toggleStatus(this)" style="padding: 4px 12px; font-size: 12px; background-color: #F44336; color: #ffffff; border: none; border-radius: 4px; cursor: pointer;">미완료</button></td>
+                                    <td class="status-cell" data-is-processed="0">미완료</td>
                                 </tr>
                                 <tr class="inquiry-hidden" style="display: none;">
                                     <td>7</td>
                                     <td>user612</td>
                                     <td>앱 크래시 문제... <button type="button" style="padding: 4px 8px; font-size: 12px; margin-left: 4px;" onclick="showFullInquiry(this)">더보기</button></td>
                                     <td>2025-10-29 09:55</td>
-                                    <td><button type="button" onclick="toggleStatus(this)" style="padding: 4px 12px; font-size: 12px; background-color: #F44336; color: #ffffff; border: none; border-radius: 4px; cursor: pointer;">미완료</button></td>
+                                    <td class="status-cell" data-is-processed="0">미완료</td>
                                 </tr>
                                 <tr class="inquiry-hidden" style="display: none;">
                                     <td>8</td>
                                     <td>user789</td>
                                     <td>알림 설정 방법... <button type="button" style="padding: 4px 8px; font-size: 12px; margin-left: 4px;" onclick="showFullInquiry(this)">더보기</button></td>
                                     <td>2025-10-28 14:30</td>
-                                    <td><button type="button" onclick="toggleStatus(this)" style="padding: 4px 12px; font-size: 12px; background-color: #F44336; color: #ffffff; border: none; border-radius: 4px; cursor: pointer;">미완료</button></td>
+                                    <td class="status-cell" data-is-processed="0">미완료</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -190,7 +190,7 @@
                                     <td>스팸 신고</td>
                                     <td>스팸/광고</td>
                                     <td>2025-11-04 08:15</td>
-                                    <td><button type="button" onclick="toggleStatus(this)" style="padding: 4px 12px; font-size: 12px; background-color: #F44336; color: #ffffff; border: none; border-radius: 4px; cursor: pointer;">미완료</button></td>
+                                    <td class="status-cell" data-is-processed="0">미완료</td>
                                 </tr>
                                 <tr>
                                     <td>2</td>
@@ -199,7 +199,7 @@
                                     <td>욕설/비방</td>
                                     <td>욕설/비방</td>
                                     <td>2025-11-03 20:33</td>
-                                    <td><button type="button" onclick="toggleStatus(this)" style="padding: 4px 12px; font-size: 12px; background-color: #F44336; color: #ffffff; border: none; border-radius: 4px; cursor: pointer;">미완료</button></td>
+                                    <td class="status-cell" data-is-processed="0">미완료</td>
                                 </tr>
                                 <tr>
                                     <td>3</td>
@@ -208,7 +208,7 @@
                                     <td>음란물 신고</td>
                                     <td>음란물</td>
                                     <td>2025-11-02 13:52</td>
-                                    <td><button type="button" onclick="toggleStatus(this)" style="padding: 4px 12px; font-size: 12px; background-color: #F44336; color: #ffffff; border: none; border-radius: 4px; cursor: pointer;">미완료</button></td>
+                                    <td class="status-cell" data-is-processed="0">미완료</td>
                                 </tr>
                                 <tr>
                                     <td>4</td>
@@ -217,7 +217,7 @@
                                     <td>개인정보 유출</td>
                                     <td>개인정보 유출</td>
                                     <td>2025-11-01 17:08</td>
-                                    <td><button type="button" onclick="toggleStatus(this)" style="padding: 4px 12px; font-size: 12px; background-color: #F44336; color: #ffffff; border: none; border-radius: 4px; cursor: pointer;">미완료</button></td>
+                                    <td class="status-cell" data-is-processed="0">미완료</td>
                                 </tr>
                                 <tr>
                                     <td>5</td>
@@ -226,7 +226,7 @@
                                     <td>기타 신고</td>
                                     <td>기타 <button type="button" style="padding: 4px 8px; font-size: 12px; margin-left: 4px;" onclick="showFullReason(this)">더보기</button></td>
                                     <td>2025-10-31 10:25</td>
-                                    <td><button type="button" onclick="toggleStatus(this)" style="padding: 4px 12px; font-size: 12px; background-color: #F44336; color: #ffffff; border: none; border-radius: 4px; cursor: pointer;">미완료</button></td>
+                                    <td class="status-cell" data-is-processed="0">미완료</td>
                                 </tr>
                                 <tr class="report-hidden" style="display: none;">
                                     <td>6</td>
@@ -235,7 +235,7 @@
                                     <td>스팸 신고</td>
                                     <td>스팸/광고</td>
                                     <td>2025-10-30 16:20</td>
-                                    <td><button type="button" onclick="toggleStatus(this)" style="padding: 4px 12px; font-size: 12px; background-color: #F44336; color: #ffffff; border: none; border-radius: 4px; cursor: pointer;">미완료</button></td>
+                                    <td class="status-cell" data-is-processed="0">미완료</td>
                                 </tr>
                                 <tr class="report-hidden" style="display: none;">
                                     <td>7</td>
@@ -244,7 +244,7 @@
                                     <td>욕설/비방</td>
                                     <td>욕설/비방</td>
                                     <td>2025-10-29 11:45</td>
-                                    <td><button type="button" onclick="toggleStatus(this)" style="padding: 4px 12px; font-size: 12px; background-color: #F44336; color: #ffffff; border: none; border-radius: 4px; cursor: pointer;">미완료</button></td>
+                                    <td class="status-cell" data-is-processed="0">미완료</td>
                                 </tr>
                                 <tr class="report-hidden" style="display: none;">
                                     <td>8</td>
@@ -253,7 +253,7 @@
                                     <td>음란물 신고</td>
                                     <td>음란물</td>
                                     <td>2025-10-28 09:12</td>
-                                    <td><button type="button" onclick="toggleStatus(this)" style="padding: 4px 12px; font-size: 12px; background-color: #F44336; color: #ffffff; border: none; border-radius: 4px; cursor: pointer;">미완료</button></td>
+                                    <td class="status-cell" data-is-processed="0">미완료</td>
                                 </tr>
                                 <tr class="report-hidden" style="display: none;">
                                     <td>9</td>
@@ -262,7 +262,7 @@
                                     <td>개인정보 유출</td>
                                     <td>개인정보 유출</td>
                                     <td>2025-10-27 13:28</td>
-                                    <td><button type="button" onclick="toggleStatus(this)" style="padding: 4px 12px; font-size: 12px; background-color: #F44336; color: #ffffff; border: none; border-radius: 4px; cursor: pointer;">미완료</button></td>
+                                    <td class="status-cell" data-is-processed="0">미완료</td>
                                 </tr>
                                 <tr class="report-hidden" style="display: none;">
                                     <td>10</td>
@@ -271,7 +271,7 @@
                                     <td>기타 신고</td>
                                     <td>기타 <button type="button" style="padding: 4px 8px; font-size: 12px; margin-left: 4px;" onclick="showFullReason(this)">더보기</button></td>
                                     <td>2025-10-26 15:50</td>
-                                    <td><button type="button" onclick="toggleStatus(this)" style="padding: 4px 12px; font-size: 12px; background-color: #F44336; color: #ffffff; border: none; border-radius: 4px; cursor: pointer;">미완료</button></td>
+                                    <td class="status-cell" data-is-processed="0">미완료</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -281,7 +281,7 @@
                     </div>
                 </section>
 
-                <section class="summary-card">
+                <section class="summary-card users-card-wide">
                     <h2>계정 상태 분포</h2>
                     <p class="section-subtitle">전체 사용자 계정 상태 현황</p>
                     <div class="tag-list" style="margin: 18px 0 24px;">
@@ -472,15 +472,24 @@
         }
     }
 
-    function toggleStatus(button) {
-        if (button.textContent === '미완료') {
-            button.textContent = '완료';
-            button.style.backgroundColor = '#4CAF50';
-        } else {
-            button.textContent = '미완료';
-            button.style.backgroundColor = '#F44336';
-        }
+    // 처리 여부 표시 함수 (is_processed 값에 따라 자동으로 표시)
+    function updateStatusCells() {
+        document.querySelectorAll('.status-cell').forEach(cell => {
+            const isProcessed = parseInt(cell.getAttribute('data-is-processed'));
+            if (isProcessed === 1) {
+                cell.textContent = '완료';
+                cell.style.color = '#4CAF50';
+                cell.style.fontWeight = '600';
+            } else {
+                cell.textContent = '미완료';
+                cell.style.color = '#F44336';
+                cell.style.fontWeight = '600';
+            }
+        });
     }
+
+    // 페이지 로드 시 실행
+    updateStatusCells();
 </script>
 </html>
 

@@ -188,6 +188,18 @@ main {
     margin-top: 20px;
 }
 
+.users-main {
+    grid-template-columns: 1fr;
+}
+
+.users-card-wide {
+    grid-column: 1 / -1;
+}
+
+.users-card-full {
+    grid-column: 1 / -1;
+}
+
 #travel {
     grid-column: span 3;
     min-height: 550px;
