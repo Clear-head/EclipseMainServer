@@ -10,6 +10,6 @@ black_table = Table(
     Column('phone', String),
     Column('email', String),
     Column('Sanction', Text),
-    Column('period', DateTime),
+    Column('finished_at', DateTime),
     Column('started_at', DateTime),
 )

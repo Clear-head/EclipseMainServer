@@ -1,12 +1,13 @@
 from src.domain.dto.user.user_account_dto import RequestDeleteAccountDTO
 from src.domain.dto.user.user_auth_dto import UserInfoDTO, ResponseLoginDTO, RequestRegisterDTO, ResponseRegisterDTO
 from src.domain.entities.delete_entity import DeleteEntity
+from src.infra.database.repository.black_repository import BlackRepository
 from src.infra.database.repository.delete_repository import DeleteCauseRepository
 from src.infra.database.repository.users_repository import UserRepository
 from src.logger.custom_logger import get_logger
 from src.service.auth.jwt import create_jwt_token
 from src.utils.exception_handler.auth_error_class import DuplicateUserInfoError, InvalidCredentialsException, \
-    UserAlreadyExistsException, UserNotFoundException
+    UserAlreadyExistsException, UserNotFoundException, UserBannedException
 
 
 class UserService:
@@ -17,7 +18,7 @@ class UserService:
 
     async def login(self, id: str, pw: str):
         select_from_id_pw_result = await self.repository.select(id=id, password=pw)
-
+        banned = await BlackRepository().select(user_id=select_from_id_pw_result[0].id)
         #   id,pw 검색 인원 2명 이상
         if len(select_from_id_pw_result) > 1:
             raise DuplicateUserInfoError()
@@ -25,6 +26,9 @@ class UserService:
         #   id or pw 틀림
         elif len(select_from_id_pw_result) == 0:
             raise InvalidCredentialsException()
+
+        elif len(banned) > 0:
+            raise UserBannedException(finished_at=banned[0].finished_at)
 
         #   로그인 성공
         else:
