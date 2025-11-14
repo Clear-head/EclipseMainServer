@@ -97,7 +97,7 @@ async def get_random_recommendations(
     )
     
     logger.info(f"[{category}] DB 랜덤 조회 결과: {len(stores_as_dicts)}개")
-    return convert_stores_to_dto(stores_as_dicts)
+    return stores_as_dicts
 
 
 # ==================== 일반 추천 (ChromaDB + GPT) ====================

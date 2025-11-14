@@ -76,9 +76,9 @@ class CategoryRepository(base_repository.BaseRepository):
     #   매장 별 리뷰 수, 별점 평균
     async def get_review_statistics(
             self,
-            sub_category: str = None,
+            is_random: int = 0,              #   0 random
             limit: int = None,
-            offset: int = None
+            **filters
     ) -> list[CategoryListItemDTO]:
         from src.infra.database.tables.table_reviews import reviews_table
 
@@ -103,6 +103,7 @@ class CategoryRepository(base_repository.BaseRepository):
                 self.table.c.image.label("image_url"),
                 full_address,
                 self.table.c.sub_category.label("sub_category"),
+                self.table.c.type.label('type'),
                 self.table.c.latitude.label('lat'),
                 self.table.c.longitude.label('lng'),
             ).select_from(
@@ -113,11 +114,22 @@ class CategoryRepository(base_repository.BaseRepository):
             )
 
 
-            if sub_category:
-                stmt = stmt.where(self.table.c.sub_category == sub_category)
+            for column, value in filters.items():
+                if not hasattr(self.table.c, column):
+                    continue
+
+                col = getattr(self.table.c, column)
+
+                if isinstance(value, list):
+                    stmt = stmt.where(col.in_(value))
+                else:
+                    stmt = stmt.where(col == value)
 
             # GROUP BY
-            stmt = stmt.group_by(self.table.c.id).having(func.count() >= 1).order_by(func.rand())
+            if is_random == 0:
+                stmt = stmt.group_by(self.table.c.id).having(func.count() >= 1).order_by(func.rand())
+            else:
+                stmt = stmt.group_by(self.table.c.id)
 
             if limit:
                 stmt = stmt.limit(limit)
@@ -127,6 +139,5 @@ class CategoryRepository(base_repository.BaseRepository):
             result = await conn.execute(stmt)
             rows = list(result.mappings())
 
-        print(rows[0])
         # DTO 변환
         return [CategoryListItemDTO(**row) for row in rows]

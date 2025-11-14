@@ -536,10 +536,16 @@ class StoreSuggestService:
         repo = CategoryRepository()
         
         # DB에서 랜덤 조회
-        random_stores = await repo.select_random(
+        # random_stores = await repo.select_random(
+        #     limit=n_results,
+        #     gu=region,
+        #     type=self.convert_type_to_code(category_type)
+        # )
+        random_stores = await repo.get_review_statistics(
             limit=n_results,
             gu=region,
-            type=self.convert_type_to_code(category_type)
+            type=self.convert_type_to_code(category_type),
+            is_random=1
         )
         
         logger.info(f"DB 랜덤 조회 결과: {len(random_stores)}개")
@@ -547,24 +553,7 @@ class StoreSuggestService:
         # MainScreenCategoryList 형식으로 변환
         results = []
         for store in random_stores:
-            address = (
-                (store.do + " " if store.do else "") +
-                (store.si + " " if store.si else "") +
-                (store.gu + " " if store.gu else "") +
-                (store.detail_address if store.detail_address else "")
-            ).strip()
             
-            results.append({
-                'id': store.id,
-                'title': store.name,
-                'image_url': store.image,
-                'detail_address': address,
-                'sub_category': store.sub_category,
-                'business_hour': store.business_hour,
-                'phone': store.phone,
-                'menu': store.menu or '정보없음',
-                'lat': str(store.latitude) if store.latitude else None,
-                'lng': str(store.longitude) if store.longitude else None,
-            })
+            results.append(store.model_dump())
         
         return results
