@@ -1,3 +1,6 @@
+from datetime import datetime
+
+
 class AuthException(Exception):
     def __init__(self, message: str, status_code: int = 401):
         self.message = message
@@ -19,6 +22,11 @@ class UserAlreadyExistsException(AuthException):
     def __init__(self, message: str = "이미 존재하는 사용자입니다."):
         super().__init__(message, status_code=409)
 
+
+class UserBannedException(AuthException):
+    def __init__(self, finished_at: datetime, message: str = f"이용 정지 중인 사용자 입니다. "):
+        message += finished_at.__str__()
+        super().__init__(message, status_code=500)
 
 class InvalidTokenException(AuthException):
     def __init__(self, message: str = "유효하지 않은 토큰입니다."):

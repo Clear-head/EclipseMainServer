@@ -475,40 +475,48 @@ class StoreSuggestService:
         return suggestions
     
     async def get_store_details(self, store_ids: List[str]) -> List[Dict]:
-        """매장 상세 정보 조회"""
+        """매장 상세 정보 조회 (리뷰 통계 포함)"""
         from src.infra.database.repository.category_repository import CategoryRepository
         
         category_repo = CategoryRepository()
-        store_details = []
         
-        for store_id in store_ids:
-            try:
-                stores = await category_repo.select(id=store_id)
-                if stores and len(stores) > 0:
-                    store = stores[0]
-                    store_dict = {
-                        'id': store.id,
-                        'name': store.name,
-                        'do': store.do,
-                        'si': store.si,
-                        'gu': store.gu,
-                        'detail_address': store.detail_address,
-                        'sub_category': store.sub_category,
-                        'business_hour': store.business_hour,
-                        'phone': store.phone,
-                        'type': store.type,
-                        'image': store.image,
-                        'latitude': store.latitude,
-                        'longitude': store.longitude,
-                        'menu': store.menu
-                    }
-                    store_details.append(store_dict)
-            except Exception as e:
-                logger.error(f"매장 ID '{store_id}' 조회 중 오류: {e}")
-                continue
-        
-        return store_details
-    
+        try:
+            # 새로운 메서드 사용 (LEFT JOIN으로 리뷰 없는 매장도 포함)
+            store_details_dto = await category_repo.get_review_statistics(
+                id=store_ids,
+                is_random=False
+            )
+            
+            # DTO를 Dict로 변환
+            store_details = []
+            for dto in store_details_dto:
+                store_details.append({
+                    'id': dto.id,
+                    'name': dto.title,
+                    'image': dto.image_url,
+                    'detail_address': dto.detail_address,
+                    'sub_category': dto.sub_category,
+                    'latitude': float(dto.lat) if dto.lat else None,
+                    'longitude': float(dto.lng) if dto.lng else None,
+                    'review_count': dto.review_count,
+                    'average_stars': dto.average_stars,
+                    # DTO에 없는 필드는 기본값
+                    'do': '',
+                    'si': '',
+                    'gu': '',
+                    'business_hour': '',
+                    'phone': '',
+                    'type': '',
+                    'menu': '정보없음'
+                })
+            
+            return store_details
+            
+        except Exception as e:
+            logger.error(f"매장 상세 정보 조회 중 오류: {e}")
+            return []
+
+
     async def get_random_stores_from_db(
         self,
         region: str,
@@ -516,18 +524,16 @@ class StoreSuggestService:
         n_results: int = 10
     ) -> List[Dict]:
         """
-        DB에서 지역과 카테고리만 맞춘 랜덤 매장 조회
+        DB에서 지역과 카테고리만 맞춘 랜덤 매장 조회 (INNER JOIN)
+        리뷰가 있는 매장 중에서만 추천
         
         Args:
             region: 지역명 (예: "강남구")
-            type: 카테고리 타입 (예: "카페")
+            category_type: 카테고리 타입 (예: "카페")
             n_results: 결과 개수
         
         Returns:
-            랜덤 매장 리스트 (MainScreenCategoryList 형식)
-            :param n_results:
-            :param region:
-            :param category_type:
+            랜덤 매장 리스트 (리뷰 통계 포함)
         """
         from src.infra.database.repository.category_repository import CategoryRepository
         
