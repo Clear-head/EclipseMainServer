@@ -130,3 +130,158 @@ class CategoryRepository(base_repository.BaseRepository):
         print(rows[0])
         # DTO 변환
         return [CategoryListItemDTO(**row) for row in rows]
+
+
+    async def get_stores_with_review_stats(
+        self,
+        limit: int = None,
+        **filters
+    ) -> list[CategoryListItemDTO]:
+        """
+        리뷰 통계를 포함한 매장 조회 (리뷰가 없는 매장도 포함 - LEFT JOIN)
+        
+        사용 예시:
+        # ID 리스트로 상세 조회
+        stores = await repo.get_stores_with_review_stats(
+            id=['id1', 'id2', 'id3']
+        )
+        """
+        from src.infra.database.tables.table_reviews import reviews_table
+
+        engine = await get_engine()
+        async with engine.begin() as conn:
+            # 주소 조합
+            full_address = func.trim(
+                func.concat_ws(' ',
+                    func.nullif(self.table.c.do, ''),
+                    func.nullif(self.table.c.si, ''),
+                    func.nullif(self.table.c.gu, ''),
+                    func.nullif(self.table.c.detail_address, '')
+                )
+            ).label('detail_address')
+
+            # LEFT JOIN 쿼리 (리뷰 없는 매장도 포함)
+            stmt = select(
+                self.table.c.id.label('id'),
+                self.table.c.name.label("title"),
+                self.table.c.image.label("image_url"),
+                full_address,
+                self.table.c.sub_category.label("sub_category"),
+                self.table.c.latitude.label('lat'),
+                self.table.c.longitude.label('lng'),
+                func.coalesce(func.count(reviews_table.c.id), 0).label('review_count'),
+                func.coalesce(func.avg(reviews_table.c.stars), 0.0).label('average_stars'),
+            ).select_from(
+                self.table.outerjoin(  # LEFT JOIN
+                    reviews_table,
+                    reviews_table.c.category_id == self.table.c.id
+                )
+            )
+
+            # WHERE 절 추가
+            for column, value in filters.items():
+                if not hasattr(self.table.c, column):
+                    continue
+                
+                col = getattr(self.table.c, column)
+                
+                if isinstance(value, list):
+                    stmt = stmt.where(col.in_(value))
+                else:
+                    stmt = stmt.where(col == value)
+
+            # GROUP BY
+            stmt = stmt.group_by(self.table.c.id)
+
+            # LIMIT
+            if limit:
+                stmt = stmt.limit(limit)
+
+            # 실행
+            result = await conn.execute(stmt)
+            rows = list(result.mappings())
+
+            if not rows:
+                self.logger.info(f"no items in {self.table} with filters: {filters}")
+                return []
+
+            # DTO 변환
+            return [CategoryListItemDTO(**row) for row in rows]
+
+
+    async def get_random_stores_with_reviews(
+        self,
+        limit: int = 10,
+        **filters
+    ) -> list[CategoryListItemDTO]:
+        """
+        리뷰가 있는 매장 중에서 랜덤 조회 (INNER JOIN)
+        
+        사용 예시:
+        stores = await repo.get_random_stores_with_reviews(
+            gu='강남구',
+            type='0',
+            limit=10
+        )
+        """
+        from src.infra.database.tables.table_reviews import reviews_table
+
+        engine = await get_engine()
+        async with engine.begin() as conn:
+            # 주소 조합
+            full_address = func.trim(
+                func.concat_ws(' ',
+                    func.nullif(self.table.c.do, ''),
+                    func.nullif(self.table.c.si, ''),
+                    func.nullif(self.table.c.gu, ''),
+                    func.nullif(self.table.c.detail_address, '')
+                )
+            ).label('detail_address')
+
+            # INNER JOIN 쿼리 (리뷰 있는 매장만)
+            stmt = select(
+                self.table.c.id.label('id'),
+                self.table.c.name.label("title"),
+                self.table.c.image.label("image_url"),
+                full_address,
+                self.table.c.sub_category.label("sub_category"),
+                self.table.c.latitude.label('lat'),
+                self.table.c.longitude.label('lng'),
+                func.count(reviews_table.c.id).label('review_count'),
+                func.avg(reviews_table.c.stars).label('average_stars'),
+            ).select_from(
+                self.table.join(  # INNER JOIN
+                    reviews_table,
+                    reviews_table.c.category_id == self.table.c.id
+                )
+            )
+
+            # WHERE 절 추가
+            for column, value in filters.items():
+                if not hasattr(self.table.c, column):
+                    continue
+                
+                col = getattr(self.table.c, column)
+                
+                if isinstance(value, list):
+                    stmt = stmt.where(col.in_(value))
+                else:
+                    stmt = stmt.where(col == value)
+
+            # GROUP BY + 리뷰 1개 이상 + 랜덤 정렬
+            stmt = stmt.group_by(self.table.c.id).having(func.count() >= 1).order_by(func.rand())
+
+            # LIMIT
+            if limit:
+                stmt = stmt.limit(limit)
+
+            # 실행
+            result = await conn.execute(stmt)
+            rows = list(result.mappings())
+
+            if not rows:
+                self.logger.info(f"no items in {self.table} with filters: {filters}")
+                return []
+
+            # DTO 변환
+            return [CategoryListItemDTO(**row) for row in rows]

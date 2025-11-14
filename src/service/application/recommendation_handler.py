@@ -39,18 +39,25 @@ def format_store_address(store: Dict) -> str:
 # ==================== DTO 변환 ====================
 def convert_stores_to_dto(stores: List[Dict]) -> List[CategoryListItemDTO]:
     """매장 dict 리스트를 DTO 리스트로 변환"""
-    return [
-        CategoryListItemDTO(
-            id=store.get('id', ''),
-            title=store.get('title', ''),
-            image_url=store.get('image_url', ''),
-            detail_address=store.get('detail_address', ''),
-            sub_category=store.get('sub_category', ''),
-            lat=store.get('lat'),
-            lng=store.get('lng')
+    result = []
+    for store in stores:
+        # 🔥 디버깅
+        logger.debug(f"convert_stores_to_dto - {store.get('title')} 리뷰 수: {store.get('review_count')}")
+        
+        result.append(
+            CategoryListItemDTO(
+                id=store.get('id', ''),
+                title=store.get('title', ''),
+                image_url=store.get('image_url', ''),
+                detail_address=store.get('detail_address', ''),
+                sub_category=store.get('sub_category', ''),
+                lat=store.get('lat'),
+                lng=store.get('lng'),
+                review_count=store.get('review_count', 0),  # 🔥 추가
+                average_stars=store.get('average_stars', 0.0)  # 🔥 추가
+            )
         )
-        for store in stores
-    ]
+    return result
 
 
 def prepare_store_details(store_details: List[Dict]) -> List[Dict]:
@@ -58,6 +65,10 @@ def prepare_store_details(store_details: List[Dict]) -> List[Dict]:
     stores_as_dicts = []
     
     for store in store_details:
+        # 🔥 디버깅 추가
+        logger.debug(f"prepare_store_details - 원본 리뷰 수: {store.get('review_count')}")
+        logger.debug(f"prepare_store_details - 원본 평균 별점: {store.get('average_stars')}")
+        
         stores_as_dicts.append({
             'id': store.get('id', ''),
             'title': store.get('name', ''),
@@ -69,6 +80,8 @@ def prepare_store_details(store_details: List[Dict]) -> List[Dict]:
             'menu': store.get('menu', '') or '정보없음',
             'lat': str(store.get('latitude', '')) if store.get('latitude') else None,
             'lng': str(store.get('longitude', '')) if store.get('longitude') else None,
+            'review_count': store.get('review_count', 0),  # 🔥 확인
+            'average_stars': store.get('average_stars', 0.0),  # 🔥 확인
         })
     
     return stores_as_dicts
@@ -109,17 +122,7 @@ async def get_filtered_recommendations(
     keywords: List[str],
     people_count: int
 ) -> List[CategoryListItemDTO]:
-    """
-    일반 추천 (ChromaDB + GPT 필터링)
-    
-    Args:
-        suggest_service: 추천 서비스 인스턴스
-        query_enhancer: 쿼리 향상 서비스 인스턴스
-        region: 지역 (구 단위)
-        category: 카테고리명
-        keywords: 사용자 키워드 리스트
-        people_count: 인원 수
-    """
+    """일반 추천 (ChromaDB + GPT 필터링)"""
     logger.info(f"[{category}] 일반 추천 모드 - ChromaDB 검색")
     
     keyword_string = ", ".join(keywords)
@@ -147,9 +150,27 @@ async def get_filtered_recommendations(
         logger.warning(f"[{category}] 추천 후보 없음")
         return []
 
-    # 매장 상세 정보 조회
+    # 🔥 매장 상세 정보 조회 (리뷰 통계 포함)
     store_details = await suggest_service.get_store_details(store_ids)
+    
+    # 🔥 디버깅: 리뷰 데이터 확인
+    logger.info(f"[{category}] ===== 리뷰 통계 디버깅 =====")
+    for store in store_details[:3]:  # 처음 3개만
+        logger.info(f"  매장명: {store.get('name', 'N/A')}")
+        logger.info(f"  리뷰 수: {store.get('review_count', 'N/A')}")
+        logger.info(f"  평균 별점: {store.get('average_stars', 'N/A')}")
+        logger.info(f"  전체 필드: {list(store.keys())}")
+    logger.info(f"[{category}] ==============================")
+    
     stores_as_dicts = prepare_store_details(store_details)
+    
+    # 🔥 디버깅: 변환 후 데이터 확인
+    logger.info(f"[{category}] ===== 변환 후 데이터 =====")
+    for store in stores_as_dicts[:3]:
+        logger.info(f"  매장명: {store.get('title', 'N/A')}")
+        logger.info(f"  리뷰 수: {store.get('review_count', 'N/A')}")
+        logger.info(f"  평균 별점: {store.get('average_stars', 'N/A')}")
+    logger.info(f"[{category}] ==============================")
     
     logger.info(f"[{category}] 후보 매장 상세 조회 완료: {len(stores_as_dicts)}개")
 
@@ -164,6 +185,15 @@ async def get_filtered_recommendations(
     )
 
     logger.info(f"[{category}] GPT 필터링 완료: {len(filtered_dicts)}개")
+    
+    # 🔥 디버깅: 최종 결과 확인
+    logger.info(f"[{category}] ===== 최종 결과 =====")
+    for store in filtered_dicts[:3]:
+        logger.info(f"  매장명: {store.get('title', 'N/A')}")
+        logger.info(f"  리뷰 수: {store.get('review_count', 'N/A')}")
+        logger.info(f"  평균 별점: {store.get('average_stars', 'N/A')}")
+    logger.info(f"[{category}] ===========================")
+    
     return convert_stores_to_dto(filtered_dicts)
 
 

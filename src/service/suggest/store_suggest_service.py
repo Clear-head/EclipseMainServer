@@ -475,40 +475,47 @@ class StoreSuggestService:
         return suggestions
     
     async def get_store_details(self, store_ids: List[str]) -> List[Dict]:
-        """매장 상세 정보 조회"""
+        """매장 상세 정보 조회 (리뷰 통계 포함)"""
         from src.infra.database.repository.category_repository import CategoryRepository
         
         category_repo = CategoryRepository()
-        store_details = []
         
-        for store_id in store_ids:
-            try:
-                stores = await category_repo.select(id=store_id)
-                if stores and len(stores) > 0:
-                    store = stores[0]
-                    store_dict = {
-                        'id': store.id,
-                        'name': store.name,
-                        'do': store.do,
-                        'si': store.si,
-                        'gu': store.gu,
-                        'detail_address': store.detail_address,
-                        'sub_category': store.sub_category,
-                        'business_hour': store.business_hour,
-                        'phone': store.phone,
-                        'type': store.type,
-                        'image': store.image,
-                        'latitude': store.latitude,
-                        'longitude': store.longitude,
-                        'menu': store.menu
-                    }
-                    store_details.append(store_dict)
-            except Exception as e:
-                logger.error(f"매장 ID '{store_id}' 조회 중 오류: {e}")
-                continue
-        
-        return store_details
-    
+        try:
+            # 새로운 메서드 사용 (LEFT JOIN으로 리뷰 없는 매장도 포함)
+            store_details_dto = await category_repo.get_stores_with_review_stats(
+                id=store_ids
+            )
+            
+            # DTO를 Dict로 변환
+            store_details = []
+            for dto in store_details_dto:
+                store_details.append({
+                    'id': dto.id,
+                    'name': dto.title,
+                    'image': dto.image_url,
+                    'detail_address': dto.detail_address,
+                    'sub_category': dto.sub_category,
+                    'latitude': float(dto.lat) if dto.lat else None,
+                    'longitude': float(dto.lng) if dto.lng else None,
+                    'review_count': dto.review_count,
+                    'average_stars': dto.average_stars,
+                    # DTO에 없는 필드는 기본값
+                    'do': '',
+                    'si': '',
+                    'gu': '',
+                    'business_hour': '',
+                    'phone': '',
+                    'type': '',
+                    'menu': '정보없음'
+                })
+            
+            return store_details
+            
+        except Exception as e:
+            logger.error(f"매장 상세 정보 조회 중 오류: {e}")
+            return []
+
+
     async def get_random_stores_from_db(
         self,
         region: str,
@@ -516,18 +523,16 @@ class StoreSuggestService:
         n_results: int = 10
     ) -> List[Dict]:
         """
-        DB에서 지역과 카테고리만 맞춘 랜덤 매장 조회
+        DB에서 지역과 카테고리만 맞춘 랜덤 매장 조회 (INNER JOIN)
+        리뷰가 있는 매장 중에서만 추천
         
         Args:
             region: 지역명 (예: "강남구")
-            type: 카테고리 타입 (예: "카페")
+            category_type: 카테고리 타입 (예: "카페")
             n_results: 결과 개수
         
         Returns:
-            랜덤 매장 리스트 (MainScreenCategoryList 형식)
-            :param n_results:
-            :param region:
-            :param category_type:
+            랜덤 매장 리스트 (리뷰 통계 포함)
         """
         from src.infra.database.repository.category_repository import CategoryRepository
         
@@ -535,36 +540,36 @@ class StoreSuggestService:
         
         repo = CategoryRepository()
         
-        # DB에서 랜덤 조회
-        random_stores = await repo.select_random(
-            limit=n_results,
-            gu=region,
-            type=self.convert_type_to_code(category_type)
-        )
-        
-        logger.info(f"DB 랜덤 조회 결과: {len(random_stores)}개")
-        
-        # MainScreenCategoryList 형식으로 변환
-        results = []
-        for store in random_stores:
-            address = (
-                (store.do + " " if store.do else "") +
-                (store.si + " " if store.si else "") +
-                (store.gu + " " if store.gu else "") +
-                (store.detail_address if store.detail_address else "")
-            ).strip()
+        try:
+            # INNER JOIN 메서드 사용 (리뷰 있는 매장만)
+            random_stores_dto = await repo.get_random_stores_with_reviews(
+                gu=region,
+                type=self.convert_type_to_code(category_type),
+                limit=n_results
+            )
             
-            results.append({
-                'id': store.id,
-                'title': store.name,
-                'image_url': store.image,
-                'detail_address': address,
-                'sub_category': store.sub_category,
-                'business_hour': store.business_hour,
-                'phone': store.phone,
-                'menu': store.menu or '정보없음',
-                'lat': str(store.latitude) if store.latitude else None,
-                'lng': str(store.longitude) if store.longitude else None,
-            })
-        
-        return results
+            logger.info(f"DB 랜덤 조회 결과: {len(random_stores_dto)}개")
+            
+            # DTO를 Dict로 변환
+            results = []
+            for dto in random_stores_dto:
+                results.append({
+                    'id': dto.id,
+                    'title': dto.title,
+                    'image_url': dto.image_url,
+                    'detail_address': dto.detail_address,
+                    'sub_category': dto.sub_category,
+                    'lat': dto.lat,
+                    'lng': dto.lng,
+                    'review_count': dto.review_count,
+                    'average_stars': dto.average_stars,
+                    'business_hour': '',
+                    'phone': '',
+                    'menu': '정보없음'
+                })
+            
+            return results
+            
+        except Exception as e:
+            logger.error(f"랜덤 매장 조회 중 오류: {e}")
+            return []
