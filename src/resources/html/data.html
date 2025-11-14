@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>데이터 관리</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sidebar__brand">오늘 뭐하지?</div>
+            <nav class="sidebar__nav" aria-label="사이드바">
+                <a class="sidebar__tab" href="dashboard.html">대시보드</a>
+                <a class="sidebar__tab is-active" href="data.html">데이터 관리</a>
+                <a class="sidebar__tab" href="users.html">사용자 관리</a>
+            </nav>
+        </aside>
+        <div class="content">
+            <header>
+                <h1>데이터 관리</h1>
+            </header>
+            <main class="data-main">
+                <section class="summary-card">
+                    <h2>태그 관리</h2>
+                    <div class="card__body">
+                        <div class="tag-tabs">
+                            <button class="tag-tab is-active" data-category="restaurant">음식점</button>
+                            <button class="tag-tab" data-category="cafe">카페</button>
+                            <button class="tag-tab" data-category="content">콘텐츠</button>
+                        </div>
+                        <div class="tag-chart-container">
+                            <canvas id="tagChart" aria-label="카테고리별 태그 분포"></canvas>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="summary-card">
+                    <h2>장소 데이터 현황</h2>
+                    <div class="card__body">
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>이름</th>
+                                        <th>구</th>
+                                        <th>서브카테고리</th>
+                                        <th>메뉴</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>맛있는 한식당</td>
+                                        <td>강남구</td>
+                                        <td>한식</td>
+                                        <td>비빔밥, 불고기, 갈비탕, 김치찌개, 된장찌개, 제육볶음, 삼겹살, 수제비</td>
+                                    </tr>
+                                    <tr>
+                                        <td>중화요리 전문점</td>
+                                        <td>서초구</td>
+                                        <td>중식</td>
+                                        <td>짜장면, 짬뽕, 탕수육, 유산슬, 마파두부, 양장피, 깐풍기, 볶음밥</td>
+                                    </tr>
+                                    <tr>
+                                        <td>일본 라멘집</td>
+                                        <td>송파구</td>
+                                        <td>일식</td>
+                                        <td>돈코츠라멘, 쇼유라멘, 미소라멘, 차슈덮밥, 규동, 우동, 가츠동, 오니기리</td>
+                                    </tr>
+                                    <tr>
+                                        <td>전통 한정식</td>
+                                        <td>종로구</td>
+                                        <td>한식</td>
+                                        <td>한정식A, 한정식B, 한정식C, 전복죽, 해물파전, 갈비정식, 오삼불고기, 육개장</td>
+                                    </tr>
+                                    <tr>
+                                        <td>딤섬 하우스</td>
+                                        <td>마포구</td>
+                                        <td>중식</td>
+                                        <td>샤오롱바오, 하가우, 춘권, 만두, 볶음밥, 탕수육, 마파두부, 짜장면</td>
+                                    </tr>
+                                    <tr>
+                                        <td>우동 전문점</td>
+                                        <td>용산구</td>
+                                        <td>일식</td>
+                                        <td>기본우동, 카레우동, 온천우동, 튀김우동, 규동, 가츠동, 오야꼬동, 덮밥세트</td>
+                                    </tr>
+                                    <tr>
+                                        <td>한정식 뷔페</td>
+                                        <td>강동구</td>
+                                        <td>한식</td>
+                                        <td>뷔페식사, 비빔밥, 불고기, 갈비탕, 김치찌개, 된장찌개, 제육볶음, 수육</td>
+                                    </tr>
+                                    <tr>
+                                        <td>중화반점</td>
+                                        <td>영등포구</td>
+                                        <td>중식</td>
+                                        <td>짜장면, 짬뽕, 볶음밥, 탕수육, 유산슬, 마파두부, 깐풍기, 양장피</td>
+                                    </tr>
+                                    <tr>
+                                        <td>정통 일식집</td>
+                                        <td>강서구</td>
+                                        <td>일식</td>
+                                        <td>초밥세트, 회덮밥, 우동, 라멘, 가츠동, 규동, 오야꼬동, 돈부리</td>
+                                    </tr>
+                                    <tr>
+                                        <td>한식당</td>
+                                        <td>관악구</td>
+                                        <td>한식</td>
+                                        <td>비빔밥, 불고기, 갈비탕, 김치찌개, 된장찌개, 제육볶음, 삼겹살, 수제비</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="summary-card district-card">
+                    <h2>서울특별시 자치구 별 매장 수</h2>
+                    <div class="card__body">
+                        <div class="tag-tabs">
+                            <button class="tag-tab is-active" data-category="restaurant">음식점</button>
+                            <button class="tag-tab" data-category="cafe">카페</button>
+                            <button class="tag-tab" data-category="content">콘텐츠</button>
+                        </div>
+                        <div class="district-chart-container">
+                            <canvas id="districtChart" aria-label="서울특별시 자치구별 매장 수"></canvas>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+</body>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // 카테고리별 태그 데이터
+    const tagData = {
+        restaurant: {
+            labels: ['음식이 맛있어요', '주차가 편해요', '분위기가 좋아요', '서비스가 친절해요', '가격이 합리적이에요', '양이 많아요', '재료가 신선해요', '대기시간이 짧아요'],
+            data: [245, 189, 156, 134, 112, 98, 87, 76]
+        },
+        cafe: {
+            labels: ['커피가 맛있어요', '분위기가 좋아요', '디저트가 맛있어요', '좌석이 편해요', '와이파이가 빨라요', '조용해요', '인테리어가 예뻐요', '가격이 합리적이에요'],
+            data: [198, 167, 145, 123, 109, 95, 82, 71]
+        },
+        content: {
+            labels: ['볼거리가 많아요', '체험 프로그램이 좋아요', '설명이 자세해요', '사진 찍기 좋아요', '접근성이 좋아요', '입장료가 합리적이에요', '주차가 편해요', '재방문하고 싶어요'],
+            data: [178, 154, 132, 118, 104, 91, 78, 65]
+        }
+    };
+
+    let tagChart = null;
+    let districtChart = null;
+
+    // DB에서 받은 데이터를 변환하는 함수
+    // SQL 쿼리 결과: [{gu: '강남구', 음식점: 268, 카페: 124, 콘텐츠: 86}, ...]
+    function transformDistrictData(dbData) {
+        const labels = dbData.map(row => row.gu);
+        const restaurant = dbData.map(row => row.음식점 || 0);
+        const cafe = dbData.map(row => row.카페 || 0);
+        const content = dbData.map(row => row.콘텐츠 || 0);
+        
+        return {
+            labels: labels,
+            restaurant: restaurant,
+            cafe: cafe,
+            content: content
+        };
+    }
+
+    // 초기값 (API 호출 전까지 사용)
+    const districtData = {
+        labels: ['강남구', '강동구', '강서구', '강북구', '관악구', '광진구', '구로구', '금천구', '노원구', '동대문구', '도봉구', '동작구', '마포구', '서대문구', '성동구', '성북구', '서초구', '송파구', '영등포구', '용산구', '양천구', '은평구', '종로구', '중구', '중랑구'],
+        restaurant: [268, 256, 284, 272, 261, 244, 230, 238, 196, 188, 276, 248, 240, 298, 220, 310, 268, 205, 322, 288, 312, 336, 402, 384, 318],
+        cafe: [124, 118, 142, 136, 128, 119, 101, 110, 92, 88, 134, 120, 115, 162, 108, 140, 126, 94, 150, 132, 148, 155, 210, 198, 156],
+        content: [86, 90, 104, 112, 96, 88, 76, 82, 64, 60, 98, 92, 84, 128, 72, 118, 94, 68, 136, 124, 132, 150, 194, 182, 148]
+    };
+    
+    // 전역 변수로 업데이트 가능하도록 설정
+    let currentDistrictData = districtData;
+
+    function createTagChart(category) {
+        const canvas = document.getElementById('tagChart');
+        if (!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+        const data = tagData[category];
+
+        // 기존 차트가 있으면 데이터만 업데이트 (애니메이션 효과)
+        if (tagChart) {
+            // 먼저 0으로 설정
+            tagChart.data.labels = data.labels;
+            tagChart.data.datasets[0].data = data.data.map(() => 0);
+            tagChart.update('none'); // 애니메이션 없이 즉시 업데이트
+
+            // 짧은 딜레이 후 실제 데이터로 업데이트 (애니메이션 효과)
+            setTimeout(() => {
+                tagChart.data.datasets[0].data = data.data;
+                tagChart.update();
+            }, 50);
+            return;
+        }
+
+        // 첫 번째 차트 생성 시 0에서 시작
+        const baseData = data.data.map(() => 0);
+        tagChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.labels,
+                datasets: [{
+                    label: '태그 수',
+                    data: baseData,
+                    backgroundColor: '#FF8126',
+                    borderRadius: 6,
+                    categoryPercentage: 0.7,
+                    barPercentage: 0.8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y',
+                animation: {
+                    duration: 800,
+                    easing: 'easeOutQuart'
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label(context) {
+                                return `${context.parsed.x}개`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        ticks: {
+                            color: '#52606d',
+                            font: {
+                                size: 11
+                            },
+                            callback: (value) => `${value}개`
+                        },
+                        grid: {
+                            color: 'rgba(82, 96, 109, 0.12)',
+                            drawBorder: false
+                        }
+                    },
+                    y: {
+                        ticks: {
+                            color: '#52606d',
+                            font: {
+                                size: 12
+                            }
+                        },
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
+
+        // 실제 데이터로 업데이트 (애니메이션 효과)
+        setTimeout(() => {
+            tagChart.data.datasets[0].data = data.data;
+            tagChart.update();
+        }, 100);
+    }
+
+    function createDistrictChart(category) {
+        const canvas = document.getElementById('districtChart');
+        if (!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+        const labels = currentDistrictData.labels;
+        const data = currentDistrictData[category];
+
+        // 카테고리별 y축 최대값 설정
+        const maxValue = category === 'restaurant' ? 450 : category === 'cafe' ? 250 : 220;
+        const stepSize = category === 'restaurant' ? 50 : 25;
+
+        // 기존 차트가 있으면 데이터만 업데이트 (애니메이션 효과)
+        if (districtChart) {
+            districtChart.data.labels = labels;
+            districtChart.data.datasets[0].data = data.map(() => 0);
+            // y축 최대값 업데이트
+            districtChart.options.scales.y.max = maxValue;
+            districtChart.options.scales.y.ticks.stepSize = stepSize;
+            districtChart.update('none');
+            setTimeout(() => {
+                districtChart.data.datasets[0].data = data;
+                districtChart.update();
+            }, 50);
+            return;
+        }
+
+        // 첫 번째 차트 생성 시 0에서 시작
+        const baseData = data.map(() => 0);
+        districtChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: '매장 수',
+                    data: baseData,
+                    backgroundColor: '#FF8126',
+                    borderRadius: 6,
+                    categoryPercentage: 0.7,
+                    barPercentage: 0.8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: {
+                    duration: 800,
+                    easing: 'easeOutQuart'
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label(context) {
+                                return `${context.parsed.y}개`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: {
+                            color: '#52606d',
+                            font: {
+                                size: 11
+                            },
+                            maxRotation: 45,
+                            minRotation: 45
+                        },
+                        grid: {
+                            display: false
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        max: maxValue,
+                        ticks: {
+                            color: '#52606d',
+                            font: {
+                                size: 11
+                            },
+                            stepSize: stepSize,
+                            callback: (value) => `${value}개`
+                        },
+                        grid: {
+                            color: 'rgba(82, 96, 109, 0.12)',
+                            drawBorder: false
+                        }
+                    }
+                }
+            }
+        });
+
+        // 실제 데이터로 업데이트 (애니메이션 효과)
+        setTimeout(() => {
+            districtChart.data.datasets[0].data = data;
+            districtChart.update();
+        }, 100);
+    }
+
+    // 탭 전환 기능
+    document.addEventListener('DOMContentLoaded', () => {
+        // 태그 관리 카드의 탭 전환 기능 (district-card가 아닌 카드의 탭만 선택)
+        const tagTabs = document.querySelectorAll('.summary-card:not(.district-card) .tag-tab');
+        tagTabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                // 같은 카드 내의 모든 탭에서 is-active 제거
+                const parentCard = tab.closest('.summary-card');
+                const sameCardTabs = parentCard.querySelectorAll('.tag-tab');
+                sameCardTabs.forEach(t => t.classList.remove('is-active'));
+                // 클릭한 탭에 is-active 추가
+                tab.classList.add('is-active');
+                // 해당 카테고리의 차트 생성
+                const category = tab.getAttribute('data-category');
+                createTagChart(category);
+            });
+        });
+
+        // 초기 차트 생성 (음식점)
+        createTagChart('restaurant');
+        
+        // 서울시 자치구 차트 탭 전환 기능
+        const districtTabs = document.querySelectorAll('.district-card .tag-tab');
+        districtTabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                // 같은 카드 내의 모든 탭에서 is-active 제거
+                const parentCard = tab.closest('.district-card');
+                const sameCardTabs = parentCard.querySelectorAll('.tag-tab');
+                sameCardTabs.forEach(t => t.classList.remove('is-active'));
+                // 클릭한 탭에 is-active 추가
+                tab.classList.add('is-active');
+                // 해당 카테고리의 차트 생성
+                const category = tab.getAttribute('data-category');
+                createDistrictChart(category);
+            });
+        });
+        
+        // 자치구 차트 생성 (음식점)
+        createDistrictChart('restaurant');
+        
+        // DB에서 데이터 가져오기 (API 호출 예시)
+        // 실제 API 엔드포인트로 변경 필요
+        /*
+        fetch('/api/admin/district-stats')
+            .then(response => response.json())
+            .then(dbData => {
+                // 쿼리 결과를 현재 형식으로 변환
+                currentDistrictData = transformDistrictData(dbData);
+                
+                // 차트 업데이트
+                if (districtChart) {
+                    createDistrictChart('restaurant');
+                }
+            })
+            .catch(error => {
+                console.error('데이터 로딩 오류:', error);
+                // 오류 발생 시 기본 데이터 사용
+            });
+        */
+    });
+</script>
+</html>
