@@ -22,7 +22,7 @@
             </header>
             <main class="data-main">
                 <section class="summary-card">
-                    <h2>태그 관리</h2>
+                    <h2>크롤링 태그 관리</h2>
                     <div class="card__body">
                         <div class="tag-tabs">
                             <button class="tag-tab is-active" data-category="restaurant">음식점</button>
@@ -36,79 +36,21 @@
                 </section>
 
                 <section class="summary-card">
-                    <h2>장소 데이터 현황</h2>
+                    <h2>사용자 인기 장소 현황</h2>
                     <div class="card__body">
                         <div class="table-container">
-                            <table>
+                            <table id="popularPlacesTable">
                                 <thead>
                                     <tr>
+                                        <th>순위</th>
                                         <th>이름</th>
                                         <th>구</th>
                                         <th>서브카테고리</th>
                                         <th>메뉴</th>
                                     </tr>
                                 </thead>
-                                <tbody>
-                                    <tr>
-                                        <td>맛있는 한식당</td>
-                                        <td>강남구</td>
-                                        <td>한식</td>
-                                        <td>비빔밥, 불고기, 갈비탕, 김치찌개, 된장찌개, 제육볶음, 삼겹살, 수제비</td>
-                                    </tr>
-                                    <tr>
-                                        <td>중화요리 전문점</td>
-                                        <td>서초구</td>
-                                        <td>중식</td>
-                                        <td>짜장면, 짬뽕, 탕수육, 유산슬, 마파두부, 양장피, 깐풍기, 볶음밥</td>
-                                    </tr>
-                                    <tr>
-                                        <td>일본 라멘집</td>
-                                        <td>송파구</td>
-                                        <td>일식</td>
-                                        <td>돈코츠라멘, 쇼유라멘, 미소라멘, 차슈덮밥, 규동, 우동, 가츠동, 오니기리</td>
-                                    </tr>
-                                    <tr>
-                                        <td>전통 한정식</td>
-                                        <td>종로구</td>
-                                        <td>한식</td>
-                                        <td>한정식A, 한정식B, 한정식C, 전복죽, 해물파전, 갈비정식, 오삼불고기, 육개장</td>
-                                    </tr>
-                                    <tr>
-                                        <td>딤섬 하우스</td>
-                                        <td>마포구</td>
-                                        <td>중식</td>
-                                        <td>샤오롱바오, 하가우, 춘권, 만두, 볶음밥, 탕수육, 마파두부, 짜장면</td>
-                                    </tr>
-                                    <tr>
-                                        <td>우동 전문점</td>
-                                        <td>용산구</td>
-                                        <td>일식</td>
-                                        <td>기본우동, 카레우동, 온천우동, 튀김우동, 규동, 가츠동, 오야꼬동, 덮밥세트</td>
-                                    </tr>
-                                    <tr>
-                                        <td>한정식 뷔페</td>
-                                        <td>강동구</td>
-                                        <td>한식</td>
-                                        <td>뷔페식사, 비빔밥, 불고기, 갈비탕, 김치찌개, 된장찌개, 제육볶음, 수육</td>
-                                    </tr>
-                                    <tr>
-                                        <td>중화반점</td>
-                                        <td>영등포구</td>
-                                        <td>중식</td>
-                                        <td>짜장면, 짬뽕, 볶음밥, 탕수육, 유산슬, 마파두부, 깐풍기, 양장피</td>
-                                    </tr>
-                                    <tr>
-                                        <td>정통 일식집</td>
-                                        <td>강서구</td>
-                                        <td>일식</td>
-                                        <td>초밥세트, 회덮밥, 우동, 라멘, 가츠동, 규동, 오야꼬동, 돈부리</td>
-                                    </tr>
-                                    <tr>
-                                        <td>한식당</td>
-                                        <td>관악구</td>
-                                        <td>한식</td>
-                                        <td>비빔밥, 불고기, 갈비탕, 김치찌개, 된장찌개, 제육볶음, 삼겹살, 수제비</td>
-                                    </tr>
+                                <tbody id="popularPlacesTableBody">
+                                    <!-- 데이터가 로드되면 여기에 동적으로 추가됩니다 -->
                                 </tbody>
                             </table>
                         </div>
@@ -135,20 +77,18 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="api.js"></script>
 <script>
-    // 카테고리별 태그 데이터
-    const tagData = {
-        restaurant: {
-            labels: ['음식이 맛있어요', '주차가 편해요', '분위기가 좋아요', '서비스가 친절해요', '가격이 합리적이에요', '양이 많아요', '재료가 신선해요', '대기시간이 짧아요'],
-            data: [245, 189, 156, 134, 112, 98, 87, 76]
-        },
-        cafe: {
-            labels: ['커피가 맛있어요', '분위기가 좋아요', '디저트가 맛있어요', '좌석이 편해요', '와이파이가 빨라요', '조용해요', '인테리어가 예뻐요', '가격이 합리적이에요'],
-            data: [198, 167, 145, 123, 109, 95, 82, 71]
-        },
-        content: {
-            labels: ['볼거리가 많아요', '체험 프로그램이 좋아요', '설명이 자세해요', '사진 찍기 좋아요', '접근성이 좋아요', '입장료가 합리적이에요', '주차가 편해요', '재방문하고 싶어요'],
-            data: [178, 154, 132, 118, 104, 91, 78, 65]
-        }
+    // 카테고리별 태그 데이터 (API에서 로드)
+    let tagData = {
+        restaurant: { labels: [], data: [] },
+        cafe: { labels: [], data: [] },
+        content: { labels: [], data: [] }
+    };
+
+    // 카테고리 타입 매핑
+    const categoryTypeMap = {
+        restaurant: '0',
+        cafe: '1',
+        content: '2'
     };
 
     let tagChart = null;
@@ -173,18 +113,124 @@
     // 전역 변수로 업데이트 가능하도록 설정 (API에서 데이터를 받아올 때까지 null)
     let currentDistrictData = null;
 
+    // 데이터의 최소값과 최대값에 따라 X축 설정을 자동 계산하는 함수
+    function calculateXAxisSettings(data) {
+        if (!data || data.length === 0) {
+            return { min: 0, max: 100, stepSize: 10 };
+        }
+
+        const minDataValue = Math.min(...data);
+        const maxDataValue = Math.max(...data);
+        
+        // 최대값이 0이면 기본값 반환
+        if (maxDataValue === 0) {
+            return { min: 0, max: 100, stepSize: 10 };
+        }
+
+        // 최소값이 0보다 크면 시작점을 최소값의 약 90%로 설정
+        const minValue = minDataValue > 0 ? Math.floor(minDataValue * 0.9) : 0;
+        
+        // 최대값에 여유 공간을 주기 위해 1.1배 (10% 여유)
+        const maxValueWithPadding = Math.ceil(maxDataValue * 1.1);
+
+        // 최대값에 따라 적절한 간격 계산
+        const digits = Math.floor(Math.log10(maxValueWithPadding));
+        const magnitude = Math.pow(10, digits);
+        
+        const normalizedValue = maxValueWithPadding / magnitude;
+        
+        let stepSize;
+        let roundedMax;
+        
+        if (normalizedValue <= 1) {
+            if (normalizedValue <= 0.2) {
+                stepSize = 0.2 * magnitude;
+                roundedMax = Math.ceil(maxValueWithPadding / (0.2 * magnitude)) * (0.2 * magnitude);
+            } else if (normalizedValue <= 0.5) {
+                stepSize = 0.5 * magnitude;
+                roundedMax = Math.ceil(maxValueWithPadding / (0.5 * magnitude)) * (0.5 * magnitude);
+            } else {
+                stepSize = 1 * magnitude;
+                roundedMax = Math.ceil(maxValueWithPadding / magnitude) * magnitude;
+            }
+        } else if (normalizedValue <= 2) {
+            stepSize = 0.5 * magnitude;
+            roundedMax = Math.ceil(maxValueWithPadding / (0.5 * magnitude)) * (0.5 * magnitude);
+        } else if (normalizedValue <= 5) {
+            stepSize = 1 * magnitude;
+            roundedMax = Math.ceil(maxValueWithPadding / magnitude) * magnitude;
+        } else {
+            stepSize = 2 * magnitude;
+            roundedMax = Math.ceil(maxValueWithPadding / (2 * magnitude)) * (2 * magnitude);
+        }
+
+        // 최소 간격 보장
+        if (stepSize < 1) {
+            stepSize = 1;
+            roundedMax = Math.ceil(maxValueWithPadding);
+        }
+
+        // 최대값이 너무 작으면 최소값 보장
+        if (roundedMax < 10) {
+            roundedMax = 10;
+            stepSize = 2;
+        }
+
+        return {
+            min: minValue,
+            max: roundedMax,
+            stepSize: stepSize
+        };
+    }
+
     function createTagChart(category) {
         const canvas = document.getElementById('tagChart');
-        if (!canvas) return;
+        if (!canvas) {
+            console.error('tagChart canvas를 찾을 수 없습니다.');
+            return;
+        }
 
         const ctx = canvas.getContext('2d');
         const data = tagData[category];
+
+        // 데이터가 없으면 메시지 표시
+        if (!data || !data.labels || data.labels.length === 0) {
+            console.warn(`태그 데이터가 없습니다. 카테고리: ${category}`);
+            // 기존 차트가 있으면 제거
+            if (tagChart) {
+                tagChart.destroy();
+                tagChart = null;
+            }
+            // 캔버스 크기 설정
+            const container = canvas.parentElement;
+            if (container) {
+                canvas.width = container.clientWidth || 800;
+                canvas.height = container.clientHeight || 400;
+            }
+            // 캔버스에 메시지 표시
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#52606d';
+            ctx.font = '16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('데이터가 없습니다.', canvas.width / 2, canvas.height / 2);
+            return;
+        }
+
+        // X축 설정 계산
+        const axisSettings = calculateXAxisSettings(data.data);
+        const minValue = axisSettings.min;
+        const maxValue = axisSettings.max;
+        const stepSize = axisSettings.stepSize;
 
         // 기존 차트가 있으면 데이터만 업데이트 (애니메이션 효과)
         if (tagChart) {
             // 먼저 0으로 설정
             tagChart.data.labels = data.labels;
             tagChart.data.datasets[0].data = data.data.map(() => 0);
+            // x축 최소값, 최대값 업데이트
+            tagChart.options.scales.x.min = minValue;
+            tagChart.options.scales.x.max = maxValue;
+            tagChart.options.scales.x.ticks.stepSize = stepSize;
             tagChart.update('none'); // 애니메이션 없이 즉시 업데이트
 
             // 짧은 딜레이 후 실제 데이터로 업데이트 (애니메이션 효과)
@@ -232,12 +278,15 @@
                 },
                 scales: {
                     x: {
-                        beginAtZero: true,
+                        beginAtZero: false,
+                        min: minValue,
+                        max: maxValue,
                         ticks: {
                             color: '#52606d',
                             font: {
                                 size: 11
                             },
+                            stepSize: stepSize,
                             callback: (value) => `${value}개`
                         },
                         grid: {
@@ -342,11 +391,32 @@
 
     function createDistrictChart(category) {
         const canvas = document.getElementById('districtChart');
-        if (!canvas) return;
+        if (!canvas) {
+            console.error('districtChart canvas를 찾을 수 없습니다.');
+            return;
+        }
 
-        // 데이터가 없으면 차트를 생성하지 않음
+        // 데이터가 없으면 메시지 표시
         if (!currentDistrictData) {
             console.warn('차트 데이터가 없습니다. API에서 데이터를 먼저 로드하세요.');
+            // 기존 차트가 있으면 제거
+            if (districtChart) {
+                districtChart.destroy();
+                districtChart = null;
+            }
+            // 캔버스 크기 설정
+            const container = canvas.parentElement;
+            if (container) {
+                canvas.width = container.clientWidth || 800;
+                canvas.height = container.clientHeight || 400;
+            }
+            // 캔버스에 메시지 표시
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#52606d';
+            ctx.font = '16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('데이터가 없습니다.', canvas.width / 2, canvas.height / 2);
             return;
         }
 
@@ -449,26 +519,116 @@
         }, 100);
     }
 
+    // 태그 데이터 로드 함수
+    async function loadTagData(category) {
+        try {
+            const categoryType = categoryTypeMap[category];
+            const data = await api.getTagStatistics(categoryType);
+            
+            if (!data || !Array.isArray(data) || data.length === 0) {
+                console.warn(`태그 데이터가 없습니다. 카테고리: ${category}`);
+                tagData[category] = {
+                    labels: [],
+                    data: []
+                };
+                return tagData[category];
+            }
+            
+            // 데이터 변환: [{name: '태그명', total_count: 123}, ...] -> {labels: [...], data: [...]}
+            tagData[category] = {
+                labels: data.map(item => item.name || ''),
+                data: data.map(item => item.total_count || 0)
+            };
+            
+            return tagData[category];
+        } catch (error) {
+            console.error(`태그 데이터 로드 오류 (${category}):`, error);
+            // 에러 발생 시 빈 데이터로 설정
+            tagData[category] = {
+                labels: [],
+                data: []
+            };
+            return tagData[category];
+        }
+    }
+
+    // 인기 장소 데이터 로드 및 테이블 렌더링 함수
+    async function loadPopularPlaces() {
+        try {
+            const data = await api.getPopularPlaces();
+            const tbody = document.getElementById('popularPlacesTableBody');
+            
+            if (!tbody) {
+                console.error('테이블 tbody를 찾을 수 없습니다.');
+                return;
+            }
+
+            // 기존 내용 초기화
+            tbody.innerHTML = '';
+
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px;">데이터가 없습니다.</td></tr>';
+                return;
+            }
+
+            // 데이터를 순위와 함께 테이블에 추가
+            data.forEach((place, index) => {
+                const row = document.createElement('tr');
+                
+                // 메뉴를 최대 10개로 제한
+                let menuText = place.메뉴 || '';
+                if (menuText) {
+                    const menuArray = menuText.split(',').map(m => m.trim()).filter(m => m);
+                    if (menuArray.length > 10) {
+                        menuText = menuArray.slice(0, 10).join(', ') + '...';
+                    } else {
+                        menuText = menuArray.join(', ');
+                    }
+                }
+                
+                row.innerHTML = `
+                    <td>${index + 1}</td>
+                    <td>${place.이름 || ''}</td>
+                    <td>${place.구 || ''}</td>
+                    <td>${place.서브카테고리 || ''}</td>
+                    <td>${menuText}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        } catch (error) {
+            console.error('인기 장소 데이터 로드 오류:', error);
+            const tbody = document.getElementById('popularPlacesTableBody');
+            if (tbody) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: #F44336;">데이터를 불러오는 중 오류가 발생했습니다.</td></tr>';
+            }
+        }
+    }
+
     // 탭 전환 기능
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
         // 태그 관리 카드의 탭 전환 기능 (district-card가 아닌 카드의 탭만 선택)
         const tagTabs = document.querySelectorAll('.summary-card:not(.district-card) .tag-tab');
         tagTabs.forEach(tab => {
-            tab.addEventListener('click', () => {
+            tab.addEventListener('click', async () => {
                 // 같은 카드 내의 모든 탭에서 is-active 제거
                 const parentCard = tab.closest('.summary-card');
                 const sameCardTabs = parentCard.querySelectorAll('.tag-tab');
                 sameCardTabs.forEach(t => t.classList.remove('is-active'));
                 // 클릭한 탭에 is-active 추가
                 tab.classList.add('is-active');
-                // 해당 카테고리의 차트 생성
+                // 해당 카테고리의 데이터 로드 및 차트 생성
                 const category = tab.getAttribute('data-category');
+                await loadTagData(category);
                 createTagChart(category);
             });
         });
 
-        // 초기 차트 생성 (음식점)
+        // 초기 태그 데이터 로드 및 차트 생성 (음식점)
+        await loadTagData('restaurant');
         createTagChart('restaurant');
+
+        // 인기 장소 데이터 로드 및 테이블 렌더링
+        await loadPopularPlaces();
         
         // 서울시 자치구 차트 탭 전환 기능
         const districtTabs = document.querySelectorAll('.district-card .tag-tab');
@@ -507,6 +667,11 @@
                         // 차트 영역에 에러 메시지 표시
                         const canvas = document.getElementById('districtChart');
                         if (canvas) {
+                            const container = canvas.parentElement;
+                            if (container) {
+                                canvas.width = container.clientWidth || 800;
+                                canvas.height = container.clientHeight || 400;
+                            }
                             const ctx = canvas.getContext('2d');
                             ctx.clearRect(0, 0, canvas.width, canvas.height);
                             ctx.fillStyle = '#52606d';
@@ -524,6 +689,11 @@
                     // 차트 영역에 에러 메시지 표시
                     const canvas = document.getElementById('districtChart');
                     if (canvas) {
+                        const container = canvas.parentElement;
+                        if (container) {
+                            canvas.width = container.clientWidth || 800;
+                            canvas.height = container.clientHeight || 400;
+                        }
                         const ctx = canvas.getContext('2d');
                         ctx.clearRect(0, 0, canvas.width, canvas.height);
                         ctx.fillStyle = '#F44336';
@@ -541,6 +711,11 @@
             // 차트 영역에 에러 메시지 표시
             const canvas = document.getElementById('districtChart');
             if (canvas) {
+                const container = canvas.parentElement;
+                if (container) {
+                    canvas.width = container.clientWidth || 800;
+                    canvas.height = container.clientHeight || 400;
+                }
                 const ctx = canvas.getContext('2d');
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 ctx.fillStyle = '#F44336';
