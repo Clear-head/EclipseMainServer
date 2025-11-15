@@ -1,11 +1,13 @@
 from src.domain.dto.history.history_dto import ResponseHistoryListDTO, HistoryDetailItemDTO, HistoryListItemDTO, \
     ResponseHistoryDetailDTO
 from src.domain.dto.like.like_dto import ResponseLikeListDTO, RequestToggleLikeDTO
+from src.domain.dto.review.review_dto import ResponseReviewListDTO, ReviewDTO
 from src.domain.dto.user.user_profile_dto import RequestUpdateProfileDTO, ResponseUpdateProfileDTO
 from src.domain.entities.user_entity import UserEntity
 from src.domain.entities.user_like_entity import UserLikeEntity
 from src.infra.database.repository.category_repository import CategoryRepository
 from src.infra.database.repository.merge_history_repository import MergeHistoryRepository
+from src.infra.database.repository.reviews_repository import ReviewsRepository
 from src.infra.database.repository.user_history_repository import UserHistoryRepository
 from src.infra.database.repository.user_like_repository import UserLikeRepository
 from src.infra.database.repository.users_repository import UserRepository
@@ -14,6 +16,7 @@ from src.infra.database.tables.table_merge_history import merge_history_table
 from src.logger.custom_logger import get_logger
 from src.utils.exception_handler.auth_error_class import UserNotFoundException, DuplicateUserInfoError
 from src.utils.make_address import add_address
+from collections import defaultdict
 
 
 class UserInfoService:
@@ -152,6 +155,7 @@ class UserInfoService:
                 order="visited_at",
                 limit=10
             )
+        
         results = [
             HistoryListItemDTO(
                 id=item.id,
@@ -272,3 +276,101 @@ class UserInfoService:
             self.logger.error(f"Error getting visit count: {e}")
             # 오류 발생 시 0 반환 (안전한 기본값)
             return 0
+        
+    async def get_reviewable_stores(self, user_id: str, limit: int = 6) -> ResponseReviewListDTO:
+        """
+        리뷰 작성 가능한 매장 목록을 조회합니다.
+        (limit 개수만큼 찾으면 조기 종료)
+        """
+        try:
+            self.logger.info(f"리뷰 작성 가능한 매장 조회 시작 - user_id: {user_id}, limit: {limit}")
+            
+            history_repo = UserHistoryRepository()
+            histories = await history_repo.select(user_id=user_id)
+            
+            if not histories:
+                self.logger.info(f"방문 기록이 없음 - user_id: {user_id}")
+                return ResponseReviewListDTO(review_list=[])
+            
+            # 방문 정보 집계
+            visit_info = defaultdict(lambda: {"count": 0, "last_date": None, "category_name": ""})
+            
+            for history in histories:
+                category_id = history.category_id
+                visit_info[category_id]["count"] += 1
+                visit_info[category_id]["category_name"] = history.category_name
+                
+                if visit_info[category_id]["last_date"] is None or \
+                history.visited_at > visit_info[category_id]["last_date"]:
+                    visit_info[category_id]["last_date"] = history.visited_at
+            
+            self.logger.info(f"총 {len(visit_info)}개의 고유 매장 방문 기록")
+            
+            # 🔥 최신 방문순으로 정렬 (조기 종료를 위해)
+            sorted_visits = sorted(
+                visit_info.items(),
+                key=lambda x: x[1]["last_date"],
+                reverse=True  # 최신 방문이 먼저
+            )
+            
+            reviews_repo = ReviewsRepository()
+            category_repo = CategoryRepository()
+            reviewable_list = []
+            
+            # 🔥 limit 개수만큼 찾으면 중단
+            checked_count = 0
+            for category_id, info in sorted_visits:
+                # 🔥 이미 limit 개수만큼 찾았으면 중단
+                if len(reviewable_list) >= limit:
+                    self.logger.info(f"✅ {limit}개 찾음 - 조기 종료 (총 {checked_count}개 확인)")
+                    break
+                
+                checked_count += 1
+                visit_count = info["count"]
+                last_visit_date = info["last_date"]
+                category_name = info["category_name"]
+                
+                # 리뷰 개수 확인
+                reviews = await reviews_repo.select(
+                    user_id=user_id,
+                    category_id=category_id
+                )
+                review_count = len(reviews) if reviews else 0
+                
+                # 리뷰 작성 가능 여부 확인
+                if visit_count > review_count:
+                    category = await category_repo.select(id=category_id)
+                    
+                    if category and len(category) > 0:
+                        cat = category[0]
+                        
+                        category_type_str = str(cat.type) if cat.type is not None else ""
+                        address = add_address(cat.do, cat.si, cat.gu, cat.detail_address)
+                        
+                        reviewable_list.append(
+                            ReviewDTO(
+                                review_id="",
+                                category_id=cat.id,
+                                category_name=cat.name,
+                                category_type=category_type_str,
+                                comment=address,
+                                stars=visit_count,
+                                created_at=last_visit_date,
+                                nickname=None
+                            )
+                        )
+                        
+                        self.logger.debug(
+                            f"✅ [{len(reviewable_list)}/{limit}] {cat.name}: "
+                            f"방문 {visit_count}회, 리뷰 {review_count}개"
+                        )
+            
+            self.logger.info(
+                f"최종 결과: {len(reviewable_list)}개 (총 {checked_count}개 매장 확인)"
+            )
+            
+            return ResponseReviewListDTO(review_list=reviewable_list)
+            
+        except Exception as e:
+            self.logger.error(f"리뷰 작성 가능한 매장 조회 중 오류: {e}")
+            return ResponseReviewListDTO(review_list=[])

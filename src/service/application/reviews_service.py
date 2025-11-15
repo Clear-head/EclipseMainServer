@@ -61,8 +61,10 @@ class ReviewsService:
             order="created_at"
         )
 
+        sorted_result = sorted(result, key=lambda x: x.created_at, reverse=True)
+        
         return ResponseReviewListDTO(
-            review_list=result
+            review_list=sorted_result
         )
 
     #   리뷰 삭제
