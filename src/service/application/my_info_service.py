@@ -126,36 +126,10 @@ class UserInfoService:
                 like_list=[]
             )
 
-        # liked = await repo.select(
-        #     return_dto=LikeItemDTO,
-        #     user_id=user_id,
-        #     joins=[
-        #         {
-        #             "table": category_table,
-        #             "on": {"category_id": "id"},
-        #             "alias": "category"
-        #         }
-        #     ],
-        #     columns={
-        #         "category.type": "type",
-        #         "category.id": "category_id",
-        #         "category.name": "category_name",
-        #         "category.image": "category_image",
-        #         "category.sub_category": "sub_category",
-        #         "category.do": "do",
-        #         "category.si": "si",
-        #         "category.gu": "gu",
-        #         "category.detail_address": "detail_address",
-        #     }
-        # )
-
-
-
-
         else:
             ans = await CategoryRepository().get_review_statistics(
                 id=[i.category_id for i in liked],
-                is_random=1
+                is_random=False
             )
             return ResponseLikeListDTO(
                 like_list=ans
@@ -163,15 +137,21 @@ class UserInfoService:
 
 
     #   히스토리 목록 조회
-    async def get_user_history_list(self, user_id):
+    async def get_user_history_list(self, user_id, is_post=False):
         self.logger.info(f"try {user_id} get user history list: {user_id}")
         repo = MergeHistoryRepository()
 
-        result = await repo.select(
-            user_id=user_id,
-            order="visited_at"
-        )
-
+        if not is_post:
+            result = await repo.select(
+                user_id=user_id,
+                order="visited_at"
+            )
+        else:
+            result = await repo.select(
+                user_id=user_id,
+                order="visited_at",
+                limit=10
+            )
         results = [
             HistoryListItemDTO(
                 id=item.id,
