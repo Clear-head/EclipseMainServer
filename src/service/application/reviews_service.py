@@ -58,6 +58,7 @@ class ReviewsService:
                 "created_at": "created_at"
             },
             user_id=user_id,
+            order="created_at"
         )
 
         return ResponseReviewListDTO(
