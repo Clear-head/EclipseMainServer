@@ -1,82 +1,122 @@
-from pathlib import Path
 from fastapi import APIRouter
-from fastapi.responses import FileResponse
-from starlette.responses import JSONResponse
-
-from src.logger.custom_logger import get_logger
+from fastapi.responses import HTMLResponse, JSONResponse
+from pathlib import Path
 from src.service.dashboard.dashboard_data_service import DashboardDataService
+from src.logger.custom_logger import get_logger
 
-# HTML, CSS, JS 파일을 브라우저에 제공하는 router (루트 경로: /, /dashboard.html 등)
-router = APIRouter(tags=["dashboard"])
-
-# JSON 데이터를 반환하는 API router (/admin/district-stats 등)
-admin_api_router = APIRouter(prefix="/admin", tags=["dashboard"])
-
+router = APIRouter()
 logger = get_logger(__name__)
 
-# HTML 파일 경로
-resources_path = Path(__file__).parent.parent.parent / "resources" / "html"
-
-# 대시보드 데이터 서비스
 dashboard_data_service = DashboardDataService()
 
 
-# HTML 파일 제공 (브라우저가 요청하면 HTML 파일을 반환)
-@router.get("/")
-async def root():
-    """루트 경로 - 대시보드로 리다이렉트"""
-    return FileResponse(resources_path / "dashboard.html")
+@router.get("/dashboard/data", response_class=HTMLResponse)
+async def get_data_page():
+    """데이터 관리 페이지 반환"""
+    html_path = Path(__file__).parent.parent.parent / "resources" / "html" / "data.html"
+    with open(html_path, "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
 
 
-@router.get("/dashboard.html")
-async def dashboard():
-    """대시보드 페이지"""
-    return FileResponse(resources_path / "dashboard.html")
+@router.get("/dashboard.html", response_class=HTMLResponse)
+async def get_dashboard_page():
+    """통계 관리 페이지 반환"""
+    html_path = Path(__file__).parent.parent.parent / "resources" / "html" / "dashboard.html"
+    with open(html_path, "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
 
 
-@router.get("/data.html")
-async def data():
-    """데이터 관리 페이지"""
-    return FileResponse(resources_path / "data.html")
+@router.get("/data.html", response_class=HTMLResponse)
+async def get_data_page_html():
+    """데이터 관리 페이지 반환 (data.html 직접 접근)"""
+    html_path = Path(__file__).parent.parent.parent / "resources" / "html" / "data.html"
+    with open(html_path, "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
 
 
-@router.get("/users.html")
-async def users():
-    """사용자 관리 페이지"""
-    return FileResponse(resources_path / "users.html")
+@router.get("/users.html", response_class=HTMLResponse)
+async def get_users_page():
+    """사용자 관리 페이지 반환"""
+    html_path = Path(__file__).parent.parent.parent / "resources" / "html" / "users.html"
+    with open(html_path, "r", encoding="utf-8") as f:
+        return HTMLResponse(content=f.read())
 
 
-# 정적 파일 제공 (CSS, JS)
+# 정적 파일 서빙 (CSS, JS)
 @router.get("/styles.css")
-async def styles():
-    """CSS 파일"""
-    return FileResponse(resources_path / "styles.css", media_type="text/css")
+async def get_styles():
+    """CSS 파일 반환"""
+    css_path = Path(__file__).parent.parent.parent / "resources" / "html" / "styles.css"
+    with open(css_path, "r", encoding="utf-8") as f:
+        from fastapi.responses import Response
+        return Response(content=f.read(), media_type="text/css")
 
 
 @router.get("/api.js")
-async def api_js():
-    """API JavaScript 파일"""
-    return FileResponse(resources_path / "api.js", media_type="application/javascript")
+async def get_api_js():
+    """API JavaScript 파일 반환"""
+    js_path = Path(__file__).parent.parent.parent / "resources" / "html" / "api.js"
+    with open(js_path, "r", encoding="utf-8") as f:
+        from fastapi.responses import Response
+        return Response(content=f.read(), media_type="application/javascript")
 
 
-# 대시보드 데이터 API
-@admin_api_router.get("/district-stats")
+@router.get("/api/dashboard/tag-statistics/{category_type}")
+async def get_tag_statistics(category_type: str):
+    """
+    카테고리 타입별 태그 통계 조회
+    
+    Args:
+        category_type: '0' (음식점), '1' (카페), '2' (콘텐츠)
+    """
+    try:
+        if category_type not in ['0', '1', '2']:
+            return JSONResponse(
+                status_code=400,
+                content={"error": "Invalid category_type. Must be '0', '1', or '2'"}
+            )
+        
+        data = await dashboard_data_service.get_tag_statistics(category_type)
+        return JSONResponse(content=data)
+        
+    except Exception as e:
+        logger.error(f"태그 통계 조회 API 오류: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e)}
+        )
+
+
+@router.get("/api/dashboard/popular-places")
+async def get_popular_places():
+    """
+    사용자 인기 장소 현황 조회
+    """
+    try:
+        data = await dashboard_data_service.get_popular_places()
+        return JSONResponse(content=data)
+        
+    except Exception as e:
+        logger.error(f"인기 장소 조회 API 오류: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e)}
+        )
+
+
+@router.get("/api/dashboard/district-stats")
 async def get_district_stats():
     """
     서울특별시 자치구별 매장 수 통계 조회
-    
-    Returns:
-        JSONResponse: [{'gu': '강남구', '음식점': 268, '카페': 124, '콘텐츠': 86}, ...]
     """
     try:
-        logger.info("자치구별 매장 수 조회 API 호출됨")
-        result = await dashboard_data_service.get_district_stats()
-        logger.info(f"자치구별 매장 수 조회 성공: {len(result)}개 구")
-        return JSONResponse(content={"data": result})
+        data = await dashboard_data_service.get_district_stats()
+        return JSONResponse(content=data)
+        
     except Exception as e:
-        logger.error(f"자치구별 매장 수 조회 오류: {e}", exc_info=True)
+        logger.error(f"구별 통계 조회 API 오류: {e}")
         return JSONResponse(
             status_code=500,
-            content={"error": f"자치구별 매장 수 조회 중 오류가 발생했습니다: {str(e)}"}
+            content={"error": str(e)}
         )
 
