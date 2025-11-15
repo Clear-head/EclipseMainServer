@@ -551,7 +551,7 @@ class StoreSuggestService:
             limit=n_results,
             gu=region,
             type=self.convert_type_to_code(category_type),
-            is_random=1
+            is_random=True
         )
         
         logger.info(f"DB 랜덤 조회 결과: {len(random_stores)}개")
