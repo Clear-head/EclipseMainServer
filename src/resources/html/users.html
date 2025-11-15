@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>사용자 관리</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sidebar__brand">오늘 뭐하지?</div>
+            <nav class="sidebar__nav" aria-label="사이드바">
+                <a class="sidebar__tab" href="dashboard.html">통계 관리</a>
+                <a class="sidebar__tab" href="data.html">데이터 관리</a>
+                <a class="sidebar__tab is-active" href="users.html">사용자 관리</a>
+            </nav>
+        </aside>
+        <div class="content">
+            <header>
+                <h1>사용자 관리</h1>
+            </header>
+            <main class="users-main">
+                <section class="summary-card users-card-wide">
+                    <h2>계정 및 신고 현황</h2>
+                    <div class="card__body">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>사용자</th>
+                                    <th>계정 상태</th>
+                                    <th>최근 신고</th>
+                                    <th>조치</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>user001</td>
+                                    <td>활성</td>
+                                    <td>없음</td>
+                                    <td><button type="button">비활성화</button></td>
+                                </tr>
+                                <tr>
+                                    <td>user214</td>
+                                    <td>제한</td>
+                                    <td>리뷰 스팸</td>
+                                    <td><button type="button">기록 보기</button></td>
+                                </tr>
+                                <tr>
+                                    <td>user389</td>
+                                    <td>검토 중</td>
+                                    <td>허위 정보</td>
+                                    <td><button type="button">조치 완료</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section class="summary-card users-card-wide">
+                    <h2>계정 삭제 이유</h2>
+                    <div class="chart-row" style="margin-top: 18px;">
+                        <div class="chart-row__media">
+                            <canvas id="accountReasonPie" aria-label="계정 삭제 이유 분포"></canvas>
+                        </div>
+                        <div class="chart-row__legend">
+                            <div class="chart-row__legend-item">
+                                <span class="chart-row__swatch" style="background-color: #F57C00;"></span>
+                                기록 삭제 목적
+                            </div>
+                            <div class="chart-row__legend-item">
+                                <span class="chart-row__swatch" style="background-color: #FF6F00;"></span>
+                                이용이 불편하고 장애가 많아서
+                            </div>
+                            <div class="chart-row__legend-item">
+                                <span class="chart-row__swatch" style="background-color: #FF8126;"></span>
+                                다른 사이트가 더 좋아서
+                            </div>
+                            <div class="chart-row__legend-item">
+                                <span class="chart-row__swatch" style="background-color: #FF9800;"></span>
+                                사용빈도가 낮아서
+                            </div>
+                            <div class="chart-row__legend-item">
+                                <span class="chart-row__swatch" style="background-color: #FFB74D;"></span>
+                                콘텐츠 불만
+                            </div>
+                            <div class="chart-row__legend-item">
+                                <span class="chart-row__swatch" style="background-color: #FFC107;"></span>
+                                기타
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="summary-card users-card-full">
+                    <h2>사용자 문의 및 신고 사항</h2>
+                    <div class="card__body">
+                        <h3 style="margin-top: 0; margin-bottom: 16px; font-size: 16px; color: #52606d; font-weight: 600;">일반 문의 사항</h3>
+                        <table style="margin-bottom: 32px;">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>사용자</th>
+                                    <th>문의 내용</th>
+                                    <th>날짜</th>
+                                    <th>처리 여부</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>1</td>
+                                    <td>user001</td>
+                                    <td>앱 사용 방법 문의... <button type="button" style="padding: 4px 8px; font-size: 12px; margin-left: 4px;" onclick="showFullInquiry(this)">더보기</button></td>
+                                    <td>2025-11-04 14:23</td>
+                                    <td class="status-cell" data-is-processed="0">미완료</td>
+                                </tr>
+                                <tr>
+                                    <td>2</td>
+                                    <td>user142</td>
+                                    <td>검색 기능 오류... <button type="button" style="padding: 4px 8px; font-size: 12px; margin-left: 4px;" onclick="showFullInquiry(this)">더보기</button></td>
+                                    <td>2025-11-03 09:47</td>
+                                    <td class="status-cell" data-is-processed="0">미완료</td>
+                                </tr>
+                                <tr>
+                                    <td>3</td>
+                                    <td>user289</td>
+                                    <td>필터 기능 추가 요청... <button type="button" style="padding: 4px 8px; font-size: 12px; margin-left: 4px;" onclick="showFullInquiry(this)">더보기</button></td>
+                                    <td>2025-11-02 16:55</td>
+                                    <td class="status-cell" data-is-processed="0">미완료</td>
+                                </tr>
+                                <tr>
+                                    <td>4</td>
+                                    <td>user356</td>
+                                    <td>비밀번호 재설정... <button type="button" style="padding: 4px 8px; font-size: 12px; margin-left: 4px;" onclick="showFullInquiry(this)">더보기</button></td>
+                                    <td>2025-11-01 11:30</td>
+                                    <td class="status-cell" data-is-processed="0">미완료</td>
+                                </tr>
+                                <tr class="inquiry-hidden" style="display: none;">
+                                    <td>5</td>
+                                    <td>user478</td>
+                                    <td>결제 오류 문의... <button type="button" style="padding: 4px 8px; font-size: 12px; margin-left: 4px;" onclick="showFullInquiry(this)">더보기</button></td>
+                                    <td>2025-10-31 15:42</td>
+                                    <td class="status-cell" data-is-processed="0">미완료</td>
+                                </tr>
+                                <tr class="inquiry-hidden" style="display: none;">
+                                    <td>6</td>
+                                    <td>user523</td>
+                                    <td>다크모드 추가 요청... <button type="button" style="padding: 4px 8px; font-size: 12px; margin-left: 4px;" onclick="showFullInquiry(this)">더보기</button></td>
+                                    <td>2025-10-30 10:18</td>
+                                    <td class="status-cell" data-is-processed="0">미완료</td>
+                                </tr>
+                                <tr class="inquiry-hidden" style="display: none;">
+                                    <td>7</td>
+                                    <td>user612</td>
+                                    <td>앱 크래시 문제... <button type="button" style="padding: 4px 8px; font-size: 12px; margin-left: 4px;" onclick="showFullInquiry(this)">더보기</button></td>
+                                    <td>2025-10-29 09:55</td>
+                                    <td class="status-cell" data-is-processed="0">미완료</td>
+                                </tr>
+                                <tr class="inquiry-hidden" style="display: none;">
+                                    <td>8</td>
+                                    <td>user789</td>
+                                    <td>알림 설정 방법... <button type="button" style="padding: 4px 8px; font-size: 12px; margin-left: 4px;" onclick="showFullInquiry(this)">더보기</button></td>
+                                    <td>2025-10-28 14:30</td>
+                                    <td class="status-cell" data-is-processed="0">미완료</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <div style="text-align: center; margin-top: 16px;">
+                            <button type="button" onclick="showMoreInquiries(this)" style="padding: 8px 16px; font-size: 14px;">더보기</button>
+                        </div>
+                        
+                        <h3 style="margin-top: 24px; margin-bottom: 16px; font-size: 16px; color: #52606d; font-weight: 600;">신고 문의 사항</h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>신고자</th>
+                                    <th>타입</th>
+                                    <th>신고 유형</th>
+                                    <th>신고 사유</th>
+                                    <th>날짜</th>
+                                    <th>처리 여부</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>1</td>
+                                    <td>user045</td>
+                                    <td>댓글</td>
+                                    <td>스팸 신고</td>
+                                    <td>스팸/광고</td>
+                                    <td>2025-11-04 08:15</td>
+                                    <td class="status-cell" data-is-processed="0">미완료</td>
+                                </tr>
+                                <tr>
+                                    <td>2</td>
+                                    <td>user178</td>
+                                    <td>게시글</td>
+                                    <td>욕설/비방</td>
+                                    <td>욕설/비방</td>
+                                    <td>2025-11-03 20:33</td>
+                                    <td class="status-cell" data-is-processed="0">미완료</td>
+                                </tr>
+                                <tr>
+                                    <td>3</td>
+                                    <td>user234</td>
+                                    <td>게시글</td>
+                                    <td>음란물 신고</td>
+                                    <td>음란물</td>
+                                    <td>2025-11-02 13:52</td>
+                                    <td class="status-cell" data-is-processed="0">미완료</td>
+                                </tr>
+                                <tr>
+                                    <td>4</td>
+                                    <td>user312</td>
+                                    <td>채팅</td>
+                                    <td>개인정보 유출</td>
+                                    <td>개인정보 유출</td>
+                                    <td>2025-11-01 17:08</td>
+                                    <td class="status-cell" data-is-processed="0">미완료</td>
+                                </tr>
+                                <tr>
+                                    <td>5</td>
+                                    <td>user421</td>
+                                    <td>댓글</td>
+                                    <td>기타 신고</td>
+                                    <td>기타 <button type="button" style="padding: 4px 8px; font-size: 12px; margin-left: 4px;" onclick="showFullReason(this)">더보기</button></td>
+                                    <td>2025-10-31 10:25</td>
+                                    <td class="status-cell" data-is-processed="0">미완료</td>
+                                </tr>
+                                <tr class="report-hidden" style="display: none;">
+                                    <td>6</td>
+                                    <td>user556</td>
+                                    <td>게시글</td>
+                                    <td>스팸 신고</td>
+                                    <td>스팸/광고</td>
+                                    <td>2025-10-30 16:20</td>
+                                    <td class="status-cell" data-is-processed="0">미완료</td>
+                                </tr>
+                                <tr class="report-hidden" style="display: none;">
+                                    <td>7</td>
+                                    <td>user634</td>
+                                    <td>댓글</td>
+                                    <td>욕설/비방</td>
+                                    <td>욕설/비방</td>
+                                    <td>2025-10-29 11:45</td>
+                                    <td class="status-cell" data-is-processed="0">미완료</td>
+                                </tr>
+                                <tr class="report-hidden" style="display: none;">
+                                    <td>8</td>
+                                    <td>user712</td>
+                                    <td>게시글</td>
+                                    <td>음란물 신고</td>
+                                    <td>음란물</td>
+                                    <td>2025-10-28 09:12</td>
+                                    <td class="status-cell" data-is-processed="0">미완료</td>
+                                </tr>
+                                <tr class="report-hidden" style="display: none;">
+                                    <td>9</td>
+                                    <td>user845</td>
+                                    <td>채팅</td>
+                                    <td>개인정보 유출</td>
+                                    <td>개인정보 유출</td>
+                                    <td>2025-10-27 13:28</td>
+                                    <td class="status-cell" data-is-processed="0">미완료</td>
+                                </tr>
+                                <tr class="report-hidden" style="display: none;">
+                                    <td>10</td>
+                                    <td>user923</td>
+                                    <td>댓글</td>
+                                    <td>기타 신고</td>
+                                    <td>기타 <button type="button" style="padding: 4px 8px; font-size: 12px; margin-left: 4px;" onclick="showFullReason(this)">더보기</button></td>
+                                    <td>2025-10-26 15:50</td>
+                                    <td class="status-cell" data-is-processed="0">미완료</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <div style="text-align: center; margin-top: 16px;">
+                            <button type="button" onclick="showMoreReports(this)" style="padding: 8px 16px; font-size: 14px;">더보기</button>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="summary-card users-card-wide">
+                    <h2>계정 상태 분포</h2>
+                    <p class="section-subtitle">전체 사용자 계정 상태 현황</p>
+                    <div class="tag-list" style="margin: 18px 0 24px;">
+                        <span class="tag">활성 계정</span>
+                        <span class="tag">제한 계정</span>
+                    </div>
+                    <div class="card__body">
+                        <div class="chart-row" style="margin-top: 18px;">
+                            <div class="chart-row__media">
+                                <canvas id="accountStatusPie" aria-label="계정 상태 분포"></canvas>
+                            </div>
+                            <div class="chart-row__legend">
+                                <div class="chart-row__legend-item">
+                                    <span class="chart-row__swatch" style="background-color: #4CAF50;"></span>
+                                    활성: 11,234 (91.0%)
+                                </div>
+                                <div class="chart-row__legend-item">
+                                    <span class="chart-row__swatch" style="background-color: #FF9800;"></span>
+                                    제한: 892 (7.2%)
+                                </div>
+                                <div class="chart-row__legend-item">
+                                    <span class="chart-row__swatch" style="background-color: #FF5722;"></span>
+                                    검토 중: 219 (1.8%)
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+</body>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+<script>
+    const reasonPalette = ['#F57C00', '#FF6F00', '#FF8126', '#FF9800', '#FFB74D', '#FFC107'];
+
+    if (window.ChartDataLabels) {
+        Chart.register(window.ChartDataLabels);
+    }
+
+    function createPieChart(canvasId, labels, data, colors) {
+        const canvas = document.getElementById(canvasId);
+
+        if (!canvas) {
+            return;
+        }
+
+        const chart = new Chart(canvas, {
+            type: 'pie',
+            data: {
+                labels,
+                datasets: [{
+                    data: data.map(() => 0),
+                    backgroundColor: labels.map((_, idx) => colors[idx % colors.length]),
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                animation: {
+                    animateRotate: true,
+                    animateScale: true,
+                    duration: 1200,
+                    easing: 'easeOutQuart'
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    datalabels: {
+                        formatter(value, context) {
+                            const total = context.dataset.data.reduce((acc, curr) => acc + curr, 0);
+                            if (!total) return '';
+                            const percent = ((value / total) * 100).toFixed(0);
+                            return `${percent}%`;
+                        },
+                        color: '#ffffff',
+                        font: {
+                            weight: 'bold',
+                            size: 14
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label(context) {
+                                const value = context.parsed;
+                                const total = context.dataset.data.reduce((acc, curr) => acc + curr, 0);
+                                const percent = total ? ((value / total) * 100).toFixed(1) : 0;
+                                return `${context.label}: ${value} (${percent}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        setTimeout(() => {
+            chart.data.datasets[0].data = data;
+            chart.update();
+        }, 120);
+    }
+
+    createPieChart(
+        'accountReasonPie',
+        ['기록 삭제 목적', '이용이 불편하고 장애가 많아서', '다른 사이트가 더 좋아서', '사용빈도가 낮아서', '콘텐츠 불만', '기타'],
+        [38, 22, 14, 10, 9, 7],
+        reasonPalette
+    );
+
+    const statusPalette = ['#4CAF50', '#FF9800', '#FF5722'];
+    createPieChart(
+        'accountStatusPie',
+        ['활성', '제한', '검토 중'],
+        [11234, 892, 219],
+        statusPalette
+    );
+
+    function showFullReason(button) {
+        const reasonMap = {
+            'user045': '스팸/광고: 상업적 목적의 광고 메시지나 스팸 내용을 반복적으로 게시하여 다른 사용자들에게 피해를 주고 있습니다. 동일한 내용의 광고를 여러 번 게시한 것으로 확인되었습니다.',
+            'user178': '욕설/비방: 다른 사용자에 대한 욕설 및 비방성 내용이 포함된 게시글을 작성하여 커뮤니티 이용 규칙을 위반했습니다. 불쾌한 표현이 다수 포함되어 있습니다.',
+            'user234': '음란물: 성인용 콘텐츠나 음란한 이미지, 텍스트가 포함된 게시글을 등록하여 서비스 이용 규칙을 위반했습니다.',
+            'user312': '개인정보 유출: 다른 사용자의 개인정보(이름, 전화번호, 주소 등)를 무단으로 공개하거나 유포하여 개인정보보호법을 위반했습니다.',
+            'user421': '기타: 위의 분류에 속하지 않는 기타 신고 사항입니다. 자세한 내용은 관리자 페이지에서 확인 가능합니다.',
+            'user923': '기타: 위의 분류에 속하지 않는 기타 신고 사항입니다. 자세한 내용은 관리자 페이지에서 확인 가능합니다.'
+        };
+        
+        const row = button.closest('tr');
+        const userId = row.querySelector('td:nth-child(2)').textContent.trim();
+        const fullReason = reasonMap[userId] || '상세 내용을 확인할 수 없습니다.';
+        
+        alert(`[${userId}] 신고 사유\n\n${fullReason}`);
+    }
+
+    function showFullInquiry(button) {
+        const inquiryMap = {
+            'user001': '앱 사용 방법 문의: 안녕하세요. 앱을 처음 사용하는데 어떻게 시작해야 할지 모르겠습니다. 메인 화면에서 어떤 기능을 사용할 수 있는지, 그리고 추천 기능은 어떻게 이용하는지 자세히 설명해 주실 수 있을까요? 감사합니다.',
+            'user142': '검색 기능 오류: 검색창에 키워드를 입력하면 앱이 자동으로 종료되는 현상이 발생합니다. 특히 특정 키워드를 검색할 때만 발생하는데, 이 문제를 해결해 주실 수 있을까요?',
+            'user289': '필터 기능 추가 요청: 현재 필터 옵션이 제한적입니다. 가격대별, 거리별, 리뷰 평점별로 필터링할 수 있는 기능을 추가해 주시면 더 편리하게 사용할 수 있을 것 같습니다. 많은 사용자들이 원하는 기능이라고 생각합니다.',
+            'user356': '비밀번호 재설정: 비밀번호를 잊어버려서 재설정을 시도하고 있는데, 이메일로 보내지는 인증 링크가 작동하지 않습니다. 다른 방법으로 비밀번호를 재설정할 수 있을까요?',
+            'user478': '결제 오류 문의: 앱 내 결제를 시도했는데 결제가 완료되지 않고 오류 메시지가 나타납니다. 카드 정보는 정확하게 입력했는데도 같은 문제가 반복됩니다. 어떻게 해결할 수 있을까요?',
+            'user523': '다크모드 추가 요청: 밤에 앱을 사용할 때 화면이 너무 밝아서 눈이 피로합니다. 다크모드 옵션을 추가해 주시면 좋을 것 같습니다. 많은 앱에서 지원하는 기본 기능인데 저희 앱에는 아직 없는 것이 아쉽습니다.',
+            'user612': '앱 크래시 문제: 안드로이드 기기에서 사용 중인데, 가끔 특정 기능을 사용하면 앱이 갑자기 종료됩니다. 특히 지도 화면에서 여러 번 확대/축소를 하면 크래시가 발생합니다. 이 문제를 확인해 주실 수 있을까요?',
+            'user789': '알림 설정 방법: 앱에서 알림을 받고 싶은데 설정 방법을 찾을 수 없습니다. 어디서 알림을 켜고 끌 수 있는지, 그리고 어떤 알림을 받을 수 있는지 알려 주실 수 있을까요?'
+        };
+        
+        const row = button.closest('tr');
+        const userId = row.querySelector('td:nth-child(2)').textContent.trim();
+        const fullInquiry = inquiryMap[userId] || '상세 내용을 확인할 수 없습니다.';
+        
+        alert(`[${userId}] 문의 내용\n\n${fullInquiry}`);
+    }
+
+    function showMoreInquiries(button) {
+        const hiddenRows = document.querySelectorAll('.inquiry-hidden');
+        
+        if (button.textContent === '더보기') {
+            // 숨겨진 행들을 보여주기
+            hiddenRows.forEach(row => {
+                row.style.display = '';
+            });
+            button.textContent = '닫기';
+        } else {
+            // 추가 행들을 다시 숨기기
+            hiddenRows.forEach(row => {
+                row.style.display = 'none';
+            });
+            button.textContent = '더보기';
+        }
+    }
+
+    function showMoreReports(button) {
+        const hiddenRows = document.querySelectorAll('.report-hidden');
+        
+        if (button.textContent === '더보기') {
+            // 숨겨진 행들을 보여주기
+            hiddenRows.forEach(row => {
+                row.style.display = '';
+            });
+            button.textContent = '닫기';
+        } else {
+            // 추가 행들을 다시 숨기기
+            hiddenRows.forEach(row => {
+                row.style.display = 'none';
+            });
+            button.textContent = '더보기';
+        }
+    }
+
+    // 처리 여부 표시 함수 (is_processed 값에 따라 자동으로 표시)
+    function updateStatusCells() {
+        document.querySelectorAll('.status-cell').forEach(cell => {
+            const isProcessed = parseInt(cell.getAttribute('data-is-processed'));
+            if (isProcessed === 1) {
+                cell.textContent = '완료';
+                cell.style.color = '#4CAF50';
+                cell.style.fontWeight = '600';
+            } else {
+                cell.textContent = '미완료';
+                cell.style.color = '#F44336';
+                cell.style.fontWeight = '600';
+            }
+        });
+    }
+
+    // 페이지 로드 시 실행
+    updateStatusCells();
+</script>
+</html>
+
