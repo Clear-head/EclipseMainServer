@@ -65,26 +65,9 @@ async def get_api_js():
 async def get_tag_statistics(category_type: str):
     """
     카테고리 타입별 태그 통계 조회
-    
-    Args:
-        category_type: '0' (음식점), '1' (카페), '2' (콘텐츠)
     """
-    try:
-        if category_type not in ['0', '1', '2']:
-            return JSONResponse(
-                status_code=400,
-                content={"error": "Invalid category_type. Must be '0', '1', or '2'"}
-            )
-        
-        data = await dashboard_data_service.get_tag_statistics(category_type)
-        return JSONResponse(content=data)
-        
-    except Exception as e:
-        logger.error(f"태그 통계 조회 API 오류: {e}")
-        return JSONResponse(
-            status_code=500,
-            content={"error": str(e)}
-        )
+    data = await dashboard_data_service.get_tag_statistics(category_type)
+    return JSONResponse(content=data)
 
 
 @router.get("/api/dashboard/popular-places")
@@ -92,31 +75,14 @@ async def get_popular_places():
     """
     사용자 인기 장소 현황 조회
     """
-    try:
-        data = await dashboard_data_service.get_popular_places()
-        return JSONResponse(content=data)
-        
-    except Exception as e:
-        logger.error(f"인기 장소 조회 API 오류: {e}")
-        return JSONResponse(
-            status_code=500,
-            content={"error": str(e)}
-        )
-
+    data = await dashboard_data_service.get_popular_places()
+    return JSONResponse(content=data)
 
 @router.get("/api/dashboard/district-stats")
 async def get_district_stats():
     """
     서울특별시 자치구별 매장 수 통계 조회
     """
-    try:
-        data = await dashboard_data_service.get_district_stats()
-        return JSONResponse(content=data)
-        
-    except Exception as e:
-        logger.error(f"구별 통계 조회 API 오류: {e}")
-        return JSONResponse(
-            status_code=500,
-            content={"error": str(e)}
-        )
+    data = await dashboard_data_service.get_district_stats()
+    return JSONResponse(content=data)
 
