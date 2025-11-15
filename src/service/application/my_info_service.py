@@ -280,12 +280,11 @@ class UserInfoService:
     async def get_reviewable_stores(self, user_id: str, limit: int = 6) -> ResponseReviewListDTO:
         """
         리뷰 작성 가능한 매장 목록을 조회합니다.
-        (방문 횟수 > 리뷰 개수인 매장만 반환, 최신 방문순)
+        (limit 개수만큼 찾으면 조기 종료)
         """
         try:
-            self.logger.info(f"리뷰 작성 가능한 매장 조회 시작 - user_id: {user_id}")
+            self.logger.info(f"리뷰 작성 가능한 매장 조회 시작 - user_id: {user_id}, limit: {limit}")
             
-            # 1. 사용자의 방문 기록 조회
             history_repo = UserHistoryRepository()
             histories = await history_repo.select(user_id=user_id)
             
@@ -293,7 +292,7 @@ class UserInfoService:
                 self.logger.info(f"방문 기록이 없음 - user_id: {user_id}")
                 return ResponseReviewListDTO(review_list=[])
             
-            # 2. category_id별 방문 정보 집계
+            # 방문 정보 집계
             visit_info = defaultdict(lambda: {"count": 0, "last_date": None, "category_name": ""})
             
             for history in histories:
@@ -307,34 +306,44 @@ class UserInfoService:
             
             self.logger.info(f"총 {len(visit_info)}개의 고유 매장 방문 기록")
             
-            # 🔥 3. 한 번에 모든 리뷰 정보 조회 (성능 개선!)
+            # 🔥 최신 방문순으로 정렬 (조기 종료를 위해)
+            sorted_visits = sorted(
+                visit_info.items(),
+                key=lambda x: x[1]["last_date"],
+                reverse=True  # 최신 방문이 먼저
+            )
+            
             reviews_repo = ReviewsRepository()
-            all_reviews = await reviews_repo.select(user_id=user_id)
-            
-            # 리뷰를 category_id별로 그룹화
-            review_counts = defaultdict(int)
-            if all_reviews:
-                for review in all_reviews:
-                    review_counts[review.category_id] += 1
-            
-            # 4. 리뷰 작성 가능한 매장만 필터링
             category_repo = CategoryRepository()
             reviewable_list = []
             
-            for category_id, info in visit_info.items():
+            # 🔥 limit 개수만큼 찾으면 중단
+            checked_count = 0
+            for category_id, info in sorted_visits:
+                # 🔥 이미 limit 개수만큼 찾았으면 중단
+                if len(reviewable_list) >= limit:
+                    self.logger.info(f"✅ {limit}개 찾음 - 조기 종료 (총 {checked_count}개 확인)")
+                    break
+                
+                checked_count += 1
                 visit_count = info["count"]
-                review_count = review_counts.get(category_id, 0)  # 메모리에서 조회
+                last_visit_date = info["last_date"]
+                category_name = info["category_name"]
+                
+                # 리뷰 개수 확인
+                reviews = await reviews_repo.select(
+                    user_id=user_id,
+                    category_id=category_id
+                )
+                review_count = len(reviews) if reviews else 0
                 
                 # 리뷰 작성 가능 여부 확인
                 if visit_count > review_count:
-                    # 이미 limit 개수만큼 찾았으면 조기 종료 (추가 최적화)
-                    if len(reviewable_list) >= limit * 2:  # 여유분 확보
-                        continue
-                    
                     category = await category_repo.select(id=category_id)
                     
                     if category and len(category) > 0:
                         cat = category[0]
+                        
                         category_type_str = str(cat.type) if cat.type is not None else ""
                         address = add_address(cat.do, cat.si, cat.gu, cat.detail_address)
                         
@@ -346,22 +355,21 @@ class UserInfoService:
                                 category_type=category_type_str,
                                 comment=address,
                                 stars=visit_count,
-                                created_at=info["last_date"],
+                                created_at=last_visit_date,
                                 nickname=None
                             )
                         )
                         
-                        self.logger.info(
-                            f"✅ {cat.name}: 방문 {visit_count}회, 리뷰 {review_count}개 - 작성 가능"
+                        self.logger.debug(
+                            f"✅ [{len(reviewable_list)}/{limit}] {cat.name}: "
+                            f"방문 {visit_count}회, 리뷰 {review_count}개"
                         )
             
-            # 5. 최신 방문순으로 정렬 및 제한
-            reviewable_list.sort(key=lambda x: x.created_at, reverse=True)
-            limited_list = reviewable_list[:limit]
+            self.logger.info(
+                f"최종 결과: {len(reviewable_list)}개 (총 {checked_count}개 매장 확인)"
+            )
             
-            self.logger.info(f"최종 리뷰 작성 가능한 매장: {len(limited_list)}개")
-            
-            return ResponseReviewListDTO(review_list=limited_list)
+            return ResponseReviewListDTO(review_list=reviewable_list)
             
         except Exception as e:
             self.logger.error(f"리뷰 작성 가능한 매장 조회 중 오류: {e}")

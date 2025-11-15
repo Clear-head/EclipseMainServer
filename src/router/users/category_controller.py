@@ -21,14 +21,3 @@ async def to_detail(category_id: str, user_id: str = Depends(get_jwt_user_id)) -
 
     main_service_class = MainScreenService()
     return await main_service_class.get_category_detail(category_id, user_id)
-
-@router.post("/batch")
-async def get_categories_batch(
-    category_ids: list[str],
-    user_id: str = Depends(get_jwt_user_id)
-) -> list[ResponseCategoryDetailDTO]:
-    """
-    여러 카테고리를 한 번에 조회합니다.
-    """
-    main_service_class = MainScreenService()
-    return await main_service_class.get_categories_batch(category_ids, user_id)
