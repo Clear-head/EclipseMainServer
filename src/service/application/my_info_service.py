@@ -281,13 +281,6 @@ class UserInfoService:
         """
         리뷰 작성 가능한 매장 목록을 조회합니다.
         (방문 횟수 > 리뷰 개수인 매장만 반환, 최신 방문순)
-        
-        Args:
-            user_id: 사용자 ID
-            limit: 최대 반환 개수 (기본값: 6)
-            
-        Returns:
-            ResponseReviewListDTO: 리뷰 작성 가능한 매장 정보 (ReviewDTO 형식)
         """
         try:
             self.logger.info(f"리뷰 작성 가능한 매장 조회 시작 - user_id: {user_id}")
@@ -300,7 +293,7 @@ class UserInfoService:
                 self.logger.info(f"방문 기록이 없음 - user_id: {user_id}")
                 return ResponseReviewListDTO(review_list=[])
             
-            # 2. category_id별 방문 정보 집계 (방문 횟수, 마지막 방문일)
+            # 2. category_id별 방문 정보 집계
             visit_info = defaultdict(lambda: {"count": 0, "last_date": None, "category_name": ""})
             
             for history in histories:
@@ -308,54 +301,52 @@ class UserInfoService:
                 visit_info[category_id]["count"] += 1
                 visit_info[category_id]["category_name"] = history.category_name
                 
-                # 마지막 방문일 업데이트
                 if visit_info[category_id]["last_date"] is None or \
                 history.visited_at > visit_info[category_id]["last_date"]:
                     visit_info[category_id]["last_date"] = history.visited_at
             
             self.logger.info(f"총 {len(visit_info)}개의 고유 매장 방문 기록")
             
-            # 3. 각 카테고리별 리뷰 개수 조회 및 필터링
+            # 🔥 3. 한 번에 모든 리뷰 정보 조회 (성능 개선!)
             reviews_repo = ReviewsRepository()
+            all_reviews = await reviews_repo.select(user_id=user_id)
+            
+            # 리뷰를 category_id별로 그룹화
+            review_counts = defaultdict(int)
+            if all_reviews:
+                for review in all_reviews:
+                    review_counts[review.category_id] += 1
+            
+            # 4. 리뷰 작성 가능한 매장만 필터링
             category_repo = CategoryRepository()
             reviewable_list = []
             
             for category_id, info in visit_info.items():
                 visit_count = info["count"]
-                last_visit_date = info["last_date"]
-                category_name = info["category_name"]
+                review_count = review_counts.get(category_id, 0)  # 메모리에서 조회
                 
-                # 해당 카테고리에 작성한 리뷰 개수 조회
-                reviews = await reviews_repo.select(
-                    user_id=user_id,
-                    category_id=category_id
-                )
-                review_count = len(reviews) if reviews else 0
-                
-                # 리뷰 작성 가능 여부 확인 (방문 횟수 > 리뷰 개수)
+                # 리뷰 작성 가능 여부 확인
                 if visit_count > review_count:
-                    # 카테고리 정보 조회
+                    # 이미 limit 개수만큼 찾았으면 조기 종료 (추가 최적화)
+                    if len(reviewable_list) >= limit * 2:  # 여유분 확보
+                        continue
+                    
                     category = await category_repo.select(id=category_id)
                     
                     if category and len(category) > 0:
                         cat = category[0]
-                        
-                        # 🔥 category_type을 문자열로 변환
                         category_type_str = str(cat.type) if cat.type is not None else ""
-                        
-                        # 🔥 주소 정보 생성
                         address = add_address(cat.do, cat.si, cat.gu, cat.detail_address)
                         
-                        # ReviewDTO 형식으로 변환 (재사용)
                         reviewable_list.append(
                             ReviewDTO(
-                                review_id="",  # 리뷰 ID는 빈 값
+                                review_id="",
                                 category_id=cat.id,
                                 category_name=cat.name,
                                 category_type=category_type_str,
-                                comment=address,  # 🔥 주소 정보로 변경
-                                stars=visit_count,  # 🔥 방문 횟수는 stars에 저장
-                                created_at=last_visit_date,  # 마지막 방문일
+                                comment=address,
+                                stars=visit_count,
+                                created_at=info["last_date"],
                                 nickname=None
                             )
                         )
@@ -363,14 +354,8 @@ class UserInfoService:
                         self.logger.info(
                             f"✅ {cat.name}: 방문 {visit_count}회, 리뷰 {review_count}개 - 작성 가능"
                         )
-                    else:
-                        self.logger.warning(f"카테고리 정보를 찾을 수 없음 - category_id: {category_id}")
-                else:
-                    self.logger.info(
-                        f"⏭️ {category_name}: 방문 {visit_count}회, 리뷰 {review_count}개 - 작성 완료"
-                    )
             
-            # 4. 최신 방문순으로 정렬 및 제한
+            # 5. 최신 방문순으로 정렬 및 제한
             reviewable_list.sort(key=lambda x: x.created_at, reverse=True)
             limited_list = reviewable_list[:limit]
             
