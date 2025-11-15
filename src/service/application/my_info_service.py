@@ -276,7 +276,7 @@ class UserInfoService:
             self.logger.error(f"Error getting visit count: {e}")
             # 오류 발생 시 0 반환 (안전한 기본값)
             return 0
-        
+
     async def get_reviewable_stores(self, user_id: str, limit: int = 6) -> ResponseReviewListDTO:
         """
         리뷰 작성 가능한 매장 목록을 조회합니다.
@@ -284,93 +284,107 @@ class UserInfoService:
         """
         try:
             self.logger.info(f"리뷰 작성 가능한 매장 조회 시작 - user_id: {user_id}, limit: {limit}")
-            
+
             history_repo = UserHistoryRepository()
             histories = await history_repo.select(user_id=user_id)
-            
+
             if not histories:
                 self.logger.info(f"방문 기록이 없음 - user_id: {user_id}")
                 return ResponseReviewListDTO(review_list=[])
-            
-            # 방문 정보 집계
-            visit_info = defaultdict(lambda: {"count": 0, "last_date": None, "category_name": ""})
-            
+
+            # 방문 정보 집계 (카테고리 정보도 함께 저장)
+            visit_info = defaultdict(lambda: {
+                "count": 0,
+                "last_date": None,
+                "category_name": "",
+                "category": None  # 첫 번째 history의 category 정보 저장
+            })
+
             for history in histories:
                 category_id = history.category_id
                 visit_info[category_id]["count"] += 1
                 visit_info[category_id]["category_name"] = history.category_name
-                
+
+                # 첫 방문 시 category 객체 저장 (재조회 방지)
+                if visit_info[category_id]["category"] is None:
+                    visit_info[category_id]["category"] = history
+
                 if visit_info[category_id]["last_date"] is None or \
-                history.visited_at > visit_info[category_id]["last_date"]:
+                        history.visited_at > visit_info[category_id]["last_date"]:
                     visit_info[category_id]["last_date"] = history.visited_at
-            
+
             self.logger.info(f"총 {len(visit_info)}개의 고유 매장 방문 기록")
-            
-            # 🔥 최신 방문순으로 정렬 (조기 종료를 위해)
+
+            # 최신 방문순으로 정렬
             sorted_visits = sorted(
                 visit_info.items(),
                 key=lambda x: x[1]["last_date"],
-                reverse=True  # 최신 방문이 먼저
+                reverse=True
             )
-            
+
+            category_ids = [cat_id for cat_id, _ in sorted_visits]
             reviews_repo = ReviewsRepository()
-            category_repo = CategoryRepository()
+
+            all_reviews = await reviews_repo.select(
+                user_id=user_id,
+                category_ids=category_ids
+            )
+
+            # category_id별로 리뷰 개수 집계
+            review_counts = defaultdict(int)
+            for review in all_reviews:
+                review_counts[review.category_id] += 1
+
             reviewable_list = []
-            
-            # 🔥 limit 개수만큼 찾으면 중단
             checked_count = 0
+
+            # limit 개수만큼 찾으면 중단
             for category_id, info in sorted_visits:
-                # 🔥 이미 limit 개수만큼 찾았으면 중단
                 if len(reviewable_list) >= limit:
                     self.logger.info(f"✅ {limit}개 찾음 - 조기 종료 (총 {checked_count}개 확인)")
                     break
-                
+
                 checked_count += 1
                 visit_count = info["count"]
-                last_visit_date = info["last_date"]
-                category_name = info["category_name"]
-                
-                # 리뷰 개수 확인
-                reviews = await reviews_repo.select(
-                    user_id=user_id,
-                    category_id=category_id
-                )
-                review_count = len(reviews) if reviews else 0
-                
+                review_count = review_counts.get(category_id, 0)
+
                 # 리뷰 작성 가능 여부 확인
                 if visit_count > review_count:
-                    category = await category_repo.select(id=category_id)
-                    
-                    if category and len(category) > 0:
-                        cat = category[0]
-                        
-                        category_type_str = str(cat.type) if cat.type is not None else ""
-                        address = add_address(cat.do, cat.si, cat.gu, cat.detail_address)
-                        
-                        reviewable_list.append(
-                            ReviewDTO(
-                                review_id="",
-                                category_id=cat.id,
-                                category_name=cat.name,
-                                category_type=category_type_str,
-                                comment=address,
-                                stars=visit_count,
-                                created_at=last_visit_date,
-                                nickname=None
-                            )
+                    # 이미 저장된 history에서 category 정보 사용 (DB 재조회 불필요)
+                    history_data = info["category"]
+
+                    category_type_str = str(history_data.category_type) if hasattr(history_data,
+                                                                                   'category_type') and history_data.category_type is not None else ""
+
+                    # history에 주소 정보가 있다면 활용
+                    address = add_address(
+                        history_data.do if hasattr(history_data, 'do') else "",
+                        history_data.si if hasattr(history_data, 'si') else "",
+                        history_data.gu if hasattr(history_data, 'gu') else "",
+                        history_data.detail_address if hasattr(history_data, 'detail_address') else ""
+                    )
+
+                    reviewable_list.append(
+                        ReviewDTO(
+                            review_id="",
+                            category_id=category_id,
+                            category_name=info["category_name"],
+                            category_type=category_type_str,
+                            comment=address,
+                            stars=visit_count,
+                            created_at=info["last_date"],
+                            nickname=None
                         )
-                        
-                        self.logger.debug(
-                            f"✅ [{len(reviewable_list)}/{limit}] {cat.name}: "
-                            f"방문 {visit_count}회, 리뷰 {review_count}개"
-                        )
-            
-            self.logger.info(
-                f"최종 결과: {len(reviewable_list)}개 (총 {checked_count}개 매장 확인)"
-            )
-            
+                    )
+
+                    self.logger.debug(
+                        f"✅ [{len(reviewable_list)}/{limit}] {info['category_name']}: "
+                        f"방문 {visit_count}회, 리뷰 {review_count}개"
+                    )
+
+            self.logger.info(f"최종 결과: {len(reviewable_list)}개 (총 {checked_count}개 매장 확인)")
             return ResponseReviewListDTO(review_list=reviewable_list)
-            
+
         except Exception as e:
             self.logger.error(f"리뷰 작성 가능한 매장 조회 중 오류: {e}")
             return ResponseReviewListDTO(review_list=[])
