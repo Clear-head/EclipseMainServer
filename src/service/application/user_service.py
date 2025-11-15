@@ -1,0 +1,104 @@
+from src.domain.dto.user.user_account_dto import RequestDeleteAccountDTO
+from src.domain.dto.user.user_auth_dto import UserInfoDTO, ResponseLoginDTO, RequestRegisterDTO, ResponseRegisterDTO
+from src.domain.entities.delete_entity import DeleteEntity
+from src.infra.database.repository.black_repository import BlackRepository
+from src.infra.database.repository.delete_repository import DeleteCauseRepository
+from src.infra.database.repository.users_repository import UserRepository
+from src.logger.custom_logger import get_logger
+from src.service.auth.jwt import create_jwt_token
+from src.utils.exception_handler.auth_error_class import DuplicateUserInfoError, InvalidCredentialsException, \
+    UserAlreadyExistsException, UserNotFoundException, UserBannedException
+
+
+class UserService:
+    def __init__(self):
+        self.logger = get_logger(__name__)
+        self.repository = UserRepository()
+
+
+    async def login(self, id: str, pw: str):
+        select_from_id_pw_result = await self.repository.select(id=id, password=pw)
+        banned = await BlackRepository().select(user_id=select_from_id_pw_result[0].id)
+        #   id,pw 검색 인원 2명 이상
+        if len(select_from_id_pw_result) > 1:
+            raise DuplicateUserInfoError()
+
+        #   id or pw 틀림
+        elif len(select_from_id_pw_result) == 0:
+            raise InvalidCredentialsException()
+
+        elif len(banned) > 0:
+            raise UserBannedException(finished_at=banned[0].finished_at)
+
+        #   로그인 성공
+        else:
+            token1, token2 = await create_jwt_token(select_from_id_pw_result[0].id)
+
+            info = UserInfoDTO(
+                    username=select_from_id_pw_result[0].username,
+                    nickname=select_from_id_pw_result[0].nickname,
+                    birth=select_from_id_pw_result[0].birth,
+                    phone=select_from_id_pw_result[0].phone,
+                    email=select_from_id_pw_result[0].email,
+                    address=select_from_id_pw_result[0].address
+                )
+            content = ResponseLoginDTO(
+                message="success",
+                token1=token1,
+                token2=token2,
+                info=info
+            )
+
+        return content
+
+    async def logout(self, id: str):
+        pass
+
+    async def register(self, dto: RequestRegisterDTO):
+
+        select_from_id_result = await self.repository.select(id=dto.id)
+
+        #   중복 체크
+        if len(select_from_id_result) > 0:
+            raise UserAlreadyExistsException()
+
+        insert_result = await self.repository.insert(dto)
+
+        if not insert_result:
+            raise Exception("회원 가입 실패")
+
+        else:
+            return ResponseRegisterDTO(message="success")
+
+
+    async def delete_account(self, id: str, dto: RequestDeleteAccountDTO):
+        result = await self.repository.select(id=id, password=dto.password)
+
+
+        if not result:
+            raise UserNotFoundException()
+        elif len(result) > 1:
+            raise DuplicateUserInfoError()
+        else:
+
+            repo = DeleteCauseRepository()
+            tmp = await repo.select(cause = dto.because)
+            if tmp:
+                await repo.update(
+                    dto.because,
+                    item = DeleteEntity(
+                        count=tmp[0].count+1,
+                        cause=dto.because
+                    )
+                )
+            else:
+                await repo.insert(
+                    DeleteEntity(
+                        count=1,
+                        cause=dto.because
+                    )
+                )
+            return await self.repository.delete(id=id, password=dto.password)
+
+    async def find_id_pw(self, id: str, pw: str):
+        pass

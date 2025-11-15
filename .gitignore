@@ -25,6 +25,9 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+src/resources/config/
+logs/
+chroma_db/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -205,3 +208,11 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+src/service/crawl/test.py
+src/service/chromadb/chroma_test.py
+src/service/suggest/test_suggest.py
+src/service/crawl/test_run.py
+src/service/test.py
+src/requirements.txt
+.vscode/settings.json
+src/resources/crawl/crawlers.json
