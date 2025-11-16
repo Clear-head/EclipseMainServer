@@ -30,6 +30,7 @@ class UserService:
             raise DuplicateUserInfoError()
 
         else:
+            user_entity = None
             result = result[0]
 
             if field == "nickname":
