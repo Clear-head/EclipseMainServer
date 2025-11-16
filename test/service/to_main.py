@@ -1,7 +1,7 @@
 import asyncio
 import time
 
-from src.service.application.main_screen_service import MainScreenService
+from src.service.category.category_service import MainScreenService
 
 
 

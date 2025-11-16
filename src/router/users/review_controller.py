@@ -3,8 +3,7 @@ from starlette.responses import JSONResponse
 
 from src.domain.dto.review.review_dto import RequestCreateReviewDTO, ResponseDeleteReviewDTO, ResponseReviewListDTO
 from src.logger.custom_logger import get_logger
-from src.service.application.my_info_service import UserInfoService
-from src.service.application.reviews_service import ReviewsService
+from src.service.user.reviews_service import ReviewsService
 from src.service.auth.jwt import get_jwt_user_id
 
 router = APIRouter(
@@ -12,7 +11,7 @@ router = APIRouter(
 )
 logger = get_logger(__name__)
 
-user_info = UserInfoService()
+user_info = ReviewsService()
 
 # 리뷰 작성 가능한 매장 목록 조회
 @router.get("/reviews/reviewable")

@@ -9,7 +9,7 @@ from src.domain.dto.user.user_auth_dto import (
     RequestRefreshTokenDTO
 )
 from src.logger.custom_logger import get_logger
-from src.service.application.user_service import UserService
+from src.service.user.user_service import UserService
 from src.service.auth.jwt import validate_jwt_token, create_jwt_token
 from src.utils.exception_handler.auth_error_class import MissingTokenException, ExpiredRefreshTokenException
 

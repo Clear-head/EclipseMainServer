@@ -42,7 +42,6 @@ class MainScreenService:
 
             # address = add_address(item.do, item.si, item.gu, item.detail_address)
 
-        print(categories)
         return ResponseCategoryListDTO(
             categories=categories,
         )
