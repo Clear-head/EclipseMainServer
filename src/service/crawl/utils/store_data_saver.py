@@ -2,6 +2,7 @@ from typing import Tuple
 
 from src.domain.dto.crawled.insert_category_dto import InsertCategoryDto
 from src.domain.dto.crawled.insert_category_tags_dto import InsertCategoryTagsDTO
+
 from src.infra.database.repository.category_repository import CategoryRepository
 from src.infra.database.repository.category_tags_repository import CategoryTagsRepository
 from src.infra.external.category_classifier_service import CategoryTypeClassifier

@@ -3,7 +3,6 @@ from typing import List, Optional, Dict
 from pydantic import BaseModel
 
 
-
 # 채팅 메시지 요청 DTO
 class RequestChatMessageDTO(BaseModel):
     message: str

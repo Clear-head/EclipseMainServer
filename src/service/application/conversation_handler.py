@@ -16,18 +16,17 @@ from src.infra.database.repository.merge_history_repository import MergeHistoryR
 from src.infra.database.repository.user_history_repository import UserHistoryRepository
 from src.logger.custom_logger import get_logger
 from src.service.application.prompts import RESPONSE_MESSAGES
-from src.service.application.utils import (
-    validate_user_input,
-    format_collected_data_for_server
+from src.service.application.recommendation_handler import (
+    get_store_recommendations
 )
-
 # 분리된 모듈 임포트
 from src.service.application.tag_handler import (
     handle_tag_action,
     collect_tags_from_message
 )
-from src.service.application.recommendation_handler import (
-    get_store_recommendations
+from src.service.application.utils import (
+    validate_user_input,
+    format_collected_data_for_server
 )
 
 logger = get_logger(__name__)
@@ -80,7 +79,7 @@ def is_more_response(user_response: str) -> bool:
 def handle_user_message(session: Dict, user_message: str) -> ResponseChatMessageDTO:
     """
     사용자 메시지 처리 및 태그 생성
-    
+
     Args:
         session: 현재 세션
         user_message: 사용자 메시지
@@ -117,7 +116,7 @@ def handle_user_message(session: Dict, user_message: str) -> ResponseChatMessage
     # Case 1: 랜덤 추천 요청
     if result_type == "random":
         logger.info(f"LLM 판단: 랜덤 추천 요청 - '{user_message}'")
-        
+
         session.setdefault("collectedTags", {})
         session.setdefault("randomCategories", [])
         session["randomCategoryPending"] = current_category
@@ -146,7 +145,7 @@ def handle_user_message(session: Dict, user_message: str) -> ResponseChatMessage
 
     # Case 3: 의미있는 입력 → 태그 추출 (분리된 모듈 사용)
     logger.info(f"LLM 판단: 의미있는 입력 - '{user_message}'")
-    
+
     tag_result = collect_tags_from_message(session, user_message, current_category, people_count)
     session["waitingForUserAction"] = True
 
@@ -166,16 +165,16 @@ def handle_user_message(session: Dict, user_message: str) -> ResponseChatMessage
 async def handle_user_action_response(session: Dict, user_response: str):
     """
     사용자 버튼 액션 처리 (Next / More / Yes)
-    
+
     Args:
         session: 현재 세션
         user_response: 사용자 응답
     """
     # 태그 액션 처리 (우선순위) - 분리된 모듈 사용
     tag_action_response = handle_tag_action(
-        session, 
-        user_response, 
-        get_current_category, 
+        session,
+        user_response,
+        get_current_category,
         build_progress
     )
     if tag_action_response:
@@ -269,13 +268,13 @@ async def handle_results_confirmation(session: Dict, is_confirmed: bool):
     """결과 확인 처리 (매장 추천 생성)"""
     if is_confirmed:
         logger.info("confirming_results 단계에서 '네' 선택 -> 매장 추천 생성")
-        
+
         # 수집된 데이터 구조화
         collected_data = format_collected_data_for_server(session)
-        
+
         # 매장 추천 생성 (분리된 모듈 사용)
         recommendations = await get_store_recommendations(session)
-        
+
         # 세션에 저장
         session["recommendations"] = recommendations
         session["stage"] = "completed"
@@ -318,7 +317,7 @@ def handle_next_category(session: Dict) -> ResponseChatMessageDTO:
             stage="collecting_details",
             progress=build_progress(session)
         )
-    
+
     # 모든 카테고리 완료
     session["stage"] = "confirming_results"
     session["waitingForUserAction"] = True
@@ -383,7 +382,7 @@ async def save_selected_template_to_merge(dto: RequestSaveHistoryDTO, user_id: s
         )
 
         await repo.insert(entity)
-        
+
         logger.info(f"병합 히스토리 저장 성공: merge_id={entity.id}")
         return entity.id
 
