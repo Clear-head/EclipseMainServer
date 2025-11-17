@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Header, Depends
 from starlette.responses import JSONResponse
 
 from src.domain.dto.user.user_auth_dto import (
@@ -8,9 +8,10 @@ from src.domain.dto.user.user_auth_dto import (
     ResponseRegisterDTO,
     RequestRefreshTokenDTO
 )
+from src.infra.cache.redis_repository import SessionRepository
 from src.logger.custom_logger import get_logger
-from src.service.application.user_service import UserService
-from src.service.auth.jwt import validate_jwt_token, create_jwt_token
+from src.service.auth.jwt import validate_jwt_token, create_jwt_token, get_jwt_user_id
+from src.service.user.user_service import UserService
 from src.utils.exception_handler.auth_error_class import MissingTokenException, ExpiredRefreshTokenException
 
 router = APIRouter(prefix="/api/auth", tags=["users"])
@@ -29,10 +30,11 @@ async def user_login(user_info: RequestLoginDTO)->ResponseLoginDTO:
 
 #   로그아웃
 @router.delete('/session')
-async def user_logout(get_by_user):
-    if get_by_user.body.type == "login":
-        pass
+async def user_logout(jwt: str = Header(None), user_id: str = Depends(get_jwt_user_id)):
+    session_repo = SessionRepository()
+    await session_repo.delete_session(jwt)
 
+    return JSONResponse(status_code=200, content={"message": "success"})
 
 #   회원가입
 @router.post('/register')

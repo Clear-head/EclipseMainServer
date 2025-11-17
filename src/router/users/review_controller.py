@@ -3,16 +3,16 @@ from starlette.responses import JSONResponse
 
 from src.domain.dto.review.review_dto import RequestCreateReviewDTO, ResponseDeleteReviewDTO, ResponseReviewListDTO
 from src.logger.custom_logger import get_logger
-from src.service.application.my_info_service import UserInfoService
-from src.service.application.reviews_service import ReviewsService
 from src.service.auth.jwt import get_jwt_user_id
+from src.service.user.history_service import HistoryService
+from src.service.user.reviews_service import ReviewsService
 
 router = APIRouter(
     prefix="/api/users/me"
 )
 logger = get_logger(__name__)
 
-user_info = UserInfoService()
+user_info = ReviewsService()
 
 # 리뷰 작성 가능한 매장 목록 조회
 @router.get("/reviews/reviewable")
@@ -24,7 +24,7 @@ async def get_reviewable_stores(
     리뷰 작성 가능한 매장 목록을 조회합니다.
     (방문 횟수 > 리뷰 개수인 매장만 반환, 최신 방문순, 최대 6개)
     """
-    return await user_info.get_reviewable_stores(user_id, limit)
+    return await HistoryService().get_reviewable_stores(user_id, limit)
 
 
 # 리뷰 리스트 조회

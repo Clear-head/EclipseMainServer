@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional, List
-from pydantic import BaseModel
 
+from pydantic import BaseModel
 
 
 # 카테고리 상세 정보 DTO

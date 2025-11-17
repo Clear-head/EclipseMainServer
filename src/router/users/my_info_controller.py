@@ -1,20 +1,17 @@
 from fastapi import APIRouter, Depends
 from starlette.responses import JSONResponse
 
-from src.domain.dto.history.history_dto import ResponseHistoryListDTO, ResponseHistoryDetailDTO
 from src.domain.dto.like.like_dto import ResponseLikeListDTO, RequestToggleLikeDTO
-from src.domain.dto.review.review_dto import ResponseReviewListDTO, RequestCreateReviewDTO, ResponseDeleteReviewDTO
 from src.logger.custom_logger import get_logger
-from src.service.application.my_info_service import UserInfoService
-from src.service.application.reviews_service import ReviewsService
 from src.service.auth.jwt import get_jwt_user_id
+from src.service.user.like_service import LikeService
 
 router = APIRouter(
     prefix="/api/users/me"
 )
 logger = get_logger(__name__)
 
-user_info = UserInfoService()
+user_info = LikeService()
 
 
 # 좋아요 조회

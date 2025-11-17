@@ -1,4 +1,4 @@
-from sqlalchemy import select, func, text
+from sqlalchemy import text
 
 from src.infra.database.repository.base_repository import BaseRepository
 from src.infra.database.repository.maria_engine import get_engine

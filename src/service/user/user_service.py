@@ -1,6 +1,8 @@
 from src.domain.dto.user.user_account_dto import RequestDeleteAccountDTO
 from src.domain.dto.user.user_auth_dto import UserInfoDTO, ResponseLoginDTO, RequestRegisterDTO, ResponseRegisterDTO
+from src.domain.dto.user.user_profile_dto import RequestUpdateProfileDTO, ResponseUpdateProfileDTO
 from src.domain.entities.delete_entity import DeleteEntity
+from src.domain.entities.user_entity import UserEntity
 from src.infra.database.repository.black_repository import BlackRepository
 from src.infra.database.repository.delete_repository import DeleteCauseRepository
 from src.infra.database.repository.users_repository import UserRepository
@@ -14,6 +16,75 @@ class UserService:
     def __init__(self):
         self.logger = get_logger(__name__)
         self.repository = UserRepository()
+
+    #   내정보 수정
+    async def change_info(self, dto: RequestUpdateProfileDTO, field: str, user_id):
+        self.logger.info(f"try {field} change id: {user_id}")
+
+        result = await self.repository.select(id=user_id, password=dto.password)
+
+        if not result:
+            raise UserNotFoundException()
+
+        elif len(result) > 1:
+            raise DuplicateUserInfoError()
+
+        else:
+            user_entity = None
+            result = result[0]
+
+            if field == "nickname":
+                user_entity = UserEntity(
+                    id=user_id,
+                    username=result.username,
+                    nickname=dto.change_field,
+                    password=result.password,
+                    email=result.email,
+                )
+
+            elif field == "password":
+                user_entity = UserEntity(
+                    id=user_id,
+                    username=result.username,
+                    nickname=result.nickname,
+                    password=dto.change_field,
+                    email=result.email,
+                )
+
+            elif field == "email":
+                user_entity = UserEntity(
+                    id=user_id,
+                    username=result.username,
+                    nickname=result.nickname,
+                    email=dto.change_field,
+                    password=result.password
+                )
+
+            elif field == "address":
+                user_entity = UserEntity(
+                    id=user_id,
+                    username=result.username,
+                    nickname=result.nickname,
+                    email=result.email,
+                    address=dto.change_field,
+                    password=result.password,
+                )
+
+            elif field == "phone":
+                user_entity = UserEntity(
+                    id=user_id,
+                    username=result.username,
+                    nickname=result.nickname,
+                    email=result.email,
+                    password=result.password,
+                    phone=dto.change_field,
+                )
+
+            await self.repository.update(user_id, user_entity)
+
+        return ResponseUpdateProfileDTO(
+            msg=dto.change_field
+        )
 
 
     async def login(self, id: str, pw: str):

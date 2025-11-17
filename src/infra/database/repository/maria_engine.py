@@ -3,6 +3,8 @@ from pathlib import Path
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine
 
+from src.utils.path import path_dic
+
 _ENGINE = None
 
 
@@ -13,7 +15,7 @@ async def get_engine() -> AsyncEngine:
         return _ENGINE
 
     try:
-        config_path = Path(__file__).parent.parent.parent.parent.joinpath('resources').joinpath('config').joinpath('database_config.json')
+        config_path = path_dic["database_config"]
 
         with open(config_path) as f:
             config = load(f)["maria"]

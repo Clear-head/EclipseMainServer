@@ -66,33 +66,33 @@ def quick_validation(user_message: str) -> Tuple[bool, str]:
     """
     1차 검증: 규칙 기반 빠른 필터링
     명백히 무의미한 입력을 즉시 걸러냄
-    
+
     Args:
         user_message: 사용자 입력 메시지
-        
+
     Returns:
         (is_valid, error_message)
         - is_valid: True면 유효, False면 무효
         - error_message: 검증 실패 시 사용자에게 보여줄 메시지
     """
     text = user_message.strip()
-    
+
     # 1. 최소 길이 체크 (2자 미만)
     if len(text) < 2:
         return False, VALIDATION_MESSAGES["too_short"]
-    
+
     # 2. 최대 길이 체크 (500자 초과)
     if len(text) > 500:
         return False, VALIDATION_MESSAGES["too_long"]
-    
+
     # 3. 특수문자만 있는지 체크
     if re.match(r'^[^\w\s가-힣]+$', text, re.UNICODE):
         return False, VALIDATION_MESSAGES["only_special_chars"]
-    
+
     # 4. 숫자만 있는지 체크
     if text.isdigit():
         return False, VALIDATION_MESSAGES["only_numbers"]
-    
+
     # 5. 키보드 무작위 입력 패턴 감지
     keyboard_patterns = [
         'asdf', 'asd', 'qwer', 'zxcv', 'qwe', 'zxc',
@@ -103,24 +103,24 @@ def quick_validation(user_message: str) -> Tuple[bool, str]:
     for pattern in keyboard_patterns:
         if pattern in text_lower and len(text) <= 10:
             return False, VALIDATION_MESSAGES["keyboard_pattern"]
-    
+
     # 6. 같은 문자 반복 체크 (70% 이상 동일 문자)
     if len(text) >= 3:
         char_counts = {}
         for char in text:
             if char.strip():  # 공백 제외
                 char_counts[char] = char_counts.get(char, 0) + 1
-        
+
         if char_counts:
             max_count = max(char_counts.values())
             if max_count / len(text.replace(' ', '')) > 0.7:
                 return False, VALIDATION_MESSAGES["repetitive"]
-    
+
     # 7. 의미있는 문자 비율 체크 (한글, 영문, 숫자가 50% 이상)
     meaningful_chars = re.findall(r'[a-zA-Z가-힣0-9]', text)
     if len(meaningful_chars) / len(text) < 0.5:
         return False, VALIDATION_MESSAGES["only_special_chars"]
-    
+
     # 모든 체크 통과
     return True, ""
 
@@ -128,11 +128,11 @@ def quick_validation(user_message: str) -> Tuple[bool, str]:
 def llm_validation(user_message: str, category: str) -> Tuple[str, str]:
     """
     LLM 기반 검증 + 랜덤 판별
-    
+
     Args:
         user_message: 사용자 입력 메시지
         category: 현재 카테고리
-        
+
     Returns:
         (result_type, error_message)
         - result_type: "random" | "valid" | "invalid"
@@ -143,10 +143,10 @@ def llm_validation(user_message: str, category: str) -> Tuple[str, str]:
             user_input=user_message,
             category=category
         )
-        
+
         response = chain.invoke({"user_input": prompt})
         response_lower = response.strip().lower()
-        
+
         # LLM 응답 파싱
         if "랜덤" in response_lower or "random" in response_lower:
             return "random", ""
@@ -154,7 +154,7 @@ def llm_validation(user_message: str, category: str) -> Tuple[str, str]:
             return "valid", ""
         else:
             return "invalid", VALIDATION_MESSAGES["ambiguous"]
-            
+
     except Exception as e:
         # LLM 오류 시 관대하게 처리 (일반 추천으로 진행)
         print(f"LLM 검증 오류: {e}")
@@ -164,11 +164,11 @@ def llm_validation(user_message: str, category: str) -> Tuple[str, str]:
 def validate_user_input(user_message: str, category: str = "카페") -> Tuple[str, str]:
     """
     하이브리드 입력 검증 함수 (검증 + 랜덤 판별)
-    
+
     Args:
         user_message: 사용자 입력 메시지
         category: 현재 카테고리
-        
+
     Returns:
         (result_type, error_message)
         - result_type: "random" | "valid" | "invalid"
@@ -176,11 +176,11 @@ def validate_user_input(user_message: str, category: str = "카페") -> Tuple[st
     """
     # 1단계: 규칙 기반 빠른 필터링 (명백히 무의미한 것만 차단)
     is_valid, error_msg = quick_validation(user_message)
-    
+
     if not is_valid:
         # 명백히 무효한 입력 → 즉시 거부 (LLM 호출 안 함)
         return "invalid", error_msg
-    
+
     # 2단계: LLM 검증 + 랜덤 판별 (1회 호출로 두 가지 판단)
     print(f"🤖 LLM 검증 시작: '{user_message}'")
     return llm_validation(user_message, category)
@@ -299,13 +299,13 @@ def clear_tags_for_category(session: Dict, category: str) -> List[str]:
 def format_collected_data_for_server(session: Dict) -> List[CollectedDataItemDTO]:
     """
     세션 데이터를 서버로 전송할 형식으로 구조화
-    
+
     채팅 완료 후 수집된 정보(위치, 인원수, 카테고리별 키워드)를
     카테고리별로 구조화된 리스트로 변환합니다.
-    
+
     Args:
         session: 세션 딕셔너리 (play_address, peopleCount, selectedCategories, collectedTags 포함)
-    
+
     Returns:
         카테고리별로 구조화된 데이터 리스트
         예시:
@@ -330,13 +330,13 @@ def format_collected_data_for_server(session: Dict) -> List[CollectedDataItemDTO
     selected_categories = session.get("selectedCategories", [])
     collected_tags = session.get("collectedTags", {})
     random_categories = set(session.get("randomCategories", []))
-    
+
     # 인원수 포맷팅 ("2명" 형식)
     people_count_str = f"{people_count}명"
-    
+
     # 결과 리스트 초기화
     formatted_data = []
-    
+
     # 각 카테고리별로 데이터 구조화
     for category in selected_categories:
         # 카테고리별 키워드 추출 (없으면 빈 리스트)
@@ -344,7 +344,7 @@ def format_collected_data_for_server(session: Dict) -> List[CollectedDataItemDTO
 
         if category in random_categories and not keywords:
             keywords = [RESPONSE_MESSAGES["random"]["summary_tag"]]
-        
+
         # 각 카테고리별 객체 생성
         category_data = CollectedDataItemDTO(
             category_type=category,
@@ -352,7 +352,7 @@ def format_collected_data_for_server(session: Dict) -> List[CollectedDataItemDTO
             location=play_address,
             human_count=people_count_str
         )
-        
+
         formatted_data.append(category_data)
-    
+
     return formatted_data

@@ -1,5 +1,3 @@
-from sqlalchemy import text
-from src.infra.database.repository.maria_engine import get_engine
 from src.infra.database.repository.statistics_repository import StatisticsRepository
 from src.logger.custom_logger import get_logger
 

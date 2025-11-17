@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends
+
 from src.domain.dto.category.category_detail_dto import ResponseCategoryDetailDTO
 from src.domain.dto.category.category_dto import ResponseCategoryListDTO
 from src.logger.custom_logger import get_logger
-from src.service.application.main_screen_service import MainScreenService
 from src.service.auth.jwt import get_jwt_user_id
+from src.service.category.category_service import MainScreenService
 
 router = APIRouter(
     prefix="/api/categories"

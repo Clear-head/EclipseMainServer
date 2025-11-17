@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from pydantic import BaseModel, computed_field
+from pydantic import BaseModel
 
 from src.domain.dto.category.category_dto import CategoryListItemDTO
 

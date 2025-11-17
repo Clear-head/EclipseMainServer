@@ -1,14 +1,16 @@
 from fastapi import HTTPException
-from sqlalchemy import func
 
 from src.domain.dto.category.category_detail_dto import ResponseCategoryDetailDTO, ReviewItemDTO
-from src.domain.dto.category.category_dto import ResponseCategoryListDTO, CategoryListItemDTO
+from src.domain.dto.category.category_dto import ResponseCategoryListDTO
 from src.infra.database.repository.category_repository import CategoryRepository
 from src.infra.database.repository.category_tags_repository import CategoryTagsRepository
 from src.infra.database.repository.reviews_repository import ReviewsRepository
 from src.infra.database.repository.tags_repository import TagsRepository
 from src.infra.database.repository.user_like_repository import UserLikeRepository
 from src.infra.database.repository.users_repository import UserRepository
+from src.infra.database.tables.table_tags import tags_table
+from src.infra.database.tables.table_users import users_table
+from src.logger.custom_logger import get_logger
 from src.utils.make_address import add_address
 
 
@@ -19,9 +21,124 @@ class MainScreenService:
         self.reviews_repo = ReviewsRepository()
         self.category_tags_repo = CategoryTagsRepository()
         self.tags_repo = TagsRepository()
-
+        self.logger = get_logger(__name__)
 
     async def to_main(self) -> ResponseCategoryListDTO:
+        categories = await self.category_repo.get_review_statistics(limit=10, is_random=True)
+
+        if not categories:
+            return ResponseCategoryListDTO(categories=[])
+
+        return ResponseCategoryListDTO(
+            categories=categories,
+        )
+
+    async def get_category_detail(self, category_id: str, user_id: str) -> ResponseCategoryDetailDTO:
+        category = await self.category_repo.select(id=category_id)
+
+        if category is None or len(category) == 0:
+            raise HTTPException(status_code=404, detail="Category not found")
+        elif len(category) > 1:
+            raise HTTPException(status_code=500, detail="Too many categories")
+
+        category = category[0]
+
+        like_result = await UserLikeRepository().select(
+            category_id=category.id,
+            user_id=user_id
+        )
+        is_like = bool(like_result)
+
+        category_tags_with_names = await self.category_tags_repo.select(
+            joins=[
+                {
+                    'table': tags_table,
+                    'on': {'tag_id': 'id'},
+                    'alias': 'tag',
+                    'type': 'inner'
+                }
+            ],
+            columns={
+                'tag.name': 'tag_name',
+                'count': 'count'
+            },
+            category_id=category.id,
+            limit=5,
+            order='count'
+        )
+
+        tag_names = [
+            row['tag_name'].replace('"', '')
+            for row in category_tags_with_names
+            if row.get('tag_name')
+        ]
+
+        reviews_with_users = await self.reviews_repo.select(
+            joins=[
+                {
+                    'table': users_table,
+                    'on': {'user_id': 'id'},
+                    'alias': 'user',
+                    'type': 'inner'
+                }
+            ],
+            columns={
+                'id': 'review_id',
+                'user_id': 'user_id',
+                'category_id': 'category_id',
+                'stars': 'stars',
+                'comments': 'comments',
+                'created_at': 'created_at',
+                'user.nickname': 'nickname'
+            },
+            category_id=category.id
+        )
+
+        reviews_list = []
+        total_stars = 0
+
+        for review in reviews_with_users:
+            total_stars += review['stars']
+            reviews_list.append(
+                ReviewItemDTO(
+                    created_at=review['created_at'],
+                    comment=review['comments'],
+                    category_id=review['category_id'],
+                    category_name=category.name,
+                    stars=review['stars'],
+                    review_id=review['review_id'],
+                    nickname=review['nickname']
+                )
+            )
+
+        average_stars = round(total_stars / len(reviews_list), 2) if reviews_list else 0
+
+        detail_address = add_address(
+            category.do,
+            category.si,
+            category.gu,
+            category.detail_address
+        )
+
+        self.logger.info(
+            f"카테고리 상세 조회 완료: {category_id}, "
+            f"태그 {len(tag_names)}개, 리뷰 {len(reviews_list)}개"
+        )
+
+        return ResponseCategoryDetailDTO(
+            id=category_id,
+            title=category.name,
+            image_url=category.image,
+            sub_category=category.sub_category,
+            detail_address=detail_address,
+            is_like=is_like,
+            tags=tag_names,
+            menu_preview=self._extract_menu_preview(category.menu),
+            reviews=reviews_list,
+            average_stars=average_stars
+        )
+
+    async def rg_to_main(self) -> ResponseCategoryListDTO:
         categories = await self.category_repo.get_review_statistics(limit=10, is_random=True)
 
         tags = []
@@ -42,13 +159,12 @@ class MainScreenService:
 
             # address = add_address(item.do, item.si, item.gu, item.detail_address)
 
-        print(categories)
         return ResponseCategoryListDTO(
             categories=categories,
         )
 
 
-    async def get_category_detail(self, category_id, user_id) -> ResponseCategoryDetailDTO:
+    async def rg_get_category_detail(self, category_id, user_id) -> ResponseCategoryDetailDTO:
         user_repo = UserRepository()
 
 

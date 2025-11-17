@@ -6,7 +6,7 @@
 - 추천 결과 포맷팅
 """
 
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from src.domain.dto.category.category_dto import CategoryListItemDTO
 from src.logger.custom_logger import get_logger

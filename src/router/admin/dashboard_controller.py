@@ -1,8 +1,10 @@
+from pathlib import Path
+
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse, JSONResponse
-from pathlib import Path
-from src.service.dashboard.dashboard_data_service import DashboardDataService
+
 from src.logger.custom_logger import get_logger
+from src.service.dashboard.dashboard_data_service import DashboardDataService
 
 router = APIRouter()
 logger = get_logger(__name__)
