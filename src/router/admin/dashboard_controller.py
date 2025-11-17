@@ -6,7 +6,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from src.logger.custom_logger import get_logger
 from src.service.dashboard.dashboard_data_service import DashboardDataService
 from src.service.dashboard.dashboard_service import DashboardService
-from src.service.dashboard.dashboard_user_service import DashboardUserService
+from src.service.dashboard.dashboard_users_service import DashboardUserService
 
 router = APIRouter()
 logger = get_logger(__name__)

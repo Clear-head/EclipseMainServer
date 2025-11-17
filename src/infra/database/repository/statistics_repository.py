@@ -1,7 +1,12 @@
+from datetime import datetime
 from sqlalchemy import text
 
 from src.infra.database.repository.base_repository import BaseRepository
 from src.infra.database.repository.maria_engine import get_engine
+from src.infra.database.tables.table_delete import delete_cause_table
+from src.infra.database.tables.table_users import users_table
+from src.infra.database.tables.table_user_history import user_history_table
+from src.infra.database.tables.table_report import report_table
 
 
 class StatisticsRepository(BaseRepository):
@@ -424,24 +429,28 @@ class StatisticsRepository(BaseRepository):
     async def get_delete_cause_stats(self) -> list:
         try:
             self.logger.info("계정 삭제 이유 통계를 조회합니다.")
-            engine = await get_engine()
-            async with engine.begin() as conn:
-                query = text("""
-                             SELECT cause, count
-                             FROM delete_cause
-                             ORDER BY count DESC
-                             """)
-
-                result = await conn.execute(query)
-                rows = result.mappings().all()
-
-                return [
-                    {
-                        "cause": row["cause"] or "",
-                        "count": int(row["count"] or 0)
-                    }
-                    for row in rows
-                ]
+            # base_repository.select() 사용을 위해 임시로 테이블 설정
+            original_table = self.table
+            self.table = delete_cause_table
+            
+            # base_repository.select() 사용 (ORDER BY count DESC)
+            # return_dto를 사용하여 rows를 그대로 반환받음 (base_repository.py 수정 없이)
+            rows = await self.select(
+                return_dto=lambda **kwargs: kwargs,  # 딕셔너리를 그대로 반환하는 람다 함수
+                columns=['cause', 'count'],
+                order='count'  # 문자열로 전달하면 내부에서 desc()로 처리됨
+            )
+            
+            # 테이블 원복
+            self.table = original_table
+            
+            return [
+                {
+                    "cause": row["cause"] or "",
+                    "count": int(row["count"] or 0)
+                }
+                for row in rows
+            ]
 
         except Exception as e:
             self.logger.error(f"계정 삭제 이유 통계 조회 오류: {e}")
@@ -450,28 +459,32 @@ class StatisticsRepository(BaseRepository):
     async def get_general_inquiries(self) -> list:
         try:
             self.logger.info("일반 문의 사항을 조회합니다.")
-            engine = await get_engine()
-            async with engine.begin() as conn:
-                query = text("""
-                             SELECT id, reporter, cause, reported_at, is_processed
-                             FROM report
-                             WHERE type = 3
-                             ORDER BY reported_at DESC
-                             """)
-
-                result = await conn.execute(query)
-                rows = result.mappings().all()
-
-                return [
-                    {
-                        "id": int(row["id"] or 0),
-                        "reporter": row["reporter"] or "",
-                        "cause": row["cause"] or "",
-                        "reported_at": str(row["reported_at"]) if row["reported_at"] else "",
-                        "is_processed": int(row["is_processed"] or 0)
-                    }
-                    for row in rows
-                ]
+            # base_repository.select() 사용을 위해 임시로 테이블 설정
+            original_table = self.table
+            self.table = report_table
+            
+            # base_repository.select() 사용 (WHERE type=3, ORDER BY reported_at DESC)
+            # return_dto를 사용하여 rows를 그대로 반환받음 (base_repository.py 수정 없이)
+            rows = await self.select(
+                return_dto=lambda **kwargs: kwargs,  # 딕셔너리를 그대로 반환하는 람다 함수
+                columns=['id', 'reporter', 'cause', 'reported_at', 'is_processed'],
+                type=3,
+                order='reported_at'  # 문자열로 전달하면 내부에서 desc()로 처리됨
+            )
+            
+            # 테이블 원복
+            self.table = original_table
+            
+            return [
+                {
+                    "id": int(row["id"] or 0),
+                    "reporter": row["reporter"] or "",
+                    "cause": row["cause"] or "" if row.get("cause") else "",
+                    "reported_at": str(row["reported_at"]) if row.get("reported_at") else "",
+                    "is_processed": 1 if row.get("is_processed") else 0  # Boolean을 int로 변환
+                }
+                for row in rows
+            ]
 
         except Exception as e:
             self.logger.error(f"일반 문의 사항 조회 오류: {e}")
@@ -480,37 +493,42 @@ class StatisticsRepository(BaseRepository):
     async def get_report_inquiries(self) -> list:
         try:
             self.logger.info("신고 문의 사항을 조회합니다.")
-            engine = await get_engine()
-            async with engine.begin() as conn:
-                query = text("""
-                             SELECT id, reporter, type, cause, reported_at, is_processed
-                             FROM report
-                             WHERE type IN (0, 1, 2)
-                             ORDER BY reported_at DESC
-                             """)
+            # base_repository.select() 사용을 위해 임시로 테이블 설정
+            original_table = self.table
+            self.table = report_table
+            
+            # base_repository.select() 사용 (WHERE type IN (0,1,2), ORDER BY reported_at DESC)
+            # base_repository.select()는 리스트를 IN 절로 처리함
+            # return_dto를 사용하여 rows를 그대로 반환받음 (base_repository.py 수정 없이)
+            rows = await self.select(
+                return_dto=lambda **kwargs: kwargs,  # 딕셔너리를 그대로 반환하는 람다 함수
+                columns=['id', 'reporter', 'type', 'cause', 'reported_at', 'is_processed'],
+                type=[0, 1, 2],  # 리스트로 전달하면 IN 절로 처리됨
+                order='reported_at'  # 문자열로 전달하면 내부에서 desc()로 처리됨
+            )
+            
+            # 테이블 원복
+            self.table = original_table
+            
+            # type 매핑: 0=채팅, 1=게시글, 2=댓글
+            type_map = {
+                0: "채팅",
+                1: "게시글",
+                2: "댓글"
+            }
 
-                result = await conn.execute(query)
-                rows = result.mappings().all()
-
-                # type 매핑: 0=채팅, 1=게시글, 2=댓글
-                type_map = {
-                    0: "채팅",
-                    1: "게시글",
-                    2: "댓글"
+            return [
+                {
+                    "id": int(row["id"] or 0),
+                    "reporter": row["reporter"] or "",
+                    "type": int(row["type"] or 0),
+                    "type_name": type_map.get(int(row["type"] or 0), "기타"),
+                    "cause": row["cause"] or "" if row.get("cause") else "",
+                    "reported_at": str(row["reported_at"]) if row.get("reported_at") else "",
+                    "is_processed": 1 if row.get("is_processed") else 0  # Boolean을 int로 변환
                 }
-
-                return [
-                    {
-                        "id": int(row["id"] or 0),
-                        "reporter": row["reporter"] or "",
-                        "type": int(row["type"] or 0),
-                        "type_name": type_map.get(int(row["type"] or 0), "기타"),
-                        "cause": row["cause"] or "",
-                        "reported_at": str(row["reported_at"]) if row["reported_at"] else "",
-                        "is_processed": int(row["is_processed"] or 0)
-                    }
-                    for row in rows
-                ]
+                for row in rows
+            ]
 
         except Exception as e:
             self.logger.error(f"신고 문의 사항 조회 오류: {e}")
@@ -563,4 +581,62 @@ class StatisticsRepository(BaseRepository):
 
         except Exception as e:
             self.logger.error(f"계정 및 신고 현황 조회 오류: {e}")
+            raise e
+
+    async def get_user_count(self) -> int:
+        """
+        총 유저 수를 조회합니다.
+        
+        Returns:
+            int: 총 유저 수
+        """
+        try:
+            self.logger.info("총 유저 수를 조회합니다.")
+            # base_repository.select() 사용을 위해 임시로 테이블 설정
+            original_table = self.table
+            self.table = users_table
+            
+            # base_repository.select() 사용
+            # return_dto를 사용하여 rows를 그대로 반환받음 (base_repository.py 수정 없이)
+            rows = await self.select(return_dto=lambda **kwargs: kwargs, columns=['id'])
+            
+            # 테이블 원복
+            self.table = original_table
+            
+            return len(rows)
+
+        except Exception as e:
+            self.logger.error(f"총 유저 수 조회 오류: {e}")
+            raise e
+
+    async def get_history_count(self, visited_at: datetime = None) -> list:
+        """
+        날짜별 템플릿 작성 수를 조회합니다.
+        
+        Args:
+            visited_at: 조회할 날짜 (None이면 전체)
+        
+        Returns:
+            list: 조회된 히스토리 리스트
+        """
+        try:
+            self.logger.info("날짜별 템플릿 작성 수를 조회합니다.")
+            # base_repository.select() 사용을 위해 임시로 테이블 설정
+            original_table = self.table
+            self.table = user_history_table
+            
+            # base_repository.select() 사용
+            # return_dto를 사용하여 rows를 그대로 반환받음 (base_repository.py 수정 없이)
+            if visited_at is None:
+                rows = await self.select(return_dto=lambda **kwargs: kwargs, columns=['id'])
+            else:
+                rows = await self.select(return_dto=lambda **kwargs: kwargs, columns=['id'], visited_at=visited_at)
+            
+            # 테이블 원복
+            self.table = original_table
+            
+            return rows
+
+        except Exception as e:
+            self.logger.error(f"날짜별 템플릿 작성 수 조회 오류: {e}")
             raise e
