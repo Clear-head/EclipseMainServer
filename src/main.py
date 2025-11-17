@@ -6,7 +6,7 @@ from starlette.middleware.cors import CORSMiddleware
 
 from src.infra.cache.redis_connector import RedisConnector, close_redis
 from src.router.admin import monitoring_controller, dashboard_controller
-from src.router.users import user_controller, my_info_controller, auth_controller, \
+from src.router.users import like_controller, user_controller, auth_controller, \
     category_controller, history_controller, review_controller, service_controller
 from src.service.scheduler.crawling_scheduler import scheduler
 from src.utils.exception_handler.http_log_handler import setup_exception_handlers
@@ -35,7 +35,7 @@ app.include_router(dashboard_controller.router)
 app.include_router(auth_controller.router)
 app.include_router(category_controller.router)
 app.include_router(user_controller.router)
-app.include_router(my_info_controller.router)
+app.include_router(like_controller.router)
 app.include_router(service_controller.router)
 app.include_router(history_controller.router)
 app.include_router(review_controller.router)
