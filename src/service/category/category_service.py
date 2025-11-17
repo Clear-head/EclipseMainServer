@@ -24,10 +24,20 @@ class MainScreenService:
         self.logger = get_logger(__name__)
 
     async def to_main(self, limit: int = 10) -> ResponseCategoryListDTO:
-        categories = await self.category_repo.get_review_statistics(limit=limit, is_random=True)
+        # 리뷰가 있는 매장 중 평점 높은 순
+        categories = await self.category_repo.get_review_statistics(
+            limit=limit,
+            is_random=True,  # INNER JOIN
+            order_by_rating=True  # 평점순 정렬
+        )
 
         if not categories:
-            return ResponseCategoryListDTO(categories=[])
+            # 리뷰 없어도 랜덤으로
+            self.logger.warning("리뷰 있는 매장 없음. 전체에서 랜덤 조회")
+            categories = await self.category_repo.get_review_statistics(
+                limit=limit,
+                is_random=False  # LEFT JOIN
+            )
 
         return ResponseCategoryListDTO(
             categories=categories,

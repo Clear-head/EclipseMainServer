@@ -75,10 +75,11 @@ class CategoryRepository(base_repository.BaseRepository):
 
     #   매장 별 리뷰 수, 별점 평균
     async def get_review_statistics(
-            self,
-            is_random: bool = True,              #   0 random
-            limit: int = None,
-            **filters
+        self,
+        is_random: bool = True,
+        limit: int = None,
+        order_by_rating: bool = False,  # 새로운 파라미터 추가
+        **filters
     ) -> list[CategoryListItemDTO]:
         from src.infra.database.tables.table_reviews import reviews_table
 
@@ -87,11 +88,11 @@ class CategoryRepository(base_repository.BaseRepository):
             # 주소 조합
             full_address = func.trim(
                 func.concat_ws(' ',
-                               func.nullif(self.table.c.do, ''),
-                               func.nullif(self.table.c.si, ''),
-                               func.nullif(self.table.c.gu, ''),
-                               func.nullif(self.table.c.detail_address, '')
-                               )
+                            func.nullif(self.table.c.do, ''),
+                            func.nullif(self.table.c.si, ''),
+                            func.nullif(self.table.c.gu, ''),
+                            func.nullif(self.table.c.detail_address, '')
+                            )
             ).label('detail_address')
 
             # 기본 쿼리
@@ -109,6 +110,7 @@ class CategoryRepository(base_repository.BaseRepository):
             )
 
             if is_random:
+                # INNER JOIN (리뷰가 있는 매장만)
                 stmt = stmt.select_from(
                     self.table.join(
                         reviews_table,
@@ -116,6 +118,7 @@ class CategoryRepository(base_repository.BaseRepository):
                     )
                 )
             else:
+                # LEFT JOIN (모든 매장)
                 stmt = stmt.select_from(
                     self.table.outerjoin(
                         reviews_table,
@@ -123,7 +126,7 @@ class CategoryRepository(base_repository.BaseRepository):
                     )
                 )
 
-
+            # 필터 적용
             for column, value in filters.items():
                 if not hasattr(self.table.c, column):
                     continue
@@ -136,14 +139,21 @@ class CategoryRepository(base_repository.BaseRepository):
                     stmt = stmt.where(col == value)
 
             # GROUP BY
-            if is_random == 0:
-                stmt = stmt.group_by(self.table.c.id).order_by(func.rand())
-            else:
-                stmt = stmt.group_by(self.table.c.id)
+            stmt = stmt.group_by(self.table.c.id)
 
+            # ORDER BY
+            if order_by_rating:
+                # 평점 높은 순 (리뷰 수도 고려)
+                stmt = stmt.order_by(
+                    func.avg(reviews_table.c.stars).desc(),
+                    func.count(reviews_table.c.id).desc()
+                )
+            elif is_random:
+                stmt = stmt.order_by(func.rand())
+
+            # LIMIT
             if limit:
                 stmt = stmt.limit(limit)
-
 
             # 실행
             result = await conn.execute(stmt)
