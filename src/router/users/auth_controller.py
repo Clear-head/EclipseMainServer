@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Header, Depends
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, RedirectResponse
 
 from src.domain.dto.user.user_auth_dto import (
     RequestLoginDTO,
@@ -31,8 +31,7 @@ async def user_login(user_info: RequestLoginDTO)->ResponseLoginDTO:
 #   로그아웃
 @router.delete('/session')
 async def user_logout(jwt: str = Header(None), user_id: str = Depends(get_jwt_user_id)):
-    session_repo = SessionRepository()
-    await session_repo.delete_session(jwt)
+    await user_service.logout(jwt)
 
     return JSONResponse(status_code=200, content={"message": "success"})
 
@@ -69,9 +68,10 @@ async def to_refresh(dto: RequestRefreshTokenDTO):
 
     validate_result = await validate_jwt_token(jwt)
     if validate_result == 2:
-        #   todo: 세션에서 삭제
-        #       로그아웃 까지
-        raise ExpiredRefreshTokenException()
+
+        session_repo = SessionRepository()
+        await session_repo.delete_session(jwt)
+        return RedirectResponse(url="/api/auth/logout", status_code=303)
 
     token1, token2 = await create_jwt_token(dto.id)
 
