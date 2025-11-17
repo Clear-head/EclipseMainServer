@@ -89,7 +89,7 @@ class UserService:
 
     async def login(self, id: str, pw: str):
         select_from_id_pw_result = await self.repository.select(id=id, password=pw)
-        banned = await BlackRepository().select(user_id=select_from_id_pw_result[0].id)
+
         #   id,pw 검색 인원 2명 이상
         if len(select_from_id_pw_result) > 1:
             raise DuplicateUserInfoError()
@@ -98,7 +98,8 @@ class UserService:
         elif len(select_from_id_pw_result) == 0:
             raise InvalidCredentialsException()
 
-        elif len(banned) > 0:
+        banned = await BlackRepository().select(user_id=select_from_id_pw_result[0].id)
+        if len(banned) > 0:
             raise UserBannedException(finished_at=banned[0].finished_at)
 
         #   로그인 성공
