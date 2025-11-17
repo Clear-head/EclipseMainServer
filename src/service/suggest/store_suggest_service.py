@@ -484,7 +484,8 @@ class StoreSuggestService:
             # 새로운 메서드 사용 (LEFT JOIN으로 리뷰 없는 매장도 포함)
             store_details_dto = await category_repo.get_review_statistics(
                 id=store_ids,
-                is_random=False
+                only_reviewed=False,
+                is_random=True
             )
             
             # DTO를 Dict로 변환
@@ -548,7 +549,8 @@ class StoreSuggestService:
             limit=n_results,
             gu=region,
             type=type_code,
-            is_random=True,  # INNER JOIN (리뷰 있는 매장만)
+            only_reviewed=True,
+            is_random=False,  # INNER JOIN (리뷰 있는 매장만)
             order_by_rating=True  # 평점 높은 순 정렬
         )
         
@@ -564,8 +566,9 @@ class StoreSuggestService:
             limit=n_results,
             gu=region,
             type=type_code,
-            is_random=False,  # LEFT JOIN (모든 매장)
-            order_by_rating=False  # 랜덤
+            only_reviewed=False,  # LEFT JOIN (모든 매장)
+            is_random=True,  # 랜덤
+            order_by_rating=False  
         )
         
         if not all_stores:
