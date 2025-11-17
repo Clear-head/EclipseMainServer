@@ -21,7 +21,7 @@ async def get_history_list(user_id: str = Depends(get_jwt_user_id)) -> ResponseH
 # 글쓸 때 히스토리 조회 (10개 제한)
 @router.get("/histories/post")
 async def get_history_list(user_id: str = Depends(get_jwt_user_id)) -> ResponseHistoryListDTO:
-    return await user_info.get_user_history_list(user_id)
+    return await user_info.get_user_history_list(user_id, 10)
 
 
 # 히스토리 상세 조회
