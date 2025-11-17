@@ -76,6 +76,7 @@ class CategoryRepository(base_repository.BaseRepository):
     #   매장 별 리뷰 수, 별점 평균
     async def get_review_statistics(
         self,
+        only_reviewed: bool = True,
         is_random: bool = True,
         limit: int = None,
         order_by_rating: bool = False,  # 새로운 파라미터 추가
@@ -109,7 +110,7 @@ class CategoryRepository(base_repository.BaseRepository):
                 self.table.c.longitude.label('lng'),
             )
 
-            if is_random:
+            if only_reviewed:
                 # INNER JOIN (리뷰가 있는 매장만)
                 stmt = stmt.select_from(
                     self.table.join(

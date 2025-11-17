@@ -27,7 +27,8 @@ class MainScreenService:
         # 리뷰가 있는 매장 중 평점 높은 순
         categories = await self.category_repo.get_review_statistics(
             limit=limit,
-            is_random=True,  # INNER JOIN
+            only_reviewed=True,
+            is_random=False,  # INNER JOIN
             order_by_rating=True  # 평점순 정렬
         )
 
@@ -36,7 +37,8 @@ class MainScreenService:
             self.logger.warning("리뷰 있는 매장 없음. 전체에서 랜덤 조회")
             categories = await self.category_repo.get_review_statistics(
                 limit=limit,
-                is_random=False  # LEFT JOIN
+                only_reviewed=False, # LEFT JOIN
+                is_random=True  
             )
 
         return ResponseCategoryListDTO(
