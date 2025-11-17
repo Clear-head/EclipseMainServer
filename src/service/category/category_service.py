@@ -23,8 +23,8 @@ class MainScreenService:
         self.tags_repo = TagsRepository()
         self.logger = get_logger(__name__)
 
-    async def to_main(self) -> ResponseCategoryListDTO:
-        categories = await self.category_repo.get_review_statistics(limit=10, is_random=True)
+    async def to_main(self, limit: int = 10) -> ResponseCategoryListDTO:
+        categories = await self.category_repo.get_review_statistics(limit=limit, is_random=True)
 
         if not categories:
             return ResponseCategoryListDTO(categories=[])

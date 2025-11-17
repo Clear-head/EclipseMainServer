@@ -19,10 +19,10 @@ class HistoryService:
         self.merge_repo = MergeHistoryRepository()
 
     #   히스토리 목록 조회
-    async def get_user_history_list(self, user_id, is_post=False):
+    async def get_user_history_list(self, user_id, limit=10):
         self.logger.info(f"try {user_id} get user history list: {user_id}")
 
-        if not is_post:
+        if not limit:
             result = await self.merge_repo.select(
                 user_id=user_id,
                 order="visited_at"
@@ -31,7 +31,7 @@ class HistoryService:
             result = await self.merge_repo.select(
                 user_id=user_id,
                 order="visited_at",
-                limit=10
+                limit=limit
             )
 
         results = [
