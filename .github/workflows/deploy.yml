@@ -24,7 +24,7 @@ jobs:
         run: zip -r deploy_bundle.zip . -x "*.git*" "*.git/*"
 
       - name: Deploy to EC2 via CodeDeploy
-        uses: aws-actions/aws-code-deploy-action
+        uses: aws-actions/aws-code-deploy-action@v1
         with:
           application-name: eclipse-main-server
           deployment-group-name: eclipse-main-publish-group
