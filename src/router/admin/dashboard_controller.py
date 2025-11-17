@@ -86,3 +86,65 @@ async def get_district_stats():
     data = await dashboard_data_service.get_district_stats()
     return JSONResponse(content=data)
 
+
+@router.get("/api/dashboard/total-users")
+async def get_total_users():
+    """
+    총 사용자 수 조회
+    """
+    data = await dashboard_data_service.get_total_users()
+    return JSONResponse(content=data)
+
+
+@router.get("/api/dashboard/recommendation-stats")
+async def get_recommendation_stats():
+    """
+    일정표 생성 수 통계 조회
+    """
+    data = await dashboard_data_service.get_recommendation_stats()
+    return JSONResponse(content=data)
+
+
+@router.get("/api/dashboard/weekly-average-stats")
+async def get_weekly_average_stats():
+    """
+    요일별 평균 일정표 생성 수 통계 조회
+    """
+    data = await dashboard_data_service.get_weekly_average_stats()
+    return JSONResponse(content=data)
+
+
+@router.get("/api/dashboard/popular-categories")
+async def get_popular_categories():
+    """
+    인기 카테고리 통계 조회
+    """
+    data = await dashboard_data_service.get_popular_categories()
+    return JSONResponse(content=data)
+
+
+@router.get("/api/dashboard/popular-districts")
+async def get_popular_districts():
+    """
+    일정표 생성 기준 인기 지역 통계 조회
+    """
+    data = await dashboard_data_service.get_popular_districts()
+    return JSONResponse(content=data)
+
+
+@router.get("/api/dashboard/template-stats")
+async def get_template_stats():
+    """
+    일정 템플릿 통계 조회
+    """
+    data = await dashboard_data_service.get_template_stats()
+    return JSONResponse(content=data)
+
+
+@router.get("/api/dashboard/transportation-stats")
+async def get_transportation_stats():
+    """
+    이동수단 통계 조회
+    """
+    data = await dashboard_data_service.get_transportation_stats()
+    return JSONResponse(content=data)
