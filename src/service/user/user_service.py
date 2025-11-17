@@ -89,7 +89,7 @@ class UserService:
 
     async def login(self, id: str, pw: str):
         select_from_id_pw_result = await self.repository.select(id=id, password=pw)
-
+        
         #   id,pw 검색 인원 2명 이상
         if len(select_from_id_pw_result) > 1:
             raise DuplicateUserInfoError()
@@ -146,30 +146,31 @@ class UserService:
     async def delete_account(self, id: str, dto: RequestDeleteAccountDTO):
         result = await self.repository.select(id=id, password=dto.password)
 
-
         if not result:
             raise UserNotFoundException()
         elif len(result) > 1:
             raise DuplicateUserInfoError()
         else:
-
             repo = DeleteCauseRepository()
-            tmp = await repo.select(cause = dto.because)
+            tmp = await repo.select(cause=dto.because)
+            
             if tmp:
                 await repo.update(
-                    dto.because,
-                    item = DeleteEntity(
-                        count=tmp[0].count+1,
+                    cause=dto.because,
+                    item=DeleteEntity(
+                        count=tmp[0].count + 1,
                         cause=dto.because
                     )
                 )
             else:
+                # 없으면 insert
                 await repo.insert(
                     DeleteEntity(
                         count=1,
                         cause=dto.because
                     )
                 )
+            
             return await self.repository.delete(id=id, password=dto.password)
 
     async def find_id_pw(self, id: str, pw: str):
