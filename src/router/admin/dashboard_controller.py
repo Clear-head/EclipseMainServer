@@ -5,11 +5,15 @@ from fastapi.responses import HTMLResponse, JSONResponse
 
 from src.logger.custom_logger import get_logger
 from src.service.dashboard.dashboard_data_service import DashboardDataService
+from src.service.dashboard.dashboard_service import DashboardService
+from src.service.dashboard.dashboard_users_service import DashboardUserService
 
 router = APIRouter()
 logger = get_logger(__name__)
 
 dashboard_data_service = DashboardDataService()
+dashboard_service = DashboardService()
+dashboard_user_service = DashboardUserService()
 
 
 @router.get("/dashboard/data", response_class=HTMLResponse)
@@ -68,7 +72,7 @@ async def get_tag_statistics(category_type: str):
     """
     카테고리 타입별 태그 통계 조회
     """
-    data = await dashboard_data_service.get_tag_statistics(category_type)
+    data = await dashboard_service.get_tag_statistics(category_type)
     return JSONResponse(content=data)
 
 
@@ -77,7 +81,7 @@ async def get_popular_places():
     """
     사용자 인기 장소 현황 조회
     """
-    data = await dashboard_data_service.get_popular_places()
+    data = await dashboard_service.get_popular_places()
     return JSONResponse(content=data)
 
 @router.get("/api/dashboard/district-stats")
@@ -85,7 +89,7 @@ async def get_district_stats():
     """
     서울특별시 자치구별 매장 수 통계 조회
     """
-    data = await dashboard_data_service.get_district_stats()
+    data = await dashboard_service.get_district_stats()
     return JSONResponse(content=data)
 
 
@@ -149,4 +153,67 @@ async def get_transportation_stats():
     이동수단 통계 조회
     """
     data = await dashboard_data_service.get_transportation_stats()
+    return JSONResponse(content=data)
+
+
+@router.get("/api/dashboard/daily-travel-time-stats")
+async def get_daily_travel_time_stats():
+    """
+    일별 평균 이동 시간 통계 조회
+    """
+    data = await dashboard_data_service.get_daily_travel_time_stats()
+    return JSONResponse(content=data)
+
+
+@router.get("/api/dashboard/total-travel-time-avg")
+async def get_total_travel_time_avg():
+    """
+    전체 이동 평균 시간 조회
+    """
+    data = await dashboard_data_service.get_total_travel_time_avg()
+    return JSONResponse(content=data)
+
+
+@router.get("/api/dashboard/transportation-travel-time-avg")
+async def get_transportation_travel_time_avg():
+    """
+    이동수단별 평균 이동 시간 조회
+    """
+    data = await dashboard_data_service.get_transportation_travel_time_avg()
+    return JSONResponse(content=data)
+
+
+@router.get("/api/dashboard/delete-cause-stats")
+async def get_delete_cause_stats():
+    """
+    계정 삭제 이유 통계 조회
+    """
+    data = await dashboard_user_service.get_delete_cause_stats()
+    return JSONResponse(content=data)
+
+
+@router.get("/api/dashboard/general-inquiries")
+async def get_general_inquiries():
+    """
+    일반 문의 사항 조회
+    """
+    data = await dashboard_user_service.get_general_inquiries()
+    return JSONResponse(content=data)
+
+
+@router.get("/api/dashboard/report-inquiries")
+async def get_report_inquiries():
+    """
+    신고 문의 사항 조회
+    """
+    data = await dashboard_user_service.get_report_inquiries()
+    return JSONResponse(content=data)
+
+
+@router.get("/api/dashboard/account-and-report-status")
+async def get_account_and_report_status():
+    """
+    계정 및 신고 현황 조회
+    """
+    data = await dashboard_user_service.get_account_and_report_status()
     return JSONResponse(content=data)
