@@ -135,7 +135,9 @@ async def validate_jwt_token(jwt: str = Header(None)):
         elif decoded["exp"] < now:
             raise jwt_token.ExpiredSignatureError()
 
-        #   todo: 여기에 유저아이디가 세션에 없을 때 추가
+        #   세션에 없음
+        elif SessionRepository().get_session(jwt) is None:
+            raise jwt_token.InvalidTokenError()
 
         else:
             return True
