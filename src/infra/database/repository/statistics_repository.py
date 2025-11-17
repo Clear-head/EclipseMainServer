@@ -133,7 +133,7 @@ class StatisticsRepository(BaseRepository):
                              SELECT 
                                     DATE(visited_at) AS visited_date,
                                     COUNT(*) AS count
-                             FROM user_history
+                             FROM merge_history
                              WHERE visited_at >= DATE_SUB(CURDATE(), INTERVAL 5 DAY)
                              GROUP BY DATE(visited_at)
                              ORDER BY visited_date
@@ -176,7 +176,7 @@ class StatisticsRepository(BaseRepository):
                                          WHEN 7 THEN '토'
                                      END AS weekday_kor,
                                      COUNT(*) AS cnt
-                                 FROM user_history
+                                 FROM merge_history
                                  GROUP BY WEEK(visited_at), DAYOFWEEK(visited_at)
                              ) AS sub
                              GROUP BY weekday_kor
@@ -242,12 +242,12 @@ class StatisticsRepository(BaseRepository):
                 query = text("""
                              SELECT 
                                     c.gu AS district,
-                                    COUNT(*) AS total_count
+                                    COUNT(DISTINCT uh.merge_id) AS total_count
                              FROM user_history uh
                              JOIN category c
                                  ON uh.category_id = c.id
                              GROUP BY c.gu
-                             ORDER BY total_count DESC
+                             ORDER BY total_count DESC;
                              """)
 
                 result = await conn.execute(query)
@@ -325,4 +325,242 @@ class StatisticsRepository(BaseRepository):
 
         except Exception as e:
             self.logger.error(f"이동수단 통계 조회 오류: {e}")
+            raise e
+
+    async def get_daily_travel_time_stats(self) -> list:
+        try:
+            self.logger.info("일별 평균 이동 시간 통계를 조회합니다.")
+            engine = await get_engine()
+            async with engine.begin() as conn:
+                query = text("""
+                             SELECT 
+                                    DATE(visited_at) AS date,
+                                    ROUND(AVG(duration)/60, 1) AS avg_duration,
+                                    ROUND(
+                                        (AVG(duration)/60) - (
+                                            SELECT IFNULL(ROUND(AVG(duration)/60, 1), 0)
+                                            FROM user_history
+                                            WHERE visited_at >= DATE_SUB(DATE(uh.visited_at), INTERVAL 7 DAY)
+                                            AND visited_at < DATE(uh.visited_at)
+                                        ), 1
+                                    ) AS weekly_diff
+                             FROM user_history uh
+                             WHERE visited_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+                             GROUP BY DATE(visited_at)
+                             ORDER BY date DESC
+                             """)
+
+                result = await conn.execute(query)
+                rows = result.mappings().all()
+
+                return [
+                    {
+                        "date": str(row["date"]),
+                        "avg_duration": float(row["avg_duration"] or 0),
+                        "weekly_diff": float(row["weekly_diff"] or 0)
+                    }
+                    for row in rows
+                ]
+
+        except Exception as e:
+            self.logger.error(f"일별 평균 이동 시간 통계 조회 오류: {e}")
+            raise e
+
+    async def get_total_travel_time_avg(self) -> dict:
+        try:
+            self.logger.info("전체 이동 평균 시간을 조회합니다.")
+            engine = await get_engine()
+            async with engine.begin() as conn:
+                query = text("""
+                             SELECT ROUND(AVG(duration)/60, 1) AS avg_duration
+                             FROM user_history
+                             """)
+
+                result = await conn.execute(query)
+                row = result.mappings().first()
+
+                return {"avg_duration": float(row["avg_duration"] or 0)}
+
+        except Exception as e:
+            self.logger.error(f"전체 이동 평균 시간 조회 오류: {e}")
+            raise e
+
+    async def get_transportation_travel_time_avg(self) -> list:
+        try:
+            self.logger.info("이동수단별 평균 이동 시간을 조회합니다.")
+            engine = await get_engine()
+            async with engine.begin() as conn:
+                query = text("""
+                             SELECT 
+                                    transportation,
+                                    CASE 
+                                        WHEN transportation = 0 OR transportation = '0' THEN '도보'
+                                        WHEN transportation = 1 OR transportation = '1' THEN '대중교통'
+                                        WHEN transportation = 2 OR transportation = '2' THEN '자동차'
+                                        ELSE transportation
+                                    END AS type_name,
+                                    ROUND(AVG(duration) / 60, 1) AS avg_minutes
+                             FROM user_history
+                             WHERE transportation IS NOT NULL
+                             GROUP BY transportation
+                             """)
+
+                result = await conn.execute(query)
+                rows = result.mappings().all()
+
+                return [
+                    {
+                        "transportation": str(row["transportation"]) if row["transportation"] is not None else "",
+                        "type_name": row["type_name"] or "",
+                        "avg_minutes": float(row["avg_minutes"] or 0)
+                    }
+                    for row in rows
+                ]
+
+        except Exception as e:
+            self.logger.error(f"이동수단별 평균 이동 시간 조회 오류: {e}")
+            raise e
+
+    async def get_delete_cause_stats(self) -> list:
+        try:
+            self.logger.info("계정 삭제 이유 통계를 조회합니다.")
+            engine = await get_engine()
+            async with engine.begin() as conn:
+                query = text("""
+                             SELECT cause, count
+                             FROM delete_cause
+                             ORDER BY count DESC
+                             """)
+
+                result = await conn.execute(query)
+                rows = result.mappings().all()
+
+                return [
+                    {
+                        "cause": row["cause"] or "",
+                        "count": int(row["count"] or 0)
+                    }
+                    for row in rows
+                ]
+
+        except Exception as e:
+            self.logger.error(f"계정 삭제 이유 통계 조회 오류: {e}")
+            raise e
+
+    async def get_general_inquiries(self) -> list:
+        try:
+            self.logger.info("일반 문의 사항을 조회합니다.")
+            engine = await get_engine()
+            async with engine.begin() as conn:
+                query = text("""
+                             SELECT id, reporter, cause, reported_at, is_processed
+                             FROM report
+                             WHERE type = 3
+                             ORDER BY reported_at DESC
+                             """)
+
+                result = await conn.execute(query)
+                rows = result.mappings().all()
+
+                return [
+                    {
+                        "id": int(row["id"] or 0),
+                        "reporter": row["reporter"] or "",
+                        "cause": row["cause"] or "",
+                        "reported_at": str(row["reported_at"]) if row["reported_at"] else "",
+                        "is_processed": int(row["is_processed"] or 0)
+                    }
+                    for row in rows
+                ]
+
+        except Exception as e:
+            self.logger.error(f"일반 문의 사항 조회 오류: {e}")
+            raise e
+
+    async def get_report_inquiries(self) -> list:
+        try:
+            self.logger.info("신고 문의 사항을 조회합니다.")
+            engine = await get_engine()
+            async with engine.begin() as conn:
+                query = text("""
+                             SELECT id, reporter, type, cause, reported_at, is_processed
+                             FROM report
+                             WHERE type IN (0, 1, 2)
+                             ORDER BY reported_at DESC
+                             """)
+
+                result = await conn.execute(query)
+                rows = result.mappings().all()
+
+                # type 매핑: 0=채팅, 1=게시글, 2=댓글
+                type_map = {
+                    0: "채팅",
+                    1: "게시글",
+                    2: "댓글"
+                }
+
+                return [
+                    {
+                        "id": int(row["id"] or 0),
+                        "reporter": row["reporter"] or "",
+                        "type": int(row["type"] or 0),
+                        "type_name": type_map.get(int(row["type"] or 0), "기타"),
+                        "cause": row["cause"] or "",
+                        "reported_at": str(row["reported_at"]) if row["reported_at"] else "",
+                        "is_processed": int(row["is_processed"] or 0)
+                    }
+                    for row in rows
+                ]
+
+        except Exception as e:
+            self.logger.error(f"신고 문의 사항 조회 오류: {e}")
+            raise e
+
+    async def get_account_and_report_status(self) -> list:
+        try:
+            self.logger.info("계정 및 신고 현황을 조회합니다.")
+            engine = await get_engine()
+            async with engine.begin() as conn:
+                query = text("""
+                             SELECT
+                                    r.user_id AS 사용자,
+                                    -- 계정 상태: black 테이블에 user_id 존재 여부
+                                    CASE 
+                                        WHEN EXISTS (
+                                            SELECT 1
+                                            FROM black b2
+                                            WHERE b2.user_id = r.user_id
+                                        ) THEN '비활성'
+                                        ELSE '활성'
+                                    END AS 계정상태,
+                                    -- 신고 cause 3개까지만 연결
+                                    (
+                                        SELECT GROUP_CONCAT(cause ORDER BY reported_at DESC SEPARATOR ', ')
+                                        FROM report r2
+                                        WHERE r2.user_id = r.user_id
+                                        ORDER BY r2.reported_at DESC
+                                        LIMIT 3
+                                    ) AS 최근신고,
+                                    -- 총 신고 횟수
+                                    COUNT(*) AS 신고횟수
+                             FROM report r
+                             GROUP BY r.user_id
+                             ORDER BY 신고횟수 DESC
+                             """)
+
+                result = await conn.execute(query)
+                rows = result.mappings().all()
+
+                return [
+                    {
+                        "user_id": row["사용자"] or "",
+                        "account_status": row["계정상태"] or "활성",
+                        "recent_reports": row["최근신고"] or "없음",
+                        "report_count": int(row["신고횟수"] or 0)
+                    }
+                    for row in rows
+                ]
+
+        except Exception as e:
+            self.logger.error(f"계정 및 신고 현황 조회 오류: {e}")
             raise e

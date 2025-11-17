@@ -744,6 +744,9 @@
                     loadPopularDistricts();
                     loadTemplateStats();
                     loadTransportationStats();
+                    loadDailyTravelTimeStats();
+                    loadTotalTravelTimeAvg();
+                    loadTransportationTravelTimeAvg();
                 }, 100);
 
                 // weeklyAverageBar 차트는 loadWeeklyAverageStats()에서 동적으로 생성됨
@@ -760,67 +763,180 @@
                 // templatePie 차트는 loadTemplateStats()에서 동적으로 생성됨
                 // mobilityPie 차트는 loadTransportationStats()에서 동적으로 생성됨
 
-                const travelTimeEl = document.getElementById('travelTimeLine');
-
-                if (travelTimeEl) {
-                    const travelData = [48, 45, 43, 44, 41, 39];
-                    const travelChart = new Chart(travelTimeEl, {
-                        type: 'line',
-                        data: {
-                            labels: ['5일 전', '4일 전', '3일 전', '2일 전', '어제', '오늘'],
-                            datasets: [{
-                                label: '평균 이동 시간',
-                                data: travelData.map(() => 0),
-                                borderColor: '#FF8126',
-                                backgroundColor: 'rgba(255, 129, 38, 0.18)',
-                                tension: 0.35,
-                                fill: true,
-                                pointRadius: 4,
-                                pointBackgroundColor: '#FF8126',
-                                pointHoverRadius: 5
-                            }]
-                        },
-                        options: {
-                            maintainAspectRatio: false,
-                            scales: {
-                                x: {
-                                    ticks: {
-                                        color: '#52606d'
+                // 일별 평균 이동 시간 통계 조회 및 차트 업데이트
+                let travelTimeChart = null;
+                async function loadDailyTravelTimeStats() {
+                    try {
+                        const response = await fetch('/api/dashboard/daily-travel-time-stats');
+                        const data = await response.json();
+                        
+                        // 최근 30일 데이터를 날짜순으로 정렬 (오래된 것부터)
+                        const sortedData = data.sort((a, b) => new Date(a.date) - new Date(b.date));
+                        
+                        // 최근 30일 중 가장 최근 데이터만 사용 (최대 30개)
+                        const recentData = sortedData.slice(-30);
+                        
+                        const labels = recentData.map(item => {
+                            const date = new Date(item.date);
+                            const today = new Date();
+                            today.setHours(0, 0, 0, 0);
+                            const dateOnly = new Date(date);
+                            dateOnly.setHours(0, 0, 0, 0);
+                            
+                            const month = date.getMonth() + 1;
+                            const day = date.getDate();
+                            const dateStr = `${month}/${day}`;
+                            
+                            // 오늘 날짜인지 확인
+                            if (dateOnly.getTime() === today.getTime()) {
+                                return `${dateStr}(오늘)`;
+                            }
+                            
+                            return dateStr;
+                        });
+                        
+                        const avgDurationData = recentData.map(item => item.avg_duration);
+                        const weeklyDiffData = recentData.map(item => item.weekly_diff);
+                        
+                        // 차트 업데이트
+                        if (travelTimeChart) {
+                            travelTimeChart.data.labels = labels;
+                            travelTimeChart.data.datasets[0].data = avgDurationData;
+                            travelTimeChart.data.datasets[1].data = weeklyDiffData;
+                            travelTimeChart.update();
+                        } else {
+                            // 차트가 없으면 생성
+                            const travelTimeEl = document.getElementById('travelTimeLine');
+                            
+                            if (travelTimeEl) {
+                                travelTimeChart = new Chart(travelTimeEl, {
+                                    type: 'line',
+                                    data: {
+                                        labels: labels,
+                                        datasets: [{
+                                            label: '일별 평균 이동 시간 (분)',
+                                            data: avgDurationData.map(() => 0),
+                                            borderColor: '#FF8126',
+                                            backgroundColor: 'rgba(255, 129, 38, 0.18)',
+                                            tension: 0.35,
+                                            fill: true,
+                                            pointRadius: 4,
+                                            pointBackgroundColor: '#FF8126',
+                                            pointHoverRadius: 5
+                                        }, {
+                                            label: '주간 평균 대비 증감',
+                                            data: weeklyDiffData.map(() => 0),
+                                            borderColor: '#FFA726',
+                                            backgroundColor: 'rgba(255, 167, 38, 0.1)',
+                                            tension: 0.35,
+                                            fill: false,
+                                            pointRadius: 3,
+                                            pointBackgroundColor: '#FFA726',
+                                            pointHoverRadius: 4,
+                                            borderDash: [5, 5]
+                                        }]
                                     },
-                                    grid: {
-                                        color: 'rgba(82, 96, 109, 0.08)'
-                                    }
-                                },
-                                y: {
-                                    beginAtZero: false,
-                                    ticks: {
-                                        color: '#52606d',
-                                        callback: (value) => `${value}분`
-                                    },
-                                    grid: {
-                                        color: 'rgba(82, 96, 109, 0.12)'
-                                    }
-                                }
-                            },
-                            plugins: {
-                                legend: {
-                                    display: false
-                                },
-                                tooltip: {
-                                    callbacks: {
-                                        label(context) {
-                                            return `${context.parsed.y}분`;
+                                    options: {
+                                        maintainAspectRatio: false,
+                                        scales: {
+                                            x: {
+                                                ticks: {
+                                                    color: '#52606d'
+                                                },
+                                                grid: {
+                                                    color: 'rgba(82, 96, 109, 0.08)'
+                                                }
+                                            },
+                                            y: {
+                                                beginAtZero: false,
+                                                ticks: {
+                                                    color: '#52606d',
+                                                    callback: (value) => `${value}분`
+                                                },
+                                                grid: {
+                                                    color: 'rgba(82, 96, 109, 0.12)'
+                                                }
+                                            }
+                                        },
+                                        plugins: {
+                                            legend: {
+                                                display: false
+                                            },
+                                            tooltip: {
+                                                callbacks: {
+                                                    label(context) {
+                                                        const value = context.parsed.y;
+                                                        const sign = value >= 0 ? '+' : '';
+                                                        return `${context.dataset.label}: ${sign}${value}분`;
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
-                                }
+                                });
+                                
+                                setTimeout(() => {
+                                    travelTimeChart.data.datasets[0].data = avgDurationData;
+                                    travelTimeChart.data.datasets[1].data = weeklyDiffData;
+                                    travelTimeChart.update();
+                                }, 120);
                             }
                         }
-                    });
+                    } catch (error) {
+                        console.error('일별 평균 이동 시간 통계 조회 오류:', error);
+                    }
+                }
 
-                    setTimeout(() => {
-                        travelChart.data.datasets[0].data = travelData;
-                        travelChart.update();
-                    }, 120);
+                // 전체 이동 평균 조회 및 업데이트
+                async function loadTotalTravelTimeAvg() {
+                    try {
+                        const response = await fetch('/api/dashboard/total-travel-time-avg');
+                        const data = await response.json();
+                        
+                        const totalAvgEl = document.querySelector('#travel .stat-grid .stat-card:first-child strong');
+                        if (totalAvgEl && data.avg_duration !== undefined) {
+                            totalAvgEl.textContent = `${data.avg_duration.toFixed(1)}분`;
+                        }
+                    } catch (error) {
+                        console.error('전체 이동 평균 조회 오류:', error);
+                    }
+                }
+
+                // 이동수단별 평균 이동 시간 조회 및 업데이트
+                async function loadTransportationTravelTimeAvg() {
+                    try {
+                        const response = await fetch('/api/dashboard/transportation-travel-time-avg');
+                        const data = await response.json();
+                        
+                        // 이동수단 매핑: '0'=도보, '1'=대중교통, '2'=자동차
+                        const transportationMap = {
+                            '0': { name: '도보', index: 1 },
+                            '1': { name: '대중교통', index: 2 },
+                            '2': { name: '자동차', index: 3 }
+                        };
+                        
+                        // 데이터 매핑
+                        const dataMap = {};
+                        data.forEach(item => {
+                            const map = transportationMap[item.transportation];
+                            if (map) {
+                                dataMap[map.index] = item.avg_minutes;
+                            }
+                        });
+                        
+                        // 각 stat-card 업데이트 (도보, 대중교통, 자동차 순서)
+                        const statCards = document.querySelectorAll('#travel .stat-grid .stat-card');
+                        [1, 2, 3].forEach((index) => {
+                            if (statCards[index] && dataMap[index] !== undefined) {
+                                const strongEl = statCards[index].querySelector('strong');
+                                if (strongEl) {
+                                    strongEl.textContent = `${dataMap[index].toFixed(1)}분`;
+                                }
+                            }
+                        });
+                    } catch (error) {
+                        console.error('이동수단별 평균 이동 시간 조회 오류:', error);
+                    }
                 }
 
                 // regionBar 차트는 loadPopularDistricts()에서 동적으로 생성됨
