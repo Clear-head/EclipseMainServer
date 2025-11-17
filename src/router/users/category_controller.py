@@ -20,12 +20,10 @@ async def to_main_screen(user_id: str = Depends(get_jwt_user_id)) -> ResponseCat
 
 @router.get("/today-recommendations")
 async def what_to_do_screen(user_id: str = Depends(get_jwt_user_id)):
-    return JSONResponse(
-        content=[
-            await HistoryService().get_user_history_list(user_id, 1),
-            await main_service_class.to_main(1)
-        ]
-    )
+    return [
+        await HistoryService().get_user_history_list(user_id, 1),
+        await main_service_class.to_main(1)
+    ]
 
 @router.get("/{category_id}")
 async def to_detail(category_id: str, user_id: str = Depends(get_jwt_user_id)) -> ResponseCategoryDetailDTO:
