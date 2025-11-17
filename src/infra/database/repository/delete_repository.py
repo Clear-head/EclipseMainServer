@@ -10,18 +10,19 @@ class DeleteCauseRepository(BaseRepository):
         self.table = delete_cause_table
         self.entity = DeleteEntity
 
-    async def upsert(self, item):
+    async def update(self, cause: str, item):
+        """cause를 기준으로 업데이트하는 메서드"""
         try:
             engine = await get_engine()
-            entity = self.entity(**item.model_dump(exclude_none=True))
-
             async with engine.begin() as conn:
-                data = entity.model_dump()
-                stmt = self.table.upsert().values(**data)
+                stmt = (
+                    self.table.update()
+                    .values(**item.model_dump(exclude_none=True))
+                    .where(self.table.c.cause == cause)  # cause로 WHERE 조건
+                )
                 await conn.execute(stmt)
-
             return True
 
         except Exception as e:
-            self.logger.error(f"upsert error: {e}")
+            self.logger.error(f"update_by_cause error in {self.table}: {e}")
             raise e

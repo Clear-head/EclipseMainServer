@@ -24,34 +24,26 @@
                 <section class="summary-card users-card-wide">
                     <h2>계정 및 신고 현황</h2>
                     <div class="card__body">
+                        <div class="chart-row" style="margin-top: 18px; margin-bottom: 32px; align-items: flex-start; gap: 24px;">
+                            <div class="chart-row__media">
+                                <canvas id="accountStatusPie" aria-label="계정 상태 분포"></canvas>
+                            </div>
+                            <div class="chart-row__legend" id="accountStatusLegend" style="justify-content: flex-start;">
+                                <!-- 동적으로 생성됩니다 -->
+                            </div>
+                        </div>
                         <table>
                             <thead>
                                 <tr>
                                     <th>사용자</th>
                                     <th>계정 상태</th>
                                     <th>최근 신고</th>
+                                    <th>최근 신고 횟수</th>
                                     <th>조치</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                <tr>
-                                    <td>user001</td>
-                                    <td>활성</td>
-                                    <td>없음</td>
-                                    <td><button type="button">비활성화</button></td>
-                                </tr>
-                                <tr>
-                                    <td>user214</td>
-                                    <td>제한</td>
-                                    <td>리뷰 스팸</td>
-                                    <td><button type="button">기록 보기</button></td>
-                                </tr>
-                                <tr>
-                                    <td>user389</td>
-                                    <td>검토 중</td>
-                                    <td>허위 정보</td>
-                                    <td><button type="button">조치 완료</button></td>
-                                </tr>
+                            <tbody id="accountAndReportStatusBody">
+                                <!-- 동적으로 생성됩니다 -->
                             </tbody>
                         </table>
                     </div>
@@ -63,31 +55,8 @@
                         <div class="chart-row__media">
                             <canvas id="accountReasonPie" aria-label="계정 삭제 이유 분포"></canvas>
                         </div>
-                        <div class="chart-row__legend">
-                            <div class="chart-row__legend-item">
-                                <span class="chart-row__swatch" style="background-color: #F57C00;"></span>
-                                기록 삭제 목적
-                            </div>
-                            <div class="chart-row__legend-item">
-                                <span class="chart-row__swatch" style="background-color: #FF6F00;"></span>
-                                이용이 불편하고 장애가 많아서
-                            </div>
-                            <div class="chart-row__legend-item">
-                                <span class="chart-row__swatch" style="background-color: #FF8126;"></span>
-                                다른 사이트가 더 좋아서
-                            </div>
-                            <div class="chart-row__legend-item">
-                                <span class="chart-row__swatch" style="background-color: #FF9800;"></span>
-                                사용빈도가 낮아서
-                            </div>
-                            <div class="chart-row__legend-item">
-                                <span class="chart-row__swatch" style="background-color: #FFB74D;"></span>
-                                콘텐츠 불만
-                            </div>
-                            <div class="chart-row__legend-item">
-                                <span class="chart-row__swatch" style="background-color: #FFC107;"></span>
-                                기타
-                            </div>
+                        <div class="chart-row__legend" id="deleteCauseLegend">
+                            <!-- 동적으로 생성됩니다 -->
                         </div>
                     </div>
                 </section>
@@ -106,63 +75,8 @@
                                     <th>처리 여부</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                <tr>
-                                    <td>1</td>
-                                    <td>user001</td>
-                                    <td>앱 사용 방법 문의... <button type="button" style="padding: 4px 8px; font-size: 12px; margin-left: 4px;" onclick="showFullInquiry(this)">더보기</button></td>
-                                    <td>2025-11-04 14:23</td>
-                                    <td class="status-cell" data-is-processed="0">미완료</td>
-                                </tr>
-                                <tr>
-                                    <td>2</td>
-                                    <td>user142</td>
-                                    <td>검색 기능 오류... <button type="button" style="padding: 4px 8px; font-size: 12px; margin-left: 4px;" onclick="showFullInquiry(this)">더보기</button></td>
-                                    <td>2025-11-03 09:47</td>
-                                    <td class="status-cell" data-is-processed="0">미완료</td>
-                                </tr>
-                                <tr>
-                                    <td>3</td>
-                                    <td>user289</td>
-                                    <td>필터 기능 추가 요청... <button type="button" style="padding: 4px 8px; font-size: 12px; margin-left: 4px;" onclick="showFullInquiry(this)">더보기</button></td>
-                                    <td>2025-11-02 16:55</td>
-                                    <td class="status-cell" data-is-processed="0">미완료</td>
-                                </tr>
-                                <tr>
-                                    <td>4</td>
-                                    <td>user356</td>
-                                    <td>비밀번호 재설정... <button type="button" style="padding: 4px 8px; font-size: 12px; margin-left: 4px;" onclick="showFullInquiry(this)">더보기</button></td>
-                                    <td>2025-11-01 11:30</td>
-                                    <td class="status-cell" data-is-processed="0">미완료</td>
-                                </tr>
-                                <tr class="inquiry-hidden" style="display: none;">
-                                    <td>5</td>
-                                    <td>user478</td>
-                                    <td>결제 오류 문의... <button type="button" style="padding: 4px 8px; font-size: 12px; margin-left: 4px;" onclick="showFullInquiry(this)">더보기</button></td>
-                                    <td>2025-10-31 15:42</td>
-                                    <td class="status-cell" data-is-processed="0">미완료</td>
-                                </tr>
-                                <tr class="inquiry-hidden" style="display: none;">
-                                    <td>6</td>
-                                    <td>user523</td>
-                                    <td>다크모드 추가 요청... <button type="button" style="padding: 4px 8px; font-size: 12px; margin-left: 4px;" onclick="showFullInquiry(this)">더보기</button></td>
-                                    <td>2025-10-30 10:18</td>
-                                    <td class="status-cell" data-is-processed="0">미완료</td>
-                                </tr>
-                                <tr class="inquiry-hidden" style="display: none;">
-                                    <td>7</td>
-                                    <td>user612</td>
-                                    <td>앱 크래시 문제... <button type="button" style="padding: 4px 8px; font-size: 12px; margin-left: 4px;" onclick="showFullInquiry(this)">더보기</button></td>
-                                    <td>2025-10-29 09:55</td>
-                                    <td class="status-cell" data-is-processed="0">미완료</td>
-                                </tr>
-                                <tr class="inquiry-hidden" style="display: none;">
-                                    <td>8</td>
-                                    <td>user789</td>
-                                    <td>알림 설정 방법... <button type="button" style="padding: 4px 8px; font-size: 12px; margin-left: 4px;" onclick="showFullInquiry(this)">더보기</button></td>
-                                    <td>2025-10-28 14:30</td>
-                                    <td class="status-cell" data-is-processed="0">미완료</td>
-                                </tr>
+                            <tbody id="generalInquiriesBody">
+                                <!-- 동적으로 생성됩니다 -->
                             </tbody>
                         </table>
                         <div style="text-align: center; margin-top: 16px;">
@@ -182,97 +96,8 @@
                                     <th>처리 여부</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                <tr>
-                                    <td>1</td>
-                                    <td>user045</td>
-                                    <td>댓글</td>
-                                    <td>스팸 신고</td>
-                                    <td>스팸/광고</td>
-                                    <td>2025-11-04 08:15</td>
-                                    <td class="status-cell" data-is-processed="0">미완료</td>
-                                </tr>
-                                <tr>
-                                    <td>2</td>
-                                    <td>user178</td>
-                                    <td>게시글</td>
-                                    <td>욕설/비방</td>
-                                    <td>욕설/비방</td>
-                                    <td>2025-11-03 20:33</td>
-                                    <td class="status-cell" data-is-processed="0">미완료</td>
-                                </tr>
-                                <tr>
-                                    <td>3</td>
-                                    <td>user234</td>
-                                    <td>게시글</td>
-                                    <td>음란물 신고</td>
-                                    <td>음란물</td>
-                                    <td>2025-11-02 13:52</td>
-                                    <td class="status-cell" data-is-processed="0">미완료</td>
-                                </tr>
-                                <tr>
-                                    <td>4</td>
-                                    <td>user312</td>
-                                    <td>채팅</td>
-                                    <td>개인정보 유출</td>
-                                    <td>개인정보 유출</td>
-                                    <td>2025-11-01 17:08</td>
-                                    <td class="status-cell" data-is-processed="0">미완료</td>
-                                </tr>
-                                <tr>
-                                    <td>5</td>
-                                    <td>user421</td>
-                                    <td>댓글</td>
-                                    <td>기타 신고</td>
-                                    <td>기타 <button type="button" style="padding: 4px 8px; font-size: 12px; margin-left: 4px;" onclick="showFullReason(this)">더보기</button></td>
-                                    <td>2025-10-31 10:25</td>
-                                    <td class="status-cell" data-is-processed="0">미완료</td>
-                                </tr>
-                                <tr class="report-hidden" style="display: none;">
-                                    <td>6</td>
-                                    <td>user556</td>
-                                    <td>게시글</td>
-                                    <td>스팸 신고</td>
-                                    <td>스팸/광고</td>
-                                    <td>2025-10-30 16:20</td>
-                                    <td class="status-cell" data-is-processed="0">미완료</td>
-                                </tr>
-                                <tr class="report-hidden" style="display: none;">
-                                    <td>7</td>
-                                    <td>user634</td>
-                                    <td>댓글</td>
-                                    <td>욕설/비방</td>
-                                    <td>욕설/비방</td>
-                                    <td>2025-10-29 11:45</td>
-                                    <td class="status-cell" data-is-processed="0">미완료</td>
-                                </tr>
-                                <tr class="report-hidden" style="display: none;">
-                                    <td>8</td>
-                                    <td>user712</td>
-                                    <td>게시글</td>
-                                    <td>음란물 신고</td>
-                                    <td>음란물</td>
-                                    <td>2025-10-28 09:12</td>
-                                    <td class="status-cell" data-is-processed="0">미완료</td>
-                                </tr>
-                                <tr class="report-hidden" style="display: none;">
-                                    <td>9</td>
-                                    <td>user845</td>
-                                    <td>채팅</td>
-                                    <td>개인정보 유출</td>
-                                    <td>개인정보 유출</td>
-                                    <td>2025-10-27 13:28</td>
-                                    <td class="status-cell" data-is-processed="0">미완료</td>
-                                </tr>
-                                <tr class="report-hidden" style="display: none;">
-                                    <td>10</td>
-                                    <td>user923</td>
-                                    <td>댓글</td>
-                                    <td>기타 신고</td>
-                                    <td>기타 <button type="button" style="padding: 4px 8px; font-size: 12px; margin-left: 4px;" onclick="showFullReason(this)">더보기</button></td>
-                                    <td>2025-10-26 15:50</td>
-                                    <td class="status-cell" data-is-processed="0">미완료</td>
-                                </tr>
+                            <tbody id="reportInquiriesBody">
+                                <!-- 동적으로 생성됩니다 -->
                             </tbody>
                         </table>
                         <div style="text-align: center; margin-top: 16px;">
@@ -281,35 +106,6 @@
                     </div>
                 </section>
 
-                <section class="summary-card users-card-wide">
-                    <h2>계정 상태 분포</h2>
-                    <p class="section-subtitle">전체 사용자 계정 상태 현황</p>
-                    <div class="tag-list" style="margin: 18px 0 24px;">
-                        <span class="tag">활성 계정</span>
-                        <span class="tag">제한 계정</span>
-                    </div>
-                    <div class="card__body">
-                        <div class="chart-row" style="margin-top: 18px;">
-                            <div class="chart-row__media">
-                                <canvas id="accountStatusPie" aria-label="계정 상태 분포"></canvas>
-                            </div>
-                            <div class="chart-row__legend">
-                                <div class="chart-row__legend-item">
-                                    <span class="chart-row__swatch" style="background-color: #4CAF50;"></span>
-                                    활성: 11,234 (91.0%)
-                                </div>
-                                <div class="chart-row__legend-item">
-                                    <span class="chart-row__swatch" style="background-color: #FF9800;"></span>
-                                    제한: 892 (7.2%)
-                                </div>
-                                <div class="chart-row__legend-item">
-                                    <span class="chart-row__swatch" style="background-color: #FF5722;"></span>
-                                    검토 중: 219 (1.8%)
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </section>
             </main>
         </div>
     </div>
@@ -317,7 +113,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
 <script>
-    const reasonPalette = ['#F57C00', '#FF6F00', '#FF8126', '#FF9800', '#FFB74D', '#FFC107'];
+    const reasonPalette = ['#FF6F00', '#FF9800', '#FFB74D', '#FFCC80'];
 
     if (window.ChartDataLabels) {
         Chart.register(window.ChartDataLabels);
@@ -383,70 +179,213 @@
             chart.data.datasets[0].data = data;
             chart.update();
         }, 120);
+
+        return chart;
     }
 
-    createPieChart(
-        'accountReasonPie',
-        ['기록 삭제 목적', '이용이 불편하고 장애가 많아서', '다른 사이트가 더 좋아서', '사용빈도가 낮아서', '콘텐츠 불만', '기타'],
-        [38, 22, 14, 10, 9, 7],
-        reasonPalette
-    );
+    // 계정 삭제 이유 통계 조회 및 차트 업데이트
+    let accountReasonChart = null;
+    async function loadDeleteCauseStats() {
+        try {
+            const response = await fetch('/api/dashboard/delete-cause-stats');
+            const data = await response.json();
+            
+            if (!data || data.length === 0) {
+                console.warn('계정 삭제 이유 데이터가 없습니다.');
+                return;
+            }
+            
+            const labels = data.map(item => item.cause);
+            const counts = data.map(item => item.count);
+            const total = counts.reduce((sum, val) => sum + val, 0);
+            
+            // 범례 업데이트
+            const legendEl = document.getElementById('deleteCauseLegend');
+            if (legendEl) {
+                legendEl.innerHTML = data.map((item, index) => {
+                    const color = reasonPalette[index % reasonPalette.length];
+                    const percentage = total > 0 ? ((item.count / total) * 100).toFixed(1) : 0;
+                    return `<div class="chart-row__legend-item">
+                        <span class="chart-row__swatch" style="background-color: ${color};"></span>
+                        ${item.cause} · ${item.count}건 (${percentage}%)
+                    </div>`;
+                }).join('');
+            }
+            
+            // 차트 업데이트
+            if (accountReasonChart) {
+                accountReasonChart.data.labels = labels;
+                accountReasonChart.data.datasets[0].data = counts;
+                accountReasonChart.data.datasets[0].backgroundColor = labels.map((_, idx) => reasonPalette[idx % reasonPalette.length]);
+                accountReasonChart.update();
+            } else {
+                // 차트가 없으면 생성
+                accountReasonChart = createPieChart(
+                    'accountReasonPie',
+                    labels,
+                    counts,
+                    reasonPalette
+                );
+            }
+        } catch (error) {
+            console.error('계정 삭제 이유 통계 조회 오류:', error);
+        }
+    }
+    
+    // 페이지 로드 시 계정 삭제 이유 통계 조회
+    loadDeleteCauseStats();
 
-    const statusPalette = ['#4CAF50', '#FF9800', '#FF5722'];
-    createPieChart(
-        'accountStatusPie',
-        ['활성', '제한', '검토 중'],
-        [11234, 892, 219],
-        statusPalette
-    );
+    // 계정 상태 파이차트 변수
+    let accountStatusChart = null;
+    const statusPalette = ['#4CAF50', '#FF9800'];
 
-    function showFullReason(button) {
-        const reasonMap = {
-            'user045': '스팸/광고: 상업적 목적의 광고 메시지나 스팸 내용을 반복적으로 게시하여 다른 사용자들에게 피해를 주고 있습니다. 동일한 내용의 광고를 여러 번 게시한 것으로 확인되었습니다.',
-            'user178': '욕설/비방: 다른 사용자에 대한 욕설 및 비방성 내용이 포함된 게시글을 작성하여 커뮤니티 이용 규칙을 위반했습니다. 불쾌한 표현이 다수 포함되어 있습니다.',
-            'user234': '음란물: 성인용 콘텐츠나 음란한 이미지, 텍스트가 포함된 게시글을 등록하여 서비스 이용 규칙을 위반했습니다.',
-            'user312': '개인정보 유출: 다른 사용자의 개인정보(이름, 전화번호, 주소 등)를 무단으로 공개하거나 유포하여 개인정보보호법을 위반했습니다.',
-            'user421': '기타: 위의 분류에 속하지 않는 기타 신고 사항입니다. 자세한 내용은 관리자 페이지에서 확인 가능합니다.',
-            'user923': '기타: 위의 분류에 속하지 않는 기타 신고 사항입니다. 자세한 내용은 관리자 페이지에서 확인 가능합니다.'
-        };
-        
-        const row = button.closest('tr');
-        const userId = row.querySelector('td:nth-child(2)').textContent.trim();
-        const fullReason = reasonMap[userId] || '상세 내용을 확인할 수 없습니다.';
-        
-        alert(`[${userId}] 신고 사유\n\n${fullReason}`);
+
+    // 일반 문의 사항 데이터 로드 및 테이블 렌더링
+    let generalInquiriesData = [];
+    async function loadGeneralInquiries() {
+        try {
+            const response = await fetch('/api/dashboard/general-inquiries');
+            const data = await response.json();
+            generalInquiriesData = data;
+            
+            const tbody = document.getElementById('generalInquiriesBody');
+            if (!tbody) return;
+            
+            tbody.innerHTML = '';
+            
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px;">데이터가 없습니다.</td></tr>';
+                return;
+            }
+            
+            // 처음 4개만 표시, 나머지는 숨김
+            const visibleCount = 4;
+            data.forEach((item, index) => {
+                const row = document.createElement('tr');
+                if (index >= visibleCount) {
+                    row.className = 'inquiry-hidden';
+                    row.style.display = 'none';
+                }
+                
+                const causeText = item.cause || '';
+                const shortCause = causeText.length > 30 ? causeText.substring(0, 30) + '...' : causeText;
+                
+                row.innerHTML = `
+                    <td>${item.id || ''}</td>
+                    <td>${item.reporter || ''}</td>
+                    <td>${shortCause} <button type="button" style="padding: 4px 8px; font-size: 12px; margin-left: 4px;" onclick="showFullInquiry(this)">더보기</button></td>
+                    <td>${item.reported_at || ''}</td>
+                    <td class="status-cell" data-is-processed="${item.is_processed || 0}">${item.is_processed === 1 ? '완료' : '미완료'}</td>
+                `;
+                tbody.appendChild(row);
+            });
+            
+            // 더보기 버튼 표시 여부
+            const moreButton = document.querySelector('button[onclick="showMoreInquiries(this)"]');
+            if (moreButton && data.length <= visibleCount) {
+                moreButton.style.display = 'none';
+            } else if (moreButton) {
+                moreButton.style.display = 'inline-block';
+                moreButton.textContent = '더보기';
+            }
+            
+            updateStatusCells();
+        } catch (error) {
+            console.error('일반 문의 사항 조회 오류:', error);
+            const tbody = document.getElementById('generalInquiriesBody');
+            if (tbody) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: #F44336;">데이터를 불러오는 중 오류가 발생했습니다.</td></tr>';
+            }
+        }
+    }
+
+    // 신고 문의 사항 데이터 로드 및 테이블 렌더링
+    let reportInquiriesData = [];
+    async function loadReportInquiries() {
+        try {
+            const response = await fetch('/api/dashboard/report-inquiries');
+            const data = await response.json();
+            reportInquiriesData = data;
+            
+            const tbody = document.getElementById('reportInquiriesBody');
+            if (!tbody) return;
+            
+            tbody.innerHTML = '';
+            
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px;">데이터가 없습니다.</td></tr>';
+                return;
+            }
+            
+            // 처음 5개만 표시, 나머지는 숨김
+            const visibleCount = 5;
+            data.forEach((item, index) => {
+                const row = document.createElement('tr');
+                if (index >= visibleCount) {
+                    row.className = 'report-hidden';
+                    row.style.display = 'none';
+                }
+                
+                const causeText = item.cause || '';
+                const shortCause = causeText.length > 20 ? causeText.substring(0, 20) + '...' : causeText;
+                const showMoreButton = causeText.length > 20 ? `<button type="button" style="padding: 4px 8px; font-size: 12px; margin-left: 4px;" onclick="showFullReason(this)">더보기</button>` : '';
+                
+                row.innerHTML = `
+                    <td>${item.id || ''}</td>
+                    <td>${item.reporter || ''}</td>
+                    <td>${item.type_name || ''}</td>
+                    <td>${item.cause || ''}</td>
+                    <td>${shortCause}${showMoreButton}</td>
+                    <td>${item.reported_at || ''}</td>
+                    <td class="status-cell" data-is-processed="${item.is_processed || 0}">${item.is_processed === 1 ? '완료' : '미완료'}</td>
+                `;
+                tbody.appendChild(row);
+            });
+            
+            // 더보기 버튼 표시 여부
+            const moreButton = document.querySelector('button[onclick="showMoreReports(this)"]');
+            if (moreButton && data.length <= visibleCount) {
+                moreButton.style.display = 'none';
+            } else if (moreButton) {
+                moreButton.style.display = 'inline-block';
+                moreButton.textContent = '더보기';
+            }
+            
+            updateStatusCells();
+        } catch (error) {
+            console.error('신고 문의 사항 조회 오류:', error);
+            const tbody = document.getElementById('reportInquiriesBody');
+            if (tbody) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: #F44336;">데이터를 불러오는 중 오류가 발생했습니다.</td></tr>';
+            }
+        }
     }
 
     function showFullInquiry(button) {
-        const inquiryMap = {
-            'user001': '앱 사용 방법 문의: 안녕하세요. 앱을 처음 사용하는데 어떻게 시작해야 할지 모르겠습니다. 메인 화면에서 어떤 기능을 사용할 수 있는지, 그리고 추천 기능은 어떻게 이용하는지 자세히 설명해 주실 수 있을까요? 감사합니다.',
-            'user142': '검색 기능 오류: 검색창에 키워드를 입력하면 앱이 자동으로 종료되는 현상이 발생합니다. 특히 특정 키워드를 검색할 때만 발생하는데, 이 문제를 해결해 주실 수 있을까요?',
-            'user289': '필터 기능 추가 요청: 현재 필터 옵션이 제한적입니다. 가격대별, 거리별, 리뷰 평점별로 필터링할 수 있는 기능을 추가해 주시면 더 편리하게 사용할 수 있을 것 같습니다. 많은 사용자들이 원하는 기능이라고 생각합니다.',
-            'user356': '비밀번호 재설정: 비밀번호를 잊어버려서 재설정을 시도하고 있는데, 이메일로 보내지는 인증 링크가 작동하지 않습니다. 다른 방법으로 비밀번호를 재설정할 수 있을까요?',
-            'user478': '결제 오류 문의: 앱 내 결제를 시도했는데 결제가 완료되지 않고 오류 메시지가 나타납니다. 카드 정보는 정확하게 입력했는데도 같은 문제가 반복됩니다. 어떻게 해결할 수 있을까요?',
-            'user523': '다크모드 추가 요청: 밤에 앱을 사용할 때 화면이 너무 밝아서 눈이 피로합니다. 다크모드 옵션을 추가해 주시면 좋을 것 같습니다. 많은 앱에서 지원하는 기본 기능인데 저희 앱에는 아직 없는 것이 아쉽습니다.',
-            'user612': '앱 크래시 문제: 안드로이드 기기에서 사용 중인데, 가끔 특정 기능을 사용하면 앱이 갑자기 종료됩니다. 특히 지도 화면에서 여러 번 확대/축소를 하면 크래시가 발생합니다. 이 문제를 확인해 주실 수 있을까요?',
-            'user789': '알림 설정 방법: 앱에서 알림을 받고 싶은데 설정 방법을 찾을 수 없습니다. 어디서 알림을 켜고 끌 수 있는지, 그리고 어떤 알림을 받을 수 있는지 알려 주실 수 있을까요?'
-        };
-        
         const row = button.closest('tr');
-        const userId = row.querySelector('td:nth-child(2)').textContent.trim();
-        const fullInquiry = inquiryMap[userId] || '상세 내용을 확인할 수 없습니다.';
+        const reporter = row.querySelector('td:nth-child(2)').textContent.trim();
+        const fullCause = generalInquiriesData.find(item => item.reporter === reporter)?.cause || '상세 내용을 확인할 수 없습니다.';
         
-        alert(`[${userId}] 문의 내용\n\n${fullInquiry}`);
+        alert(`[${reporter}] 문의 내용\n\n${fullCause}`);
+    }
+
+    function showFullReason(button) {
+        const row = button.closest('tr');
+        const reporter = row.querySelector('td:nth-child(2)').textContent.trim();
+        const fullCause = reportInquiriesData.find(item => item.reporter === reporter)?.cause || '상세 내용을 확인할 수 없습니다.';
+        
+        alert(`[${reporter}] 신고 사유\n\n${fullCause}`);
     }
 
     function showMoreInquiries(button) {
         const hiddenRows = document.querySelectorAll('.inquiry-hidden');
         
         if (button.textContent === '더보기') {
-            // 숨겨진 행들을 보여주기
             hiddenRows.forEach(row => {
                 row.style.display = '';
             });
             button.textContent = '닫기';
         } else {
-            // 추가 행들을 다시 숨기기
             hiddenRows.forEach(row => {
                 row.style.display = 'none';
             });
@@ -458,13 +397,11 @@
         const hiddenRows = document.querySelectorAll('.report-hidden');
         
         if (button.textContent === '더보기') {
-            // 숨겨진 행들을 보여주기
             hiddenRows.forEach(row => {
                 row.style.display = '';
             });
             button.textContent = '닫기';
         } else {
-            // 추가 행들을 다시 숨기기
             hiddenRows.forEach(row => {
                 row.style.display = 'none';
             });
@@ -488,8 +425,219 @@
         });
     }
 
+    // 계정 및 신고 현황 데이터 로드 및 테이블 렌더링
+    async function loadAccountAndReportStatus() {
+        try {
+            const response = await fetch('/api/dashboard/account-and-report-status');
+            const data = await response.json();
+            
+            const tbody = document.getElementById('accountAndReportStatusBody');
+            if (!tbody) return;
+            
+            tbody.innerHTML = '';
+            
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px;">데이터가 없습니다.</td></tr>';
+                // 파이차트 업데이트 (데이터 없음)
+                updateAccountStatusChart({});
+                return;
+            }
+            
+            // 계정 상태 집계
+            const statusCounts = {
+                '활성': 0,
+                '비활성': 0
+            };
+            
+            data.forEach((item) => {
+                const status = item.account_status || '활성';
+                if (statusCounts.hasOwnProperty(status)) {
+                    statusCounts[status]++;
+                } else {
+                    statusCounts[status] = 1;
+                }
+            });
+            
+            // 파이차트 업데이트
+            updateAccountStatusChart(statusCounts);
+            
+            data.forEach((item) => {
+                const row = document.createElement('tr');
+                
+                // 사용자 ID 셀
+                const userIdCell = document.createElement('td');
+                userIdCell.textContent = item.user_id || '';
+                
+                // 계정 상태 셀
+                const statusCell = document.createElement('td');
+                statusCell.textContent = item.account_status || '활성';
+                if (item.account_status === '비활성') {
+                    statusCell.style.color = '#FF9800';
+                    statusCell.style.fontWeight = '600';
+                } else {
+                    statusCell.style.color = '#4CAF50';
+                    statusCell.style.fontWeight = '600';
+                }
+                
+                // 최근 신고 셀 (3개까지만 표시, 더보기/접기 버튼)
+                const reportsCell = document.createElement('td');
+                const reportsText = item.recent_reports && item.recent_reports !== '없음' 
+                    ? item.recent_reports 
+                    : '없음';
+                
+                if (reportsText !== '없음') {
+                    const reportsArray = reportsText.split(', ').map(r => r.trim()).filter(r => r);
+                    const hasMoreReports = reportsArray.length > 3;
+                    const displayReports = hasMoreReports ? reportsArray.slice(0, 3) : reportsArray;
+                    const hiddenReports = hasMoreReports ? reportsArray.slice(3) : [];
+                    
+                    const reportsContainer = document.createElement('div');
+                    reportsContainer.style.display = 'flex';
+                    reportsContainer.style.flexWrap = 'wrap';
+                    reportsContainer.style.gap = '4px';
+                    reportsContainer.style.alignItems = 'center';
+                    
+                    const visibleSpan = document.createElement('span');
+                    visibleSpan.textContent = displayReports.join(', ');
+                    
+                    const hiddenSpan = document.createElement('span');
+                    hiddenSpan.className = 'hidden-reports';
+                    hiddenSpan.style.display = 'none';
+                    hiddenSpan.textContent = hiddenReports.length > 0 ? ', ' + hiddenReports.join(', ') : '';
+                    
+                    const toggleButton = document.createElement('button');
+                    toggleButton.type = 'button';
+                    toggleButton.textContent = '더보기';
+                    toggleButton.style.display = hasMoreReports ? 'inline-block' : 'none';
+                    toggleButton.style.marginLeft = '8px';
+                    toggleButton.style.padding = '2px 8px';
+                    toggleButton.style.fontSize = '12px';
+                    toggleButton.style.color = '#FF8126';
+                    toggleButton.style.backgroundColor = 'transparent';
+                    toggleButton.style.border = '1px solid #FF8126';
+                    toggleButton.style.borderRadius = '4px';
+                    toggleButton.style.cursor = 'pointer';
+                    toggleButton.style.transition = 'all 0.2s ease';
+                    toggleButton.addEventListener('mouseenter', function() {
+                        this.style.backgroundColor = '#FF8126';
+                        this.style.color = '#ffffff';
+                    });
+                    toggleButton.addEventListener('mouseleave', function() {
+                        this.style.backgroundColor = 'transparent';
+                        this.style.color = '#FF8126';
+                    });
+                    toggleButton.addEventListener('click', function() {
+                        const isExpanded = hiddenSpan.style.display !== 'none';
+                        if (isExpanded) {
+                            hiddenSpan.style.display = 'none';
+                            toggleButton.textContent = '더보기';
+                        } else {
+                            hiddenSpan.style.display = 'inline';
+                            toggleButton.textContent = '접기';
+                        }
+                    });
+                    
+                    reportsContainer.appendChild(visibleSpan);
+                    reportsContainer.appendChild(hiddenSpan);
+                    reportsContainer.appendChild(toggleButton);
+                    reportsCell.appendChild(reportsContainer);
+                } else {
+                    reportsCell.textContent = '없음';
+                }
+                
+                // 최근 신고 횟수 셀
+                const reportCountCell = document.createElement('td');
+                reportCountCell.textContent = item.report_count || 0;
+                reportCountCell.style.textAlign = 'center';
+                
+                // 조치 셀 (비활성화 버튼)
+                const actionCell = document.createElement('td');
+                const deactivateButton = document.createElement('button');
+                deactivateButton.type = 'button';
+                deactivateButton.textContent = '비활성화';
+                deactivateButton.style.padding = '4px 12px';
+                deactivateButton.style.fontSize = '12px';
+                deactivateButton.style.color = '#ffffff';
+                deactivateButton.style.backgroundColor = '#F44336';
+                deactivateButton.style.border = 'none';
+                deactivateButton.style.borderRadius = '4px';
+                deactivateButton.style.cursor = 'pointer';
+                deactivateButton.style.transition = 'all 0.2s ease';
+                deactivateButton.addEventListener('mouseenter', function() {
+                    this.style.backgroundColor = '#D32F2F';
+                });
+                deactivateButton.addEventListener('mouseleave', function() {
+                    this.style.backgroundColor = '#F44336';
+                });
+                // 기능은 아직 추가하지 않음
+                actionCell.appendChild(deactivateButton);
+                
+                row.appendChild(userIdCell);
+                row.appendChild(statusCell);
+                row.appendChild(reportsCell);
+                row.appendChild(reportCountCell);
+                row.appendChild(actionCell);
+                
+                tbody.appendChild(row);
+            });
+        } catch (error) {
+            console.error('계정 및 신고 현황 조회 오류:', error);
+            const tbody = document.getElementById('accountAndReportStatusBody');
+            if (tbody) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: #F44336;">데이터를 불러오는 중 오류가 발생했습니다.</td></tr>';
+            }
+        }
+    }
+
+    // 계정 상태 파이차트 업데이트 함수
+    function updateAccountStatusChart(statusCounts) {
+        const labels = ['활성', '비활성'];
+        const counts = [
+            statusCounts['활성'] || 0,
+            statusCounts['비활성'] || 0
+        ];
+        const total = counts.reduce((sum, val) => sum + val, 0);
+        
+        // 범례 업데이트
+        const legendEl = document.getElementById('accountStatusLegend');
+        if (legendEl) {
+            if (total === 0) {
+                legendEl.innerHTML = '<div class="chart-row__legend-item">데이터가 없습니다.</div>';
+            } else {
+                legendEl.innerHTML = labels.map((label, index) => {
+                    const color = statusPalette[index % statusPalette.length];
+                    const count = counts[index];
+                    const percentage = total > 0 ? ((count / total) * 100).toFixed(1) : 0;
+                    return `<div class="chart-row__legend-item">
+                        <span class="chart-row__swatch" style="background-color: ${color};"></span>
+                        ${label}: ${count.toLocaleString()} (${percentage}%)
+                    </div>`;
+                }).join('');
+            }
+        }
+        
+        // 차트 업데이트
+        if (accountStatusChart) {
+            accountStatusChart.data.labels = labels;
+            accountStatusChart.data.datasets[0].data = counts;
+            accountStatusChart.data.datasets[0].backgroundColor = labels.map((_, idx) => statusPalette[idx % statusPalette.length]);
+            accountStatusChart.update();
+        } else {
+            // 차트가 없으면 생성
+            accountStatusChart = createPieChart(
+                'accountStatusPie',
+                labels,
+                counts,
+                statusPalette
+            );
+        }
+    }
+
     // 페이지 로드 시 실행
     updateStatusCells();
+    loadGeneralInquiries();
+    loadReportInquiries();
+    loadAccountAndReportStatus();
 </script>
 </html>
 

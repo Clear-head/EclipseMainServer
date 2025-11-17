@@ -116,7 +116,7 @@
     // 데이터의 최소값과 최대값에 따라 X축 설정을 자동 계산하는 함수
     function calculateXAxisSettings(data) {
         if (!data || data.length === 0) {
-            return { min: 0, max: 100, stepSize: 10 };
+            return { min: 0, max: 2000, stepSize: 2000 };
         }
 
         const minDataValue = Math.min(...data);
@@ -124,61 +124,51 @@
         
         // 최대값이 0이면 기본값 반환
         if (maxDataValue === 0) {
-            return { min: 0, max: 100, stepSize: 10 };
+            return { min: 0, max: 2000, stepSize: 2000 };
         }
 
-        // 최소값이 0보다 크면 시작점을 최소값의 약 90%로 설정
-        const minValue = minDataValue > 0 ? Math.floor(minDataValue * 0.9) : 0;
+        // 최소값은 항상 0으로 설정
+        const minValue = 0;
         
-        // 최대값에 여유 공간을 주기 위해 1.1배 (10% 여유)
-        const maxValueWithPadding = Math.ceil(maxDataValue * 1.1);
-
-        // 최대값에 따라 적절한 간격 계산
-        const digits = Math.floor(Math.log10(maxValueWithPadding));
-        const magnitude = Math.pow(10, digits);
+        // 최대값을 천 단위로 올림 (약 5% 여유 공간 추가)
+        const maxWithPadding = Math.ceil(maxDataValue * 1.05);
+        const maxRoundedToThousand = Math.ceil(maxWithPadding / 1000) * 1000;
         
-        const normalizedValue = maxValueWithPadding / magnitude;
-        
+        // 최대값에 따라 적절한 간격 결정 (천 단위 기준, 간격을 넓게 설정)
         let stepSize;
-        let roundedMax;
+        let finalMax;
         
-        if (normalizedValue <= 1) {
-            if (normalizedValue <= 0.2) {
-                stepSize = 0.2 * magnitude;
-                roundedMax = Math.ceil(maxValueWithPadding / (0.2 * magnitude)) * (0.2 * magnitude);
-            } else if (normalizedValue <= 0.5) {
-                stepSize = 0.5 * magnitude;
-                roundedMax = Math.ceil(maxValueWithPadding / (0.5 * magnitude)) * (0.5 * magnitude);
-            } else {
-                stepSize = 1 * magnitude;
-                roundedMax = Math.ceil(maxValueWithPadding / magnitude) * magnitude;
-            }
-        } else if (normalizedValue <= 2) {
-            stepSize = 0.5 * magnitude;
-            roundedMax = Math.ceil(maxValueWithPadding / (0.5 * magnitude)) * (0.5 * magnitude);
-        } else if (normalizedValue <= 5) {
-            stepSize = 1 * magnitude;
-            roundedMax = Math.ceil(maxValueWithPadding / magnitude) * magnitude;
+        if (maxRoundedToThousand <= 10000) {
+            // 10000 이하: 2000 단위
+            stepSize = 2000;
+            finalMax = Math.ceil(maxRoundedToThousand / 2000) * 2000;
+        } else if (maxRoundedToThousand <= 20000) {
+            // 20000 이하: 5000 단위
+            stepSize = 5000;
+            finalMax = Math.ceil(maxRoundedToThousand / 5000) * 5000;
+        } else if (maxRoundedToThousand <= 50000) {
+            // 50000 이하: 10000 단위
+            stepSize = 10000;
+            finalMax = Math.ceil(maxRoundedToThousand / 10000) * 10000;
+        } else if (maxRoundedToThousand <= 100000) {
+            // 100000 이하: 20000 단위
+            stepSize = 20000;
+            finalMax = Math.ceil(maxRoundedToThousand / 20000) * 20000;
         } else {
-            stepSize = 2 * magnitude;
-            roundedMax = Math.ceil(maxValueWithPadding / (2 * magnitude)) * (2 * magnitude);
-        }
-
-        // 최소 간격 보장
-        if (stepSize < 1) {
-            stepSize = 1;
-            roundedMax = Math.ceil(maxValueWithPadding);
+            // 100000 초과: 50000 단위
+            stepSize = 50000;
+            finalMax = Math.ceil(maxRoundedToThousand / 50000) * 50000;
         }
 
         // 최대값이 너무 작으면 최소값 보장
-        if (roundedMax < 10) {
-            roundedMax = 10;
-            stepSize = 2;
+        if (finalMax < 2000) {
+            finalMax = 2000;
+            stepSize = 2000;
         }
 
         return {
             min: minValue,
-            max: roundedMax,
+            max: finalMax,
             stepSize: stepSize
         };
     }
@@ -287,7 +277,16 @@
                                 size: 11
                             },
                             stepSize: stepSize,
-                            callback: (value) => `${value}개`
+                            callback: (value) => {
+                                // 0은 표시하지 않음
+                                if (value === 0) {
+                                    return '';
+                                }
+                                // 천 단위로 반올림하여 정수로 표시
+                                const rounded = Math.round(value / 1000) * 1000;
+                                // 숫자 포맷팅 (천 단위 구분자)
+                                return `${rounded.toLocaleString('ko-KR')}개`;
+                            }
                         },
                         grid: {
                             color: 'rgba(82, 96, 109, 0.12)',
@@ -574,25 +573,78 @@
             // 데이터를 순위와 함께 테이블에 추가
             data.forEach((place, index) => {
                 const row = document.createElement('tr');
+                row.setAttribute('data-row-index', index);
                 
-                // 메뉴를 최대 10개로 제한
-                let menuText = place.메뉴 || '';
-                if (menuText) {
-                    const menuArray = menuText.split(',').map(m => m.trim()).filter(m => m);
-                    if (menuArray.length > 10) {
-                        menuText = menuArray.slice(0, 10).join(', ') + '...';
+                // 메뉴 파싱
+                const menuText = place.메뉴 || '';
+                const menuArray = menuText ? menuText.split(',').map(m => m.trim()).filter(m => m) : [];
+                const hasMoreMenus = menuArray.length > 6;
+                const displayMenus = hasMoreMenus ? menuArray.slice(0, 6) : menuArray;
+                const hiddenMenus = hasMoreMenus ? menuArray.slice(6) : [];
+                
+                // 메뉴 셀 생성
+                const menuCell = document.createElement('td');
+                menuCell.className = 'menu-cell';
+                
+                const menuContainer = document.createElement('div');
+                menuContainer.className = 'menu-container';
+                
+                const visibleMenuSpan = document.createElement('span');
+                visibleMenuSpan.className = 'menu-visible';
+                visibleMenuSpan.textContent = displayMenus.join(', ');
+                
+                const hiddenMenuSpan = document.createElement('span');
+                hiddenMenuSpan.className = 'menu-hidden';
+                hiddenMenuSpan.style.display = 'none';
+                hiddenMenuSpan.textContent = hiddenMenus.join(', ');
+                
+                const moreButton = document.createElement('button');
+                moreButton.className = 'menu-toggle-btn';
+                moreButton.textContent = '더보기';
+                moreButton.style.display = hasMoreMenus ? 'inline-block' : 'none';
+                moreButton.style.marginLeft = '8px';
+                moreButton.style.padding = '4px 12px';
+                moreButton.style.fontSize = '12px';
+                moreButton.style.fontWeight = '500';
+                moreButton.style.color = '#FF8126';
+                moreButton.style.backgroundColor = 'transparent';
+                moreButton.style.border = '1px solid #FF8126';
+                moreButton.style.borderRadius = '4px';
+                moreButton.style.cursor = 'pointer';
+                moreButton.style.transition = 'all 0.2s ease';
+                moreButton.addEventListener('mouseenter', function() {
+                    this.style.backgroundColor = '#FF8126';
+                    this.style.color = '#ffffff';
+                });
+                moreButton.addEventListener('mouseleave', function() {
+                    this.style.backgroundColor = 'transparent';
+                    this.style.color = '#FF8126';
+                });
+                moreButton.addEventListener('click', function() {
+                    const isExpanded = hiddenMenuSpan.style.display !== 'none';
+                    if (isExpanded) {
+                        hiddenMenuSpan.style.display = 'none';
+                        moreButton.textContent = '더보기';
                     } else {
-                        menuText = menuArray.join(', ');
+                        hiddenMenuSpan.style.display = 'inline';
+                        moreButton.textContent = '접기';
                     }
-                }
+                });
                 
+                menuContainer.appendChild(visibleMenuSpan);
+                menuContainer.appendChild(hiddenMenuSpan);
+                menuContainer.appendChild(moreButton);
+                menuCell.appendChild(menuContainer);
+                
+                // 행 구성
                 row.innerHTML = `
                     <td>${index + 1}</td>
                     <td>${place.이름 || ''}</td>
                     <td>${place.구 || ''}</td>
                     <td>${place.서브카테고리 || ''}</td>
-                    <td>${menuText}</td>
                 `;
+                row.appendChild(menuCell);
+                
                 tbody.appendChild(row);
             });
         } catch (error) {

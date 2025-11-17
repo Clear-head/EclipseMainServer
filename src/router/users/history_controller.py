@@ -2,15 +2,15 @@ from fastapi import APIRouter, Depends
 
 from src.domain.dto.history.history_dto import ResponseHistoryListDTO, ResponseHistoryDetailDTO
 from src.logger.custom_logger import get_logger
-from src.service.application.my_info_service import UserInfoService
 from src.service.auth.jwt import get_jwt_user_id
+from src.service.user.history_service import HistoryService
 
 router = APIRouter(
     prefix="/api/users/me"
 )
 logger = get_logger(__name__)
 
-user_info = UserInfoService()
+user_info = HistoryService()
 
 # 히스토리 목록 조회
 @router.get("/histories")

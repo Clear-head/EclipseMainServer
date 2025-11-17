@@ -24,18 +24,18 @@
             <div class="summary">
                 <article class="summary-card">
                     <h2>총 사용자 수</h2>
-                    <p class="summary-card__value">12,345</p>
+                    <p class="summary-card__value" id="totalUsers">-</p>
                 </article>
                 <article class="summary-card summary-card--chart">
                     <h2>일정표 생성 수</h2>
-                    <p class="summary-card__value">482</p>
+                    <p class="summary-card__value" id="recommendationTotal">-</p>
                     <div class="summary-card__chart">
                         <canvas id="recommendationBar" aria-label="추천 생성 추이"></canvas>
                     </div>
                 </article>
                 <article class="summary-card summary-card--chart">
                     <h2>요일별 평균 일정표 생성 수</h2>
-                    <p class="summary-card__value">68.9</p>
+                    <p class="summary-card__value" id="weeklyAverageTotal">-</p>
                     <div class="summary-card__chart">
                         <canvas id="weeklyAverageBar" aria-label="요일별 평균 일정표 생성 수"></canvas>
                     </div>
@@ -45,10 +45,10 @@
                     <div class="chart-container">
                         <canvas id="categoryPie" aria-label="인기 카테고리 비율"></canvas>
                     </div>
-                    <ul class="chart-legend">
-                        <li><span class="swatch" style="background-color: #FF6F00;"></span>음식점 · 55%</li>
-                        <li><span class="swatch" style="background-color: #FF9800;"></span>카페 · 30%</li>
-                        <li><span class="swatch" style="background-color: #FFB74D;"></span>콘텐츠 · 15%</li>
+                    <ul class="chart-legend" id="categoryLegend">
+                        <li><span class="swatch" style="background-color: #FF6F00;"></span>음식점 · -</li>
+                        <li><span class="swatch" style="background-color: #FF9800;"></span>카페 · -</li>
+                        <li><span class="swatch" style="background-color: #FFB74D;"></span>콘텐츠 · -</li>
                     </ul>
                 </article>
             </div>
@@ -66,18 +66,22 @@
                         <div class="chart-row__media">
                             <canvas id="templatePie" aria-label="일정 템플릿 선택 비율"></canvas>
                         </div>
-                        <div class="chart-row__legend">
+                        <div class="chart-row__legend" id="templateLegend">
                             <div class="chart-row__legend-item">
                                 <span class="chart-row__swatch" style="background-color: #FF6F00;"></span>
-                                일정표 1 · 52%
+                                일반 일정표 · -
                             </div>
                             <div class="chart-row__legend-item">
                                 <span class="chart-row__swatch" style="background-color: #FF9800;"></span>
-                                일정표 2 · 31%
+                                템플릿 1 · -
                             </div>
                             <div class="chart-row__legend-item">
                                 <span class="chart-row__swatch" style="background-color: #FFB74D;"></span>
-                                일정표 3 · 17%
+                                템플릿 2 · -
+                            </div>
+                            <div class="chart-row__legend-item">
+                                <span class="chart-row__swatch" style="background-color: #FFCC80;"></span>
+                                템플릿 3 · -
                             </div>
                         </div>
                     </div>
@@ -89,18 +93,18 @@
                         <div class="chart-row__media">
                             <canvas id="mobilityPie" aria-label="이동수단 선택 비율"></canvas>
                         </div>
-                        <div class="chart-row__legend">
+                        <div class="chart-row__legend" id="mobilityLegend">
                             <div class="chart-row__legend-item">
                                 <span class="chart-row__swatch" style="background-color: #FF6F00;"></span>
-                                도보 · 40%
+                                도보 · -
                             </div>
                             <div class="chart-row__legend-item">
                                 <span class="chart-row__swatch" style="background-color: #FF9800;"></span>
-                                대중교통 · 35%
+                                대중교통 · -
                             </div>
                             <div class="chart-row__legend-item">
                                 <span class="chart-row__swatch" style="background-color: #FFB74D;"></span>
-                                자동차 · 25%
+                                자동차 · -
                             </div>
                         </div>
                     </div>
@@ -148,6 +152,430 @@
             <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
             <script>
                 const palette = ['#FF8126', '#FFA726', '#E65100'];
+
+                // 총 사용자 수 조회
+                async function loadTotalUsers() {
+                    try {
+                        const response = await fetch('/api/dashboard/total-users');
+                        const data = await response.json();
+                        const totalUsersEl = document.getElementById('totalUsers');
+                        if (totalUsersEl && data.total_users !== undefined) {
+                            totalUsersEl.textContent = data.total_users.toLocaleString('ko-KR');
+                        }
+                    } catch (error) {
+                        console.error('총 사용자 수 조회 오류:', error);
+                    }
+                }
+
+                // 페이지 로드 시 총 사용자 수 조회
+                loadTotalUsers();
+
+                // 일정표 생성 수 통계 조회 및 차트 업데이트
+                let recommendationChart = null;
+                async function loadRecommendationStats() {
+                    try {
+                        const response = await fetch('/api/dashboard/recommendation-stats');
+                        const data = await response.json();
+                        
+                        // 최근 6일치 데이터 준비 (5일 전부터 오늘까지)
+                        const today = new Date();
+                        const labels = ['5일 전', '4일 전', '3일 전', '2일 전', '어제', '오늘'];
+                        const chartData = [0, 0, 0, 0, 0, 0];
+                        
+                        // API 데이터를 맵으로 변환 (날짜를 키로)
+                        const dataMap = {};
+                        data.forEach(item => {
+                            dataMap[item.visited_date] = item.count;
+                        });
+                        
+                        // 각 날짜에 해당하는 데이터 채우기
+                        for (let i = 0; i < 6; i++) {
+                            const date = new Date(today);
+                            date.setDate(date.getDate() - (5 - i));
+                            const dateStr = date.toISOString().split('T')[0];
+                            if (dataMap[dateStr] !== undefined) {
+                                chartData[i] = dataMap[dateStr];
+                            }
+                        }
+                        
+                        // 총 일정표 생성 수 업데이트 (오늘 값 또는 최근 값)
+                        const recommendationTotalEl = document.getElementById('recommendationTotal');
+                        if (recommendationTotalEl) {
+                            const total = chartData[5] || chartData[chartData.length - 1] || 0;
+                            recommendationTotalEl.textContent = total.toLocaleString('ko-KR');
+                        }
+                        
+                        // 차트 업데이트
+                        if (recommendationChart) {
+                            recommendationChart.data.datasets[0].data = chartData;
+                            recommendationChart.update();
+                        } else {
+                            // 차트가 없으면 생성
+                            recommendationChart = createSparkBarChart(
+                                'recommendationBar',
+                                labels,
+                                chartData
+                            );
+                        }
+                    } catch (error) {
+                        console.error('일정표 생성 수 통계 조회 오류:', error);
+                    }
+                }
+
+                // 요일별 평균 일정표 생성 수 통계 조회 및 차트 업데이트
+                let weeklyAverageChart = null;
+                async function loadWeeklyAverageStats() {
+                    try {
+                        const response = await fetch('/api/dashboard/weekly-average-stats');
+                        const data = await response.json();
+                        
+                        // 요일 순서: 월, 화, 수, 목, 금, 토, 일
+                        const weekdayOrder = ['월', '화', '수', '목', '금', '토', '일'];
+                        const chartData = [0, 0, 0, 0, 0, 0, 0];
+                        
+                        // API 데이터를 맵으로 변환 (요일을 키로)
+                        const dataMap = {};
+                        data.forEach(item => {
+                            dataMap[item.weekday_kor] = item.avg_per_week;
+                        });
+                        
+                        // 요일 순서에 맞게 데이터 채우기
+                        weekdayOrder.forEach((weekday, index) => {
+                            if (dataMap[weekday] !== undefined) {
+                                chartData[index] = dataMap[weekday];
+                            }
+                        });
+                        
+                        // 전체 평균 계산 및 표시
+                        const weeklyAverageTotalEl = document.getElementById('weeklyAverageTotal');
+                        if (weeklyAverageTotalEl) {
+                            const total = chartData.reduce((sum, val) => sum + val, 0);
+                            const average = total > 0 ? (total / chartData.filter(v => v > 0).length).toFixed(1) : 0;
+                            // 평균값과 총합을 함께 표시
+                            weeklyAverageTotalEl.innerHTML = `${average} <span style="color: #9ca3af; font-size: 0.5em; font-weight: normal;">(총 ${total.toLocaleString('ko-KR')}건)</span>`;
+                        }
+                        
+                        // 차트 업데이트
+                        if (weeklyAverageChart) {
+                            weeklyAverageChart.data.datasets[0].data = chartData;
+                            weeklyAverageChart.update();
+                        } else {
+                            // 차트가 없으면 생성
+                            weeklyAverageChart = createSparkBarChart(
+                                'weeklyAverageBar',
+                                weekdayOrder,
+                                chartData
+                            );
+                        }
+                    } catch (error) {
+                        console.error('요일별 평균 일정표 생성 수 통계 조회 오류:', error);
+                    }
+                }
+
+                // 인기 카테고리 통계 조회 및 차트 업데이트
+                let categoryPieChart = null;
+                async function loadPopularCategories() {
+                    try {
+                        const response = await fetch('/api/dashboard/popular-categories');
+                        const data = await response.json();
+                        
+                        // 카테고리 타입 매핑: '0' -> 음식점, '1' -> 카페, '2' -> 콘텐츠
+                        const categoryMap = {
+                            '0': { name: '음식점', color: '#FF6F00' },
+                            '1': { name: '카페', color: '#FF9800' },
+                            '2': { name: '콘텐츠', color: '#FFB74D' }
+                        };
+                        
+                        // 데이터 정렬 (total_count 기준 내림차순)
+                        const sortedData = data.sort((a, b) => b.total_count - a.total_count);
+                        
+                        const labels = [];
+                        const chartData = [];
+                        const colors = [];
+                        
+                        sortedData.forEach(item => {
+                            const category = categoryMap[item.category_type];
+                            if (category) {
+                                labels.push(category.name);
+                                chartData.push(item.total_count);
+                                colors.push(category.color);
+                            }
+                        });
+                        
+                        // 범례 업데이트
+                        const legendEl = document.getElementById('categoryLegend');
+                        if (legendEl) {
+                            legendEl.innerHTML = sortedData.map(item => {
+                                const category = categoryMap[item.category_type];
+                                if (category) {
+                                    return `<li><span class="swatch" style="background-color: ${category.color};"></span>${category.name} · ${item.percentage}%</li>`;
+                                }
+                                return '';
+                            }).join('');
+                        }
+                        
+                        // 차트 업데이트
+                        if (categoryPieChart) {
+                            categoryPieChart.data.labels = labels;
+                            categoryPieChart.data.datasets[0].data = chartData;
+                            categoryPieChart.data.datasets[0].backgroundColor = colors;
+                            categoryPieChart.update();
+                        } else {
+                            // 차트가 없으면 생성
+                            categoryPieChart = createPieChart(
+                                'categoryPie',
+                                labels,
+                                chartData,
+                                colors,
+                                (value) => `${value}`
+                            );
+                        }
+                    } catch (error) {
+                        console.error('인기 카테고리 통계 조회 오류:', error);
+                    }
+                }
+
+                // 일정표 생성 기준 인기 지역 통계 조회 및 차트 업데이트
+                let regionChart = null;
+                async function loadPopularDistricts() {
+                    try {
+                        const response = await fetch('/api/dashboard/popular-districts');
+                        const data = await response.json();
+                        
+                        const regionLabels = data.map(item => item.district);
+                        const regionValues = data.map(item => item.total_count);
+                        const totalRegionValue = regionValues.reduce((acc, curr) => acc + curr, 0);
+                        
+                        // 차트 업데이트
+                        if (regionChart) {
+                            regionChart.data.labels = regionLabels;
+                            regionChart.data.datasets[0].data = regionValues;
+                            // tooltip 콜백 업데이트를 위해 totalRegionValue 저장
+                            regionChart.options.plugins.tooltip.callbacks.label = (context) => {
+                                const value = context.parsed.y;
+                                const percent = totalRegionValue > 0 ? ((value / totalRegionValue) * 100).toFixed(1) : 0;
+                                return `${context.label}: ${value}건 (${percent}%)`;
+                            };
+                            regionChart.update();
+                        } else {
+                            // 차트가 없으면 생성
+                            const baseRegionValues = regionValues.map(() => 0);
+                            const regionBarEl = document.getElementById('regionBar');
+                            
+                            if (regionBarEl) {
+                                regionChart = new Chart(regionBarEl, {
+                                    type: 'bar',
+                                    data: {
+                                        labels: regionLabels,
+                                        datasets: [{
+                                            data: baseRegionValues,
+                                            backgroundColor: '#FF8126',
+                                            hoverBackgroundColor: '#E65100',
+                                            borderRadius: 6,
+                                            maxBarThickness: 18
+                                        }]
+                                    },
+                                    options: {
+                                        maintainAspectRatio: false,
+                                        scales: {
+                                            x: {
+                                                beginAtZero: true,
+                                                ticks: {
+                                                    color: '#52606d',
+                                                    maxRotation: 45,
+                                                    minRotation: 45,
+                                                    autoSkip: false
+                                                },
+                                                grid: {
+                                                    display: false
+                                                }
+                                            },
+                                            y: {
+                                                beginAtZero: true,
+                                                ticks: {
+                                                    color: '#52606d',
+                                                    callback: (value) => `${value}건`
+                                                },
+                                                grid: {
+                                                    color: 'rgba(82, 96, 109, 0.12)',
+                                                    drawBorder: false
+                                                }
+                                            }
+                                        },
+                                        plugins: {
+                                            legend: {
+                                                display: false
+                                            },
+                                            datalabels: {
+                                                display: false
+                                            },
+                                            tooltip: {
+                                                callbacks: {
+                                                    label(context) {
+                                                        const value = context.parsed.y;
+                                                        const percent = totalRegionValue > 0 ? ((value / totalRegionValue) * 100).toFixed(1) : 0;
+                                                        return `${context.label}: ${value}건 (${percent}%)`;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                });
+                                
+                                setTimeout(() => {
+                                    regionChart.data.datasets[0].data = regionValues;
+                                    regionChart.update();
+                                }, 150);
+                            }
+                        }
+                    } catch (error) {
+                        console.error('인기 지역 통계 조회 오류:', error);
+                    }
+                }
+
+                // 일정 템플릿 통계 조회 및 차트 업데이트
+                let templatePieChart = null;
+                async function loadTemplateStats() {
+                    try {
+                        const response = await fetch('/api/dashboard/template-stats');
+                        const data = await response.json();
+                        
+                        // 템플릿 타입별 워딩 매핑
+                        const templateNameMap = {
+                            '0': '일반 일정표',
+                            '1': '템플릿 1',
+                            '2': '템플릿 2',
+                            '3': '템플릿 3'
+                        };
+                        
+                        // 템플릿 타입별 색상 (4개까지 지원)
+                        const colors = ['#FF6F00', '#FF9800', '#FFB74D', '#FFCC80'];
+                        
+                        // 데이터 정렬 (template_type 기준 오름차순)
+                        const sortedData = data.sort((a, b) => {
+                            const aNum = parseInt(a.template_type) || 0;
+                            const bNum = parseInt(b.template_type) || 0;
+                            return aNum - bNum;
+                        });
+                        
+                        const labels = sortedData.map(item => {
+                            const name = templateNameMap[item.template_type];
+                            return name || `템플릿 ${item.template_type}`;
+                        });
+                        const chartData = sortedData.map(item => item.total_count);
+                        const chartColors = sortedData.map((item, index) => {
+                            // template_type에 따라 색상 할당 (0, 1, 2, 3 순서)
+                            const typeNum = parseInt(item.template_type) || 0;
+                            return colors[typeNum] || colors[index % colors.length];
+                        });
+                        
+                        // 범례 업데이트
+                        const legendEl = document.getElementById('templateLegend');
+                        if (legendEl) {
+                            legendEl.innerHTML = sortedData.map((item, index) => {
+                                const name = templateNameMap[item.template_type] || `템플릿 ${item.template_type}`;
+                                return `<div class="chart-row__legend-item">
+                                    <span class="chart-row__swatch" style="background-color: ${chartColors[index]};"></span>
+                                    ${name} · ${item.percentage}%
+                                </div>`;
+                            }).join('');
+                        }
+                        
+                        // 차트 업데이트
+                        if (templatePieChart) {
+                            templatePieChart.data.labels = labels;
+                            templatePieChart.data.datasets[0].data = chartData;
+                            templatePieChart.data.datasets[0].backgroundColor = chartColors;
+                            templatePieChart.update();
+                        } else {
+                            // 차트가 없으면 생성
+                            templatePieChart = createPieChart(
+                                'templatePie',
+                                labels,
+                                chartData,
+                                chartColors,
+                                (value) => `${value}`
+                            );
+                        }
+                    } catch (error) {
+                        console.error('일정 템플릿 통계 조회 오류:', error);
+                    }
+                }
+
+                // 이동수단 통계 조회 및 차트 업데이트
+                let mobilityPieChart = null;
+                async function loadTransportationStats() {
+                    try {
+                        const response = await fetch('/api/dashboard/transportation-stats');
+                        const data = await response.json();
+                        
+                        console.log('이동수단 데이터:', data); // 디버깅용
+                        
+                        // 이동수단 매핑 및 색상 (데이터베이스 값: '0'=도보, '1'=대중교통, '2'=자동차)
+                        const transportationMap = {
+                            '0': { name: '도보', color: '#FF6F00' },
+                            '1': { name: '대중교통', color: '#FF9800' },
+                            '2': { name: '자동차', color: '#FFB74D' },
+                            // 혹시 문자열로 저장된 경우도 대비
+                            '도보': { name: '도보', color: '#FF6F00' },
+                            '대중교통': { name: '대중교통', color: '#FF9800' },
+                            '자동차': { name: '자동차', color: '#FFB74D' }
+                        };
+                        
+                        // 데이터 정렬 (transportation 기준: 0, 1, 2 순서)
+                        const sortedData = data.sort((a, b) => {
+                            const order = ['0', '1', '2', '도보', '대중교통', '자동차'];
+                            const aIndex = order.indexOf(a.transportation);
+                            const bIndex = order.indexOf(b.transportation);
+                            return (aIndex === -1 ? 999 : aIndex) - (bIndex === -1 ? 999 : bIndex);
+                        });
+                        
+                        const labels = sortedData.map(item => {
+                            const transport = transportationMap[item.transportation];
+                            return transport ? transport.name : item.transportation;
+                        });
+                        const chartData = sortedData.map(item => item.total_count);
+                        const chartColors = sortedData.map(item => {
+                            const transport = transportationMap[item.transportation];
+                            return transport ? transport.color : '#FF6F00';
+                        });
+                        
+                        console.log('차트 색상:', chartColors); // 디버깅용
+                        
+                        // 범례 업데이트
+                        const legendEl = document.getElementById('mobilityLegend');
+                        if (legendEl) {
+                            legendEl.innerHTML = sortedData.map(item => {
+                                const transport = transportationMap[item.transportation];
+                                const name = transport ? transport.name : item.transportation;
+                                const color = transport ? transport.color : '#FF6F00';
+                                return `<div class="chart-row__legend-item">
+                                    <span class="chart-row__swatch" style="background-color: ${color};"></span>
+                                    ${name} · ${item.percentage}%
+                                </div>`;
+                            }).join('');
+                        }
+                        
+                        // 차트 업데이트
+                        if (mobilityPieChart) {
+                            mobilityPieChart.data.labels = labels;
+                            mobilityPieChart.data.datasets[0].data = chartData;
+                            mobilityPieChart.data.datasets[0].backgroundColor = chartColors;
+                            mobilityPieChart.update();
+                        } else {
+                            // 차트가 없으면 생성
+                            mobilityPieChart = createPieChart(
+                                'mobilityPie',
+                                labels,
+                                chartData,
+                                chartColors,
+                                (value) => `${value}`
+                            );
+                        }
+                    } catch (error) {
+                        console.error('이동수단 통계 조회 오류:', error);
+                    }
+                }
 
                 if (window.ChartDataLabels) {
                     Chart.register(window.ChartDataLabels);
@@ -305,25 +733,23 @@
                     return chart;
                 }
 
-                createPieChart(
-                    'categoryPie',
-                    ['음식점', '카페', '콘텐츠'],
-                    [55, 30, 15],
-                    ['#FF6F00', '#FF9800', '#FFB74D'],
-                    (value) => `${value}`
-                );
+                // categoryPie 차트는 loadPopularCategories()에서 동적으로 생성됨
 
-                createSparkBarChart(
-                    'recommendationBar',
-                    ['5일 전', '4일 전', '3일 전', '2일 전', '어제', '오늘'],
-                    [360, 410, 395, 430, 470, 482]
-                );
+                // recommendationBar 차트는 loadRecommendationStats()에서 동적으로 생성됨
+                // createSparkBarChart 함수가 정의된 후에 호출
+                setTimeout(() => {
+                    loadRecommendationStats();
+                    loadWeeklyAverageStats();
+                    loadPopularCategories();
+                    loadPopularDistricts();
+                    loadTemplateStats();
+                    loadTransportationStats();
+                    loadDailyTravelTimeStats();
+                    loadTotalTravelTimeAvg();
+                    loadTransportationTravelTimeAvg();
+                }, 100);
 
-                createSparkBarChart(
-                    'weeklyAverageBar',
-                    ['월', '화', '수', '목', '금', '토', '일'],
-                    [52, 58, 61, 65, 72, 85, 78]
-                );
+                // weeklyAverageBar 차트는 loadWeeklyAverageStats()에서 동적으로 생성됨
                 
                 // 요일별 평균 일정표 생성 수 차트의 y축을 10 단위로 설정
                 setTimeout(() => {
@@ -332,188 +758,188 @@
                         weeklyChart.options.scales.y.ticks.stepSize = 10;
                         weeklyChart.update();
                     }
-                }, 200);
+                }, 500);
 
-                createPieChart(
-                    'templatePie',
-                    ['일정표 1', '일정표 2', '일정표 3'],
-                    [52, 31, 17],
-                    ['#FF6F00', '#FF9800', '#FFB74D'],
-                    (value) => `${value}`
-                );
+                // templatePie 차트는 loadTemplateStats()에서 동적으로 생성됨
+                // mobilityPie 차트는 loadTransportationStats()에서 동적으로 생성됨
 
-                createPieChart(
-                    'mobilityPie',
-                    ['도보', '대중교통', '자동차'],
-                    [40, 35, 25],
-                    ['#FF6F00', '#FF9800', '#FFB74D'],
-                    (value) => `${value}`
-                );
-
-                const travelTimeEl = document.getElementById('travelTimeLine');
-
-                if (travelTimeEl) {
-                    const travelData = [48, 45, 43, 44, 41, 39];
-                    const travelChart = new Chart(travelTimeEl, {
-                        type: 'line',
-                        data: {
-                            labels: ['5일 전', '4일 전', '3일 전', '2일 전', '어제', '오늘'],
-                            datasets: [{
-                                label: '평균 이동 시간',
-                                data: travelData.map(() => 0),
-                                borderColor: '#FF8126',
-                                backgroundColor: 'rgba(255, 129, 38, 0.18)',
-                                tension: 0.35,
-                                fill: true,
-                                pointRadius: 4,
-                                pointBackgroundColor: '#FF8126',
-                                pointHoverRadius: 5
-                            }]
-                        },
-                        options: {
-                            maintainAspectRatio: false,
-                            scales: {
-                                x: {
-                                    ticks: {
-                                        color: '#52606d'
+                // 일별 평균 이동 시간 통계 조회 및 차트 업데이트
+                let travelTimeChart = null;
+                async function loadDailyTravelTimeStats() {
+                    try {
+                        const response = await fetch('/api/dashboard/daily-travel-time-stats');
+                        const data = await response.json();
+                        
+                        // 최근 30일 데이터를 날짜순으로 정렬 (오래된 것부터)
+                        const sortedData = data.sort((a, b) => new Date(a.date) - new Date(b.date));
+                        
+                        // 최근 30일 중 가장 최근 데이터만 사용 (최대 30개)
+                        const recentData = sortedData.slice(-30);
+                        
+                        const labels = recentData.map(item => {
+                            const date = new Date(item.date);
+                            const today = new Date();
+                            today.setHours(0, 0, 0, 0);
+                            const dateOnly = new Date(date);
+                            dateOnly.setHours(0, 0, 0, 0);
+                            
+                            const month = date.getMonth() + 1;
+                            const day = date.getDate();
+                            const dateStr = `${month}/${day}`;
+                            
+                            // 오늘 날짜인지 확인
+                            if (dateOnly.getTime() === today.getTime()) {
+                                return `${dateStr}(오늘)`;
+                            }
+                            
+                            return dateStr;
+                        });
+                        
+                        const avgDurationData = recentData.map(item => item.avg_duration);
+                        const weeklyDiffData = recentData.map(item => item.weekly_diff);
+                        
+                        // 차트 업데이트
+                        if (travelTimeChart) {
+                            travelTimeChart.data.labels = labels;
+                            travelTimeChart.data.datasets[0].data = avgDurationData;
+                            travelTimeChart.data.datasets[1].data = weeklyDiffData;
+                            travelTimeChart.update();
+                        } else {
+                            // 차트가 없으면 생성
+                            const travelTimeEl = document.getElementById('travelTimeLine');
+                            
+                            if (travelTimeEl) {
+                                travelTimeChart = new Chart(travelTimeEl, {
+                                    type: 'line',
+                                    data: {
+                                        labels: labels,
+                                        datasets: [{
+                                            label: '일별 평균 이동 시간 (분)',
+                                            data: avgDurationData.map(() => 0),
+                                            borderColor: '#FF8126',
+                                            backgroundColor: 'rgba(255, 129, 38, 0.18)',
+                                            tension: 0.35,
+                                            fill: true,
+                                            pointRadius: 4,
+                                            pointBackgroundColor: '#FF8126',
+                                            pointHoverRadius: 5
+                                        }, {
+                                            label: '주간 평균 대비 증감',
+                                            data: weeklyDiffData.map(() => 0),
+                                            borderColor: '#FFA726',
+                                            backgroundColor: 'rgba(255, 167, 38, 0.1)',
+                                            tension: 0.35,
+                                            fill: false,
+                                            pointRadius: 3,
+                                            pointBackgroundColor: '#FFA726',
+                                            pointHoverRadius: 4,
+                                            borderDash: [5, 5]
+                                        }]
                                     },
-                                    grid: {
-                                        color: 'rgba(82, 96, 109, 0.08)'
-                                    }
-                                },
-                                y: {
-                                    beginAtZero: false,
-                                    ticks: {
-                                        color: '#52606d',
-                                        callback: (value) => `${value}분`
-                                    },
-                                    grid: {
-                                        color: 'rgba(82, 96, 109, 0.12)'
-                                    }
-                                }
-                            },
-                            plugins: {
-                                legend: {
-                                    display: false
-                                },
-                                tooltip: {
-                                    callbacks: {
-                                        label(context) {
-                                            return `${context.parsed.y}분`;
+                                    options: {
+                                        maintainAspectRatio: false,
+                                        scales: {
+                                            x: {
+                                                ticks: {
+                                                    color: '#52606d'
+                                                },
+                                                grid: {
+                                                    color: 'rgba(82, 96, 109, 0.08)'
+                                                }
+                                            },
+                                            y: {
+                                                beginAtZero: false,
+                                                ticks: {
+                                                    color: '#52606d',
+                                                    callback: (value) => `${value}분`
+                                                },
+                                                grid: {
+                                                    color: 'rgba(82, 96, 109, 0.12)'
+                                                }
+                                            }
+                                        },
+                                        plugins: {
+                                            legend: {
+                                                display: false
+                                            },
+                                            tooltip: {
+                                                callbacks: {
+                                                    label(context) {
+                                                        const value = context.parsed.y;
+                                                        const sign = value >= 0 ? '+' : '';
+                                                        return `${context.dataset.label}: ${sign}${value}분`;
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
-                                }
+                                });
+                                
+                                setTimeout(() => {
+                                    travelTimeChart.data.datasets[0].data = avgDurationData;
+                                    travelTimeChart.data.datasets[1].data = weeklyDiffData;
+                                    travelTimeChart.update();
+                                }, 120);
                             }
                         }
-                    });
-
-                    setTimeout(() => {
-                        travelChart.data.datasets[0].data = travelData;
-                        travelChart.update();
-                    }, 120);
+                    } catch (error) {
+                        console.error('일별 평균 이동 시간 통계 조회 오류:', error);
+                    }
                 }
 
-                const regionBarEl = document.getElementById('regionBar');
+                // 전체 이동 평균 조회 및 업데이트
+                async function loadTotalTravelTimeAvg() {
+                    try {
+                        const response = await fetch('/api/dashboard/total-travel-time-avg');
+                        const data = await response.json();
+                        
+                        const totalAvgEl = document.querySelector('#travel .stat-grid .stat-card:first-child strong');
+                        if (totalAvgEl && data.avg_duration !== undefined) {
+                            totalAvgEl.textContent = `${data.avg_duration.toFixed(1)}분`;
+                        }
+                    } catch (error) {
+                        console.error('전체 이동 평균 조회 오류:', error);
+                    }
+                }
 
-                if (regionBarEl) {
-                    const regionStats = [
-                        { label: '강남구', value: 142 },
-                        { label: '강동구', value: 58 },
-                        { label: '강서구', value: 76 },
-                        { label: '강북구', value: 45 },
-                        { label: '관악구', value: 63 },
-                        { label: '광진구', value: 48 },
-                        { label: '구로구', value: 52 },
-                        { label: '금천구', value: 28 },
-                        { label: '노원구', value: 67 },
-                        { label: '도봉구', value: 32 },
-                        { label: '동대문구', value: 54 },
-                        { label: '동작구', value: 61 },
-                        { label: '마포구', value: 70 },
-                        { label: '서대문구', value: 46 },
-                        { label: '성동구', value: 59 },
-                        { label: '성북구', value: 57 },
-                        { label: '서초구', value: 88 },
-                        { label: '송파구', value: 95 },
-                        { label: '양천구', value: 50 },
-                        { label: '영등포구', value: 72 },
-                        { label: '용산구', value: 64 },
-                        { label: '은평구', value: 41 },
-                        { label: '종로구', value: 37 },
-                        { label: '중구', value: 44 },
-                        { label: '중랑구', value: 49 }
-                    ];
-
-                    const regionLabels = regionStats.map(({ label }) => label);
-                    const regionValues = regionStats.map(({ value }) => value);
-                    const totalRegionValue = regionValues.reduce((acc, curr) => acc + curr, 0);
-
-                    const baseRegionValues = regionValues.map(() => 0);
-
-                    const regionChart = new Chart(regionBarEl, {
-                        type: 'bar',
-                        data: {
-                            labels: regionLabels,
-                            datasets: [{
-                                data: baseRegionValues,
-                                backgroundColor: '#FF8126',
-                                hoverBackgroundColor: '#E65100',
-                                borderRadius: 6,
-                                maxBarThickness: 18
-                            }]
-                        },
-                        options: {
-                            maintainAspectRatio: false,
-                            scales: {
-                                x: {
-                                    beginAtZero: true,
-                                    ticks: {
-                                        color: '#52606d',
-                                        maxRotation: 45,
-                                        minRotation: 45,
-                                        autoSkip: false
-                                    },
-                                    grid: {
-                                        display: false
-                                    }
-                                },
-                                y: {
-                                    beginAtZero: true,
-                                    ticks: {
-                                        color: '#52606d',
-                                        callback: (value) => `${value}건`
-                                    },
-                                    grid: {
-                                        color: 'rgba(82, 96, 109, 0.12)',
-                                        drawBorder: false
-                                    }
-                                }
-                            },
-                            plugins: {
-                                legend: {
-                                    display: false
-                                },
-                                datalabels: {
-                                    display: false
-                                },
-                                tooltip: {
-                                    callbacks: {
-                                        label(context) {
-                                            const value = context.parsed.x;
-                                            const percent = ((value / totalRegionValue) * 100).toFixed(1);
-                                            return `${context.label}: ${value}건 (${percent}%)`;
-                                        }
-                                    }
+                // 이동수단별 평균 이동 시간 조회 및 업데이트
+                async function loadTransportationTravelTimeAvg() {
+                    try {
+                        const response = await fetch('/api/dashboard/transportation-travel-time-avg');
+                        const data = await response.json();
+                        
+                        // 이동수단 매핑: '0'=도보, '1'=대중교통, '2'=자동차
+                        const transportationMap = {
+                            '0': { name: '도보', index: 1 },
+                            '1': { name: '대중교통', index: 2 },
+                            '2': { name: '자동차', index: 3 }
+                        };
+                        
+                        // 데이터 매핑
+                        const dataMap = {};
+                        data.forEach(item => {
+                            const map = transportationMap[item.transportation];
+                            if (map) {
+                                dataMap[map.index] = item.avg_minutes;
+                            }
+                        });
+                        
+                        // 각 stat-card 업데이트 (도보, 대중교통, 자동차 순서)
+                        const statCards = document.querySelectorAll('#travel .stat-grid .stat-card');
+                        [1, 2, 3].forEach((index) => {
+                            if (statCards[index] && dataMap[index] !== undefined) {
+                                const strongEl = statCards[index].querySelector('strong');
+                                if (strongEl) {
+                                    strongEl.textContent = `${dataMap[index].toFixed(1)}분`;
                                 }
                             }
-                        }
-                    });
-
-                    setTimeout(() => {
-                        regionChart.data.datasets[0].data = regionValues;
-                        regionChart.update();
-                    }, 150);
+                        });
+                    } catch (error) {
+                        console.error('이동수단별 평균 이동 시간 조회 오류:', error);
+                    }
                 }
+
+                // regionBar 차트는 loadPopularDistricts()에서 동적으로 생성됨
 
             </script>
         </div>

@@ -6,6 +6,8 @@ import jwt as jwt_token
 from dotenv import load_dotenv
 from fastapi import Header
 
+from src.infra.cache.redis_connector import get_redis
+from src.infra.cache.redis_repository import SessionRepository
 from src.logger.custom_logger import get_logger
 from src.utils.exception_handler.auth_error_class import InvalidTokenException, MissingTokenException, \
     ExpiredAccessTokenException
@@ -18,6 +20,7 @@ algorithm = "HS256"
 logger = get_logger(__name__)
 
 async def create_jwt_token(user_id: str) -> tuple:
+    session_repo = SessionRepository()
 
     now = (datetime.now(timezone.utc))
     access_token_expires = now + timedelta(hours=1)
@@ -45,6 +48,24 @@ async def create_jwt_token(user_id: str) -> tuple:
     token1 = jwt_token.encode(payload, public_key, algorithm=algorithm)
     token2 = jwt_token.encode(payload2, public_key, algorithm=algorithm)
 
+    access_ttl = int((access_token_expires - now))
+    await session_repo.set_session(
+        session_id=token1,
+        user_id=user_id,
+        token_type="access",
+        ttl=access_ttl,  # 3600초
+        data={"refresh_token": token2}
+    )
+
+    refresh_ttl = int((refresh_token_expires - now))
+    await session_repo.set_session(
+        session_id=token2,
+        user_id=user_id,
+        token_type="refresh",
+        ttl=refresh_ttl,  # 54000초
+        data={"access_token": token1}
+    )
+
     return token1, token2
 
 
@@ -57,6 +78,13 @@ async def get_jwt_user_id(jwt: str = Header(None)) -> str:
     try:
         now = int(datetime.now(timezone.utc).timestamp())
         decoded = jwt_token.decode(jwt, public_key, algorithms=algorithm)
+
+        session_repo = SessionRepository()
+        session = await session_repo.get_session(jwt)
+
+        if not session:
+            logger.error("no session")
+            raise InvalidTokenException()
 
         #   위조된 토큰
         if (
