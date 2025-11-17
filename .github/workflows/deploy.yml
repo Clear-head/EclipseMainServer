@@ -23,11 +23,14 @@ jobs:
       - name: Create deployment bundle (zip)
         run: zip -r deploy_bundle.zip . -x "*.git*" "*.git/*"
 
+      - name: Upload to S3
+        run: |
+          aws s3 cp deploy_bundle.zip s3://eclipse-main-code-deploy-bucket/deploy_bundle_${{ github.sha }}.zip
+
       - name: Deploy to EC2 via CodeDeploy
-        uses: aws-actions/aws-code-deploy-action@v1
-        with:
-          application-name: eclipse-main-server
-          deployment-group-name: eclipse-main-publish-group
-          s3-bucket: eclipse-main-code-deploy-bucket
-          bundle-type: zip
-          deployment-bundle: deploy_bundle.zip
+        run: |
+          aws deploy create-deployment \
+            --application-name eclipse-main-server \
+            --deployment-group-name eclipse-main-publish-group \
+            --s3-location bucket=eclipse-main-code-deploy-bucket,key=deploy_bundle_${{ github.sha }}.zip,bundleType=zip \
+            --description "Deployment from commit ${{ github.sha }}"
