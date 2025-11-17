@@ -524,8 +524,9 @@ class StoreSuggestService:
         n_results: int = 10
     ) -> List[Dict]:
         """
-        DB에서 지역과 카테고리만 맞춘 랜덤 매장 조회 (INNER JOIN)
-        리뷰가 있는 매장 중에서만 추천
+        DB에서 지역과 카테고리 기반 매장 조회
+        1순위: 리뷰가 있는 매장 중 평점 높은 순 (1개라도 있으면 반환)
+        2순위: 리뷰 없어도 조건 맞는 랜덤 매장
         
         Args:
             region: 지역명 (예: "강남구")
@@ -533,33 +534,43 @@ class StoreSuggestService:
             n_results: 결과 개수
         
         Returns:
-            랜덤 매장 리스트 (리뷰 통계 포함)
+            매장 리스트 (리뷰 통계 포함)
         """
         from src.infra.database.repository.category_repository import CategoryRepository
         
-        logger.info(f"DB 랜덤 조회 시작: {category_type} in {region}")
+        logger.info(f"DB 조회 시작: {category_type} in {region}")
         
         repo = CategoryRepository()
+        type_code = self.convert_type_to_code(category_type)
         
-        # DB에서 랜덤 조회
-        # random_stores = await repo.select_random(
-        #     limit=n_results,
-        #     gu=region,
-        #     type=self.convert_type_to_code(category_type)
-        # )
-        random_stores = await repo.get_review_statistics(
+        # 1차 시도: 리뷰가 있는 매장 중 평점 높은 순
+        stores_with_reviews = await repo.get_review_statistics(
             limit=n_results,
             gu=region,
-            type=self.convert_type_to_code(category_type),
-            is_random=True
+            type=type_code,
+            is_random=True,  # INNER JOIN (리뷰 있는 매장만)
+            order_by_rating=True  # 평점 높은 순 정렬
         )
         
-        logger.info(f"DB 랜덤 조회 결과: {len(random_stores)}개")
+        # 1개라도 있으면 바로 반환
+        if stores_with_reviews:
+            logger.info(f"리뷰 있는 매장 조회 성공: {len(stores_with_reviews)}개 (평점순)")
+            return [store.model_dump() for store in stores_with_reviews]
         
-        # MainScreenCategoryList 형식으로 변환
-        results = []
-        for store in random_stores:
-            
-            results.append(store.model_dump())
+        # 2차 시도: 리뷰 조건 없이 랜덤 조회
+        logger.warning("리뷰 있는 매장 없음. 전체 매장에서 랜덤 조회 시도")
         
-        return results
+        all_stores = await repo.get_review_statistics(
+            limit=n_results,
+            gu=region,
+            type=type_code,
+            is_random=False,  # LEFT JOIN (모든 매장)
+            order_by_rating=False  # 랜덤
+        )
+        
+        if not all_stores:
+            logger.error(f"해당 조건의 매장이 전혀 없습니다: {category_type} in {region}")
+            return []
+        
+        logger.info(f"전체 매장 랜덤 조회 결과: {len(all_stores)}개")
+        return [store.model_dump() for store in all_stores]
