@@ -4,11 +4,14 @@ from starlette.responses import JSONResponse
 from src.domain.dto.chat.chat_message_dto import RequestChatMessageDTO, ResponseChatMessageDTO
 from src.domain.dto.chat.chat_session_dto import RequestStartChatSessionDTO, ResponseStartChatSessionDTO
 from src.domain.dto.history.history_dto import RequestSaveHistoryDTO
+from src.domain.dto.transport.transport_dto import RequestCalculateTransportDTO, ResponseCalculateTransportDTO, \
+    PublicTransportRouteDTO
 from src.infra.cache.redis_repository import SessionRepository
 from src.logger.custom_logger import get_logger
 from src.service.application.conversation_handler import handle_user_message, handle_user_action_response, \
     save_selected_template_to_merge, save_selected_template
 from src.service.application.prompts import RESPONSE_MESSAGES
+from src.service.application.route_calculation_service import RouteCalculationService
 from src.service.auth.jwt import get_jwt_user_id
 
 session_repo = SessionRepository()
@@ -103,6 +106,40 @@ async def chat(
     )
 
     return JSONResponse(content=response.model_dump())
+
+
+@router.post("/cal-route")
+async def calculate_route(dto: RequestCalculateTransportDTO):
+    dist = await RouteCalculationService().calculate_route_by_transport_type(
+        transport_type=dto.transport_type,
+        destination=dto.destination,
+        origin=dto.origin,
+    )
+
+    routes = []
+
+    if dist is None:
+        return ResponseCalculateTransportDTO(
+            duration=None,
+            distance=None
+        )
+
+    if (dist is not None) and (dist.get("routes", 0) != 0):
+        for i in dist.get("routes"):
+            routes.append(
+                PublicTransportRouteDTO(
+                    description=i.get("description"),
+                    duration_min=i.get("duration_minutes")
+                )
+            )
+
+    result = ResponseCalculateTransportDTO(
+        duration=dist.get("duration_seconds"),
+        distance=dist.get("distance_meters"),
+        routes=routes
+    )
+
+    return result
 
 
 @router.post("/histories")
