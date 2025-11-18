@@ -16,18 +16,18 @@ logger = get_logger(__name__)
 
 
 class QueryEnhancementService:
-    """사용자 입력을 자연스러운 검색 쿼리로 변환하고, GPT-4.1로 추천 결과를 재정렬/필터링"""
+    """사용자 입력을 자연스러운 검색 쿼리로 변환하고, GPT-4.1로 추천 결과를 재정렬/필터링 - 싱글톤 패턴"""
 
-    _instance = None
+    _instance = None  # 🔥 추가!
 
-    def __new__(cls):
+    def __new__(cls):  # 🔥 추가!
         """싱글톤 인스턴스 생성"""
         if cls._instance is None:
             cls._instance = super().__new__(cls)
         return cls._instance
 
     def __init__(self):
-        # 이미 초기화된 경우 스킵
+        # 🔥 이미 초기화된 경우 스킵
         if hasattr(self, '_initialized'):
             return
 
@@ -43,7 +43,7 @@ class QueryEnhancementService:
         else:
             logger.warning("GitHub API 토큰이 없습니다. 쿼리 개선 및 GPT 필터링 기능이 비활성화됩니다.")
 
-        # 초기화 완료 플래그
+        # 🔥 초기화 완료 플래그
         self._initialized = True
 
     async def enhance_query(
