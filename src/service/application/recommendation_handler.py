@@ -5,7 +5,7 @@
 - 랜덤 추천
 - 추천 결과 포맷팅
 """
-
+import asyncio
 from typing import Dict, List
 
 from src.domain.dto.category.category_dto import CategoryListItemDTO
@@ -200,26 +200,24 @@ async def get_filtered_recommendations(
 # ==================== 통합 추천 ====================
 async def get_store_recommendations(session: Dict) -> Dict[str, List[CategoryListItemDTO]]:
     """
-    세션 데이터를 기반으로 매장 추천
+    세션 데이터를 기반으로 매장 추천 (병렬 처리)
 
     Args:
-        session: 현재 세션 (collectedTags, selectedCategories, preselectedCategoryId 등 포함)
+        session: 현재 세션 (collectedTags, selectedCategories 등 포함)
 
     Returns:
         카테고리별 추천 매장 딕셔너리
     """
     from src.service.suggest.store_suggest_service import StoreSuggestService
     from src.infra.external.query_enchantment import QueryEnhancementService
-    from src.infra.database.repository.category_repository import CategoryRepository
 
     logger.info("=" * 60)
-    logger.info("매장 추천 시작")
+    logger.info("매장 추천 시작 (병렬 처리)")
     logger.info("=" * 60)
 
+    # 싱글톤 인스턴스 가져오기
     suggest_service = StoreSuggestService()
     query_enhancer = QueryEnhancementService()
-    category_repo = CategoryRepository()  # 🔥 추가
-    recommendations = {}
 
     # 세션 데이터 추출
     region = session.get("play_address", "")
@@ -228,30 +226,16 @@ async def get_store_recommendations(session: Dict) -> Dict[str, List[CategoryLis
     selected_categories = session.get("selectedCategories", [])
     categories_to_process = selected_categories or list(collected_tags.keys())
     random_categories = set(session.get("randomCategories", []))
-    preselected_category_id = session.get("preselectedCategoryId")  # 🔥 추가
 
     logger.info(f"지역: {region}")
     logger.info(f"인원: {people_count}명")
     logger.info(f"수집된 태그: {collected_tags}")
     logger.info(f"랜덤 카테고리: {random_categories}")
-    logger.info(f"미리 선택된 매장 ID: {preselected_category_id}")  # 🔥 추가
+    logger.info(f"처리할 카테고리: {categories_to_process}")
 
-    # 🔥 미리 선택된 매장 정보 조회
-    preselected_store = None
-    if preselected_category_id:
-        try:
-            store_list = await category_repo.get_review_statistics(
-                id=[preselected_category_id],
-                is_random=False
-            )
-            if store_list:
-                preselected_store = store_list[0]
-                logger.info(f"미리 선택된 매장: {preselected_store.title}")
-        except Exception as e:
-            logger.error(f"미리 선택된 매장 조회 실패: {e}")
-
-    # 카테고리별 추천 처리
-    for category in categories_to_process:
+    # 🔥 카테고리별 작업 생성 (병렬 처리 준비)
+    async def process_category(category: str):
+        """개별 카테고리 처리 함수"""
         keywords = collected_tags.get(category, [])
         is_random = category in random_categories
 
@@ -261,32 +245,38 @@ async def get_store_recommendations(session: Dict) -> Dict[str, List[CategoryLis
         try:
             if is_random:
                 # 랜덤 추천
-                recommendations[category] = await get_random_recommendations(
+                result = await get_random_recommendations(
                     suggest_service, region, category
                 )
             else:
                 # 일반 추천 (ChromaDB + GPT)
-                recommendations[category] = await get_filtered_recommendations(
+                result = await get_filtered_recommendations(
                     suggest_service, query_enhancer, region, category, keywords, people_count
                 )
 
-            # 🔥 미리 선택된 매장을 해당 카테고리 추천 목록 맨 앞에 추가
-            if preselected_store and preselected_store.sub_category == category:
-                # 중복 제거 (이미 추천 목록에 있으면 제거)
-                recommendations[category] = [
-                    store for store in recommendations[category]
-                    if store.id != preselected_category_id
-                ]
-                # 맨 앞에 추가
-                recommendations[category].insert(0, preselected_store)
-                logger.info(f"[{category}] 미리 선택된 매장을 추천 목록 최상단에 추가")
+            logger.info(f"[{category}] 추천 완료: {len(result)}개 매장")
+            return category, result
 
         except Exception as e:
             logger.error(f"[{category}] 추천 중 오류: {e}", exc_info=True)
-            recommendations[category] = []
+            return category, []
+
+    # 🔥 모든 카테고리 병렬 처리
+    tasks = [process_category(category) for category in categories_to_process]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    # 결과 딕셔너리로 변환
+    recommendations = {}
+    for result in results:
+        if isinstance(result, Exception):
+            logger.error(f"카테고리 처리 중 예외 발생: {result}")
+            continue
+
+        category, stores = result
+        recommendations[category] = stores
 
     total_stores = sum(len(stores) for stores in recommendations.values())
-    logger.info(f"전체 추천 완료: {total_stores}개 매장")
+    logger.info(f"전체 추천 완료 (병렬 처리): {total_stores}개 매장")
     logger.info("=" * 60)
 
     return recommendations
