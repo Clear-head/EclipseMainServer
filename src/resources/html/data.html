@@ -43,10 +43,11 @@
                                 <thead>
                                     <tr>
                                         <th>순위</th>
+                                        <th>매장타입</th>
                                         <th>이름</th>
                                         <th>구</th>
                                         <th>서브카테고리</th>
-                                        <th>메뉴</th>
+                                        <th>방문횟수</th>
                                     </tr>
                                 </thead>
                                 <tbody id="popularPlacesTableBody">
@@ -277,6 +278,7 @@
                                 size: 11
                             },
                             stepSize: stepSize,
+                            maxTicksLimit: 12,  // 최대 눈금 개수 제한
                             callback: (value) => {
                                 // 0은 표시하지 않음
                                 if (value === 0) {
@@ -566,7 +568,7 @@
             tbody.innerHTML = '';
 
             if (!data || data.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px;">데이터가 없습니다.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;">데이터가 없습니다.</td></tr>';
                 return;
             }
 
@@ -575,75 +577,15 @@
                 const row = document.createElement('tr');
                 row.setAttribute('data-row-index', index);
                 
-                // 메뉴 파싱
-                const menuText = place.메뉴 || '';
-                const menuArray = menuText ? menuText.split(',').map(m => m.trim()).filter(m => m) : [];
-                const hasMoreMenus = menuArray.length > 6;
-                const displayMenus = hasMoreMenus ? menuArray.slice(0, 6) : menuArray;
-                const hiddenMenus = hasMoreMenus ? menuArray.slice(6) : [];
-                
-                // 메뉴 셀 생성
-                const menuCell = document.createElement('td');
-                menuCell.className = 'menu-cell';
-                
-                const menuContainer = document.createElement('div');
-                menuContainer.className = 'menu-container';
-                
-                const visibleMenuSpan = document.createElement('span');
-                visibleMenuSpan.className = 'menu-visible';
-                visibleMenuSpan.textContent = displayMenus.join(', ');
-                
-                const hiddenMenuSpan = document.createElement('span');
-                hiddenMenuSpan.className = 'menu-hidden';
-                hiddenMenuSpan.style.display = 'none';
-                hiddenMenuSpan.textContent = hiddenMenus.join(', ');
-                
-                const moreButton = document.createElement('button');
-                moreButton.className = 'menu-toggle-btn';
-                moreButton.textContent = '더보기';
-                moreButton.style.display = hasMoreMenus ? 'inline-block' : 'none';
-                moreButton.style.marginLeft = '8px';
-                moreButton.style.padding = '4px 12px';
-                moreButton.style.fontSize = '12px';
-                moreButton.style.fontWeight = '500';
-                moreButton.style.color = '#FF8126';
-                moreButton.style.backgroundColor = 'transparent';
-                moreButton.style.border = '1px solid #FF8126';
-                moreButton.style.borderRadius = '4px';
-                moreButton.style.cursor = 'pointer';
-                moreButton.style.transition = 'all 0.2s ease';
-                moreButton.addEventListener('mouseenter', function() {
-                    this.style.backgroundColor = '#FF8126';
-                    this.style.color = '#ffffff';
-                });
-                moreButton.addEventListener('mouseleave', function() {
-                    this.style.backgroundColor = 'transparent';
-                    this.style.color = '#FF8126';
-                });
-                moreButton.addEventListener('click', function() {
-                    const isExpanded = hiddenMenuSpan.style.display !== 'none';
-                    if (isExpanded) {
-                        hiddenMenuSpan.style.display = 'none';
-                        moreButton.textContent = '더보기';
-                    } else {
-                        hiddenMenuSpan.style.display = 'inline';
-                        moreButton.textContent = '접기';
-                    }
-                });
-                
-                menuContainer.appendChild(visibleMenuSpan);
-                menuContainer.appendChild(hiddenMenuSpan);
-                menuContainer.appendChild(moreButton);
-                menuCell.appendChild(menuContainer);
-                
                 // 행 구성
                 row.innerHTML = `
-                    <td>${index + 1}</td>
+                    <td>${place.순위 || index + 1}</td>
+                    <td>${place.매장타입 || ''}</td>
                     <td>${place.이름 || ''}</td>
                     <td>${place.구 || ''}</td>
                     <td>${place.서브카테고리 || ''}</td>
+                    <td>${place.방문횟수 || 0}회</td>
                 `;
-                row.appendChild(menuCell);
                 
                 tbody.appendChild(row);
             });
@@ -651,7 +593,7 @@
             console.error('인기 장소 데이터 로드 오류:', error);
             const tbody = document.getElementById('popularPlacesTableBody');
             if (tbody) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px; color: #F44336;">데이터를 불러오는 중 오류가 발생했습니다.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: #F44336;">데이터를 불러오는 중 오류가 발생했습니다.</td></tr>';
             }
         }
     }

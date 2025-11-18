@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 from pydantic import BaseModel
 
@@ -8,6 +8,7 @@ class RequestStartChatSessionDTO(BaseModel):
     play_address: str                    # 활동 지역
     peopleCount: int                     # 인원 수
     selectedCategories: List[str]        # 선택한 카테고리 (예: ["카페", "음식점"])
+    preselectedCategoryId: Optional[str] = None
 
 
 class ResponseStartChatSessionDTO(BaseModel):

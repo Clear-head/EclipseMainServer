@@ -26,19 +26,20 @@ async def start_conversation(
 ) -> ResponseStartChatSessionDTO:
 
     chat_session_data = {
-        "play_address": data.play_address,                  #   주소
-        "peopleCount": data.peopleCount,                    #   인원수
-        "selectedCategories": data.selectedCategories,      #   카테고리 타입
-        "collectedTags": {},                                # 카테고리별 태그 저장
-        "currentCategoryIndex": 0,                          # 현재 질문 중인 카테고리
-        "conversationHistory": [],                          # 대화 히스토리
-        "stage": "collecting_details",                      # 현재 단계: collecting_details, confirming_results, completed
-        "waitingForUserAction": False,                      # 사용자 액션(Next/More 또는 Yes) 대기 중인지
-        "lastUserMessage": "",                              # 마지막 사용자 메시지
-        "pendingTags": [],                                  # 대기 중인 태그들
-        "modificationMode": False,                          # 수정 모드인지
-        "randomCategories": [],                             # 추가 필요
-        "randomCategoryPending": None,                      # 추가 필요
+        "play_address": data.play_address,                      #   주소
+        "peopleCount": data.peopleCount,                        #   인원수
+        "selectedCategories": data.selectedCategories,          #   카테고리 타입
+        "preselectedCategoryId": data.preselectedCategoryId,    #   미리 선택 된 매장
+        "collectedTags": {},                                    #   카테고리별 태그 저장
+        "currentCategoryIndex": 0,                              #   현재 질문 중인 카테고리
+        "conversationHistory": [],                              #   대화 히스토리
+        "stage": "collecting_details",                          #    현재 단계: collecting_details, confirming_results, completed
+        "waitingForUserAction": False,                          #   사용자 액션(Next/More 또는 Yes) 대기 중인지
+        "lastUserMessage": "",                                  #    마지막 사용자 메시지
+        "pendingTags": [],                                      #   대기 중인 태그들
+        "modificationMode": False,                              #   수정 모드인지
+        "randomCategories": [],                                 #   추가 필요
+        "randomCategoryPending": None,                          #   추가 필요
     }
 
     await session_repo.set_chat_session(

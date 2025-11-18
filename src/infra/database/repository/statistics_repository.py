@@ -46,16 +46,27 @@ class StatisticsRepository(BaseRepository):
             engine = await get_engine()
             async with engine.begin() as conn:
                 query = text("""
-                             SELECT c.name         AS 이름,
-                                    c.gu           AS 구,
-                                    c.sub_category AS 서브카테고리,
-                                    c.menu         AS 메뉴
-                             FROM category AS c
-                                      LEFT JOIN
-                                  user_history AS u
-                                  ON u.category_id = c.name
-                             GROUP BY c.name, c.gu, c.sub_category, c.menu
-                             ORDER BY COUNT(u.category_id) DESC LIMIT 10
+                             SELECT 
+                                ROW_NUMBER() OVER (ORDER BY COUNT(uh.id) DESC) AS 순위,
+                                CASE 
+                                    WHEN c.type = 0 THEN '음식점'
+                                    WHEN c.type = 1 THEN '카페'
+                                    WHEN c.type = 2 THEN '콘텐츠'
+                                    ELSE '기타'
+                                END AS 매장타입,
+                                c.name AS 이름,
+                                c.gu AS 구,
+                                c.sub_category AS 서브카테고리,
+                                COUNT(uh.id) AS 방문횟수
+                             FROM 
+                                user_history uh
+                             JOIN 
+                                category c ON uh.category_id = c.id
+                             GROUP BY 
+                                c.id, c.type, c.name, c.gu, c.sub_category
+                             ORDER BY 
+                                방문횟수 DESC
+                             LIMIT 10
                              """)
 
                 result = await conn.execute(query)
@@ -63,10 +74,12 @@ class StatisticsRepository(BaseRepository):
 
                 return [
                     {
+                        "순위": int(row["순위"] or 0),
+                        "매장타입": row["매장타입"] or "",
                         "이름": row["이름"] or "",
                         "구": row["구"] or "",
                         "서브카테고리": row["서브카테고리"] or "",
-                        "메뉴": row["메뉴"] or ""
+                        "방문횟수": int(row["방문횟수"] or 0),
                     }
                     for row in rows
                 ]
@@ -541,29 +554,20 @@ class StatisticsRepository(BaseRepository):
             async with engine.begin() as conn:
                 query = text("""
                              SELECT
-                                    r.user_id AS 사용자,
-                                    -- 계정 상태: black 테이블에 user_id 존재 여부
-                                    CASE 
-                                        WHEN EXISTS (
-                                            SELECT 1
-                                            FROM black b2
-                                            WHERE b2.user_id = r.user_id
-                                        ) THEN '비활성'
-                                        ELSE '활성'
-                                    END AS 계정상태,
-                                    -- 신고 cause 3개까지만 연결
-                                    (
-                                        SELECT GROUP_CONCAT(cause ORDER BY reported_at DESC SEPARATOR ', ')
-                                        FROM report r2
-                                        WHERE r2.user_id = r.user_id
-                                        ORDER BY r2.reported_at DESC
-                                        LIMIT 3
-                                    ) AS 최근신고,
-                                    -- 총 신고 횟수
-                                    COUNT(*) AS 신고횟수
-                             FROM report r
-                             GROUP BY r.user_id
-                             ORDER BY 신고횟수 DESC
+                                u.id AS user_id,
+                                CASE
+                                    WHEN b.user_id IS NOT NULL THEN '제한'
+                                    ELSE '활성'
+                                END AS account_status,
+                                GROUP_CONCAT(r.cause ORDER BY r.reported_at DESC SEPARATOR ', ') AS recent_reports
+                            FROM users u
+                            LEFT JOIN black b
+                                ON u.id = b.user_id
+                            LEFT JOIN report r
+                                ON u.id = r.user_id
+                                AND r.type <> 3    
+                            GROUP BY u.id, account_status
+                            ORDER BY u.id
                              """)
 
                 result = await conn.execute(query)
@@ -571,10 +575,10 @@ class StatisticsRepository(BaseRepository):
 
                 return [
                     {
-                        "user_id": row["사용자"] or "",
-                        "account_status": row["계정상태"] or "활성",
-                        "recent_reports": row["최근신고"] or "없음",
-                        "report_count": int(row["신고횟수"] or 0)
+                        "user_id": row["user_id"] or "",
+                        "account_status": row["account_status"] or "활성",
+                        "recent_reports": row["recent_reports"] or "없음",
+                        "report_count": len(row["recent_reports"].split(", ")) if row.get("recent_reports") and row["recent_reports"] != "없음" else 0
                     }
                     for row in rows
                 ]
