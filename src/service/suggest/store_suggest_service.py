@@ -20,25 +20,37 @@ logger = get_logger(__name__)
 
 class StoreSuggestService:
     """개선된 매장 제안 서비스 (키워드 매칭 중심)"""
-    
+    _instance = None
+    _lock = asyncio.Lock()
+
+    def __new__(cls, *args, **kwargs):
+        """싱글톤 인스턴스 생성"""
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
     def __init__(self, use_reranker: bool = True):
         """
         Args:
             use_reranker: Re-ranking 모델 사용 여부
         """
+        # 이미 초기화된 경우 스킵
+        if hasattr(self, '_initialized'):
+            return
+
         logger.info("개선된 매장 제안 서비스 초기화 중...")
-        
+
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         logger.info(f"사용 중인 디바이스: {self.device}")
-        
+
         # 설정 파일 로드
         self.config = self._load_config()
         self.chroma_config = self.config.get("chroma", {})
-        
+
         # ChromaDB 클라이언트 초기화 (비동기)
         self.client = None
         self.store_collection = None
-        
+
         # 임베딩 모델 로드
         logger.info("임베딩 모델 로딩 중: intfloat/multilingual-e5-large")
         self.embedding_model = SentenceTransformer(
@@ -46,11 +58,11 @@ class StoreSuggestService:
             device=self.device
         )
         logger.info(f"임베딩 모델 로딩 완료")
-        
+
         # Re-ranking 모델 로드 (한국어 특화)
         self.use_reranker = use_reranker
         self.reranker = None
-        
+
         if self.use_reranker:
             try:
                 logger.info("Re-ranking 모델 로딩 중: BAAI/bge-reranker-base")
@@ -63,8 +75,12 @@ class StoreSuggestService:
             except Exception as e:
                 logger.error(f"Re-ranking 모델 로딩 실패: {e}")
                 self.use_reranker = False
-        
+
         self.query_enhancer = QueryEnhancementService()
+
+        # 초기화 완료 플래그
+        self._initialized = True
+        logger.info("StoreSuggestService 싱글톤 초기화 완료")
     
     def _load_config(self) -> Dict:
         """database_config.json 파일 로드"""
