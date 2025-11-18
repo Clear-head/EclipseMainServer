@@ -425,7 +425,7 @@ class StoreSuggestService:
             query_embedding = query_embedding.cpu()
         
         # ChromaDB 검색 (비동기)
-        search_n_results = n_results * rerank_candidates_multiplier
+        search_n_results = min(n_results * rerank_candidates_multiplier, 30)
         
         try:
             results = await self.store_collection.query(

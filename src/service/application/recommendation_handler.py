@@ -19,7 +19,7 @@ RECOMMENDATION_CONFIG = {
     "gpt_max_results": 10,
     "random_results": 10,
     "min_similarity": 0.2,
-    "rerank_multiplier": 5,
+    "rerank_multiplier": 3,
     "keyword_weight": 0.5,
     "semantic_weight": 0.3,
     "rerank_weight": 0.2
