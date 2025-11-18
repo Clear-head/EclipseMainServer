@@ -28,13 +28,7 @@ async def get_engine() -> AsyncEngine:
                 max_overflow=20,
                 pool_timeout=30,
                 pool_pre_ping=True,
-                pool_recycle=3600,
-
-                connect_args={
-                    "connect_timeout": 10,
-                    "read_timeout": 30,
-                    "write_timeout": 30,
-                },
+                pool_recycle=3600
 
                 # echo=True,
             )
