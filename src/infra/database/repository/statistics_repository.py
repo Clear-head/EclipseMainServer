@@ -554,29 +554,20 @@ class StatisticsRepository(BaseRepository):
             async with engine.begin() as conn:
                 query = text("""
                              SELECT
-                                    r.user_id AS 사용자,
-                                    -- 계정 상태: black 테이블에 user_id 존재 여부
-                                    CASE 
-                                        WHEN EXISTS (
-                                            SELECT 1
-                                            FROM black b2
-                                            WHERE b2.user_id = r.user_id
-                                        ) THEN '비활성'
-                                        ELSE '활성'
-                                    END AS 계정상태,
-                                    -- 신고 cause 3개까지만 연결
-                                    (
-                                        SELECT GROUP_CONCAT(cause ORDER BY reported_at DESC SEPARATOR ', ')
-                                        FROM report r2
-                                        WHERE r2.user_id = r.user_id
-                                        ORDER BY r2.reported_at DESC
-                                        LIMIT 3
-                                    ) AS 최근신고,
-                                    -- 총 신고 횟수
-                                    COUNT(*) AS 신고횟수
-                             FROM report r
-                             GROUP BY r.user_id
-                             ORDER BY 신고횟수 DESC
+                                u.id AS user_id,
+                                CASE
+                                    WHEN b.user_id IS NOT NULL THEN '제한'
+                                    ELSE '활성'
+                                END AS account_status,
+                                GROUP_CONCAT(r.cause ORDER BY r.reported_at DESC SEPARATOR ', ') AS recent_reports
+                            FROM users u
+                            LEFT JOIN black b
+                                ON u.id = b.user_id
+                            LEFT JOIN report r
+                                ON u.id = r.user_id
+                                AND r.type <> 3    
+                            GROUP BY u.id, account_status
+                            ORDER BY u.id
                              """)
 
                 result = await conn.execute(query)
@@ -584,10 +575,10 @@ class StatisticsRepository(BaseRepository):
 
                 return [
                     {
-                        "user_id": row["사용자"] or "",
-                        "account_status": row["계정상태"] or "활성",
-                        "recent_reports": row["최근신고"] or "없음",
-                        "report_count": int(row["신고횟수"] or 0)
+                        "user_id": row["user_id"] or "",
+                        "account_status": row["account_status"] or "활성",
+                        "recent_reports": row["recent_reports"] or "없음",
+                        "report_count": len(row["recent_reports"].split(", ")) if row.get("recent_reports") and row["recent_reports"] != "없음" else 0
                     }
                     for row in rows
                 ]
