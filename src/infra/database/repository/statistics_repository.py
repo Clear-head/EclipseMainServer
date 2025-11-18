@@ -46,16 +46,27 @@ class StatisticsRepository(BaseRepository):
             engine = await get_engine()
             async with engine.begin() as conn:
                 query = text("""
-                             SELECT c.name         AS 이름,
-                                    c.gu           AS 구,
-                                    c.sub_category AS 서브카테고리,
-                                    c.menu         AS 메뉴
-                             FROM category AS c
-                                      LEFT JOIN
-                                  user_history AS u
-                                  ON u.category_id = c.name
-                             GROUP BY c.name, c.gu, c.sub_category, c.menu
-                             ORDER BY COUNT(u.category_id) DESC LIMIT 10
+                             SELECT 
+                                ROW_NUMBER() OVER (ORDER BY COUNT(uh.id) DESC) AS 순위,
+                                CASE 
+                                    WHEN c.type = 0 THEN '음식점'
+                                    WHEN c.type = 1 THEN '카페'
+                                    WHEN c.type = 2 THEN '콘텐츠'
+                                    ELSE '기타'
+                                END AS 매장타입,
+                                c.name AS 이름,
+                                c.gu AS 구,
+                                c.sub_category AS 서브카테고리,
+                                COUNT(uh.id) AS 방문횟수
+                             FROM 
+                                user_history uh
+                             JOIN 
+                                category c ON uh.category_id = c.id
+                             GROUP BY 
+                                c.id, c.type, c.name, c.gu, c.sub_category
+                             ORDER BY 
+                                방문횟수 DESC
+                             LIMIT 10
                              """)
 
                 result = await conn.execute(query)
@@ -63,10 +74,12 @@ class StatisticsRepository(BaseRepository):
 
                 return [
                     {
+                        "순위": int(row["순위"] or 0),
+                        "매장타입": row["매장타입"] or "",
                         "이름": row["이름"] or "",
                         "구": row["구"] or "",
                         "서브카테고리": row["서브카테고리"] or "",
-                        "메뉴": row["메뉴"] or ""
+                        "방문횟수": int(row["방문횟수"] or 0),
                     }
                     for row in rows
                 ]
