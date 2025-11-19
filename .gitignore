@@ -216,4 +216,3 @@ src/service/test.py
 src/requirements.txt
 .vscode/settings.json
 src/resources/crawl/crawlers.json
-src/service/add_random_reviews_with_ai.py
