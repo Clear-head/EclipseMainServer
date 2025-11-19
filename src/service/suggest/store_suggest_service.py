@@ -281,7 +281,7 @@ class StoreSuggestService:
         
         # 각 문서에 대해 점수 계산
         for i in range(len(ids)):
-            keyword_score = self.calculate_keyword_score(query_keywords, documents[i])
+            keyword_score = await self.calculate_keyword_score(query_keywords, documents[i])
             semantic_score = max(0, 1 - distances[i])
             
             if rerank_scores is not None:
