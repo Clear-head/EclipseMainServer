@@ -196,7 +196,7 @@ class StoreSuggestService:
         keywords = [k.strip() for k in keywords if k.strip()]
         return keywords
     
-    def calculate_keyword_score(self, query_keywords: List[str], document: str) -> float:
+    async def calculate_keyword_score(self, query_keywords: List[str], document: str) -> float:
         """
         키워드 매칭 점수 계산 (BM25 스타일)
         
@@ -378,7 +378,7 @@ class StoreSuggestService:
         query_keywords = self.extract_keywords(user_keyword)
         logger.info(f"추출된 키워드: {query_keywords}")
         
-        query_keywords = await self.preprocess_keywords(query_keywords)
+        query_keywords = self.preprocess_keywords(query_keywords)
         logger.info(f"전처리된 키워드: {query_keywords}")
         
         # 검색 쿼리 생성
