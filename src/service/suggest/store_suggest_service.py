@@ -196,7 +196,7 @@ class StoreSuggestService:
         keywords = [k.strip() for k in keywords if k.strip()]
         return keywords
     
-    async def calculate_keyword_score(self, query_keywords: List[str], document: str) -> float:
+    def calculate_keyword_score(self, query_keywords: List[str], document: str) -> float:
         """
         키워드 매칭 점수 계산 (BM25 스타일)
         
