@@ -23,11 +23,14 @@ async def get_engine() -> AsyncEngine:
             _ENGINE = create_async_engine(
                 f'mysql+asyncmy://{config["user"]}:{config["password"]}'
                 f'@{config["host"]}:{config["port"]}/{config["database"]}',
+
+                pool_size=10,
+                max_overflow=20,
+                pool_timeout=30,
                 pool_pre_ping=True,
-                pool_recycle=3600,
-                connect_args={
-                    "connect_timeout": 30,  # 연결 타임아웃만 지원
-                }
+                pool_recycle=3600
+
+                # echo=True,
             )
 
         return _ENGINE

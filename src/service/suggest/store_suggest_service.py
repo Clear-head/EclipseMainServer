@@ -20,25 +20,38 @@ logger = get_logger(__name__)
 
 class StoreSuggestService:
     """개선된 매장 제안 서비스 (키워드 매칭 중심)"""
-    
+    _instance = None
+    _lock = asyncio.Lock()
+    _init_lock = asyncio.Lock()
+
+    def __new__(cls, *args, **kwargs):
+        """싱글톤 인스턴스 생성"""
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
     def __init__(self, use_reranker: bool = True):
         """
         Args:
             use_reranker: Re-ranking 모델 사용 여부
         """
+        # 이미 초기화된 경우 스킵
+        if hasattr(self, '_initialized'):
+            return
+
         logger.info("개선된 매장 제안 서비스 초기화 중...")
-        
+
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         logger.info(f"사용 중인 디바이스: {self.device}")
-        
+
         # 설정 파일 로드
         self.config = self._load_config()
         self.chroma_config = self.config.get("chroma", {})
-        
+
         # ChromaDB 클라이언트 초기화 (비동기)
         self.client = None
         self.store_collection = None
-        
+
         # 임베딩 모델 로드
         logger.info("임베딩 모델 로딩 중: intfloat/multilingual-e5-large")
         self.embedding_model = SentenceTransformer(
@@ -46,11 +59,11 @@ class StoreSuggestService:
             device=self.device
         )
         logger.info(f"임베딩 모델 로딩 완료")
-        
+
         # Re-ranking 모델 로드 (한국어 특화)
         self.use_reranker = use_reranker
         self.reranker = None
-        
+
         if self.use_reranker:
             try:
                 logger.info("Re-ranking 모델 로딩 중: BAAI/bge-reranker-base")
@@ -63,8 +76,12 @@ class StoreSuggestService:
             except Exception as e:
                 logger.error(f"Re-ranking 모델 로딩 실패: {e}")
                 self.use_reranker = False
-        
+
         self.query_enhancer = QueryEnhancementService()
+
+        # 초기화 완료 플래그
+        self._initialized = True
+        logger.info("StoreSuggestService 싱글톤 초기화 완료")
     
     def _load_config(self) -> Dict:
         """database_config.json 파일 로드"""
@@ -253,7 +270,10 @@ class StoreSuggestService:
         if self.use_reranker and self.reranker is not None:
             try:
                 pairs = [[search_query, doc] for doc in documents]
-                rerank_scores = self.reranker.predict(pairs)
+                rerank_scores = await asyncio.to_thread(
+                    self.reranker.predict,
+                    pairs
+                )
                 logger.info("Cross-Encoder 점수 계산 완료")
             except Exception as e:
                 logger.error(f"Cross-Encoder 실행 오류: {e}")
@@ -298,7 +318,7 @@ class StoreSuggestService:
         
         return results
     
-    def preprocess_keywords(self, keywords: List[str]) -> List[str]:
+    async def preprocess_keywords(self, keywords: List[str]) -> List[str]:
         """
         키워드 전처리 (동의어 치환)
         
@@ -342,7 +362,9 @@ class StoreSuggestService:
         """개선된 매장 제안 (키워드 중심 하이브리드 검색)"""
         
         # 클라이언트 초기화 (최초 1회만)
-        await self._initialize_client()
+        async with self._init_lock:
+            if self.client is None or self.store_collection is None:
+                await self._initialize_client()
         
         logger.info("=" * 60)
         logger.info("개선된 매장 제안 요청")
@@ -356,7 +378,7 @@ class StoreSuggestService:
         query_keywords = self.extract_keywords(user_keyword)
         logger.info(f"추출된 키워드: {query_keywords}")
         
-        query_keywords = self.preprocess_keywords(query_keywords)
+        query_keywords = await self.preprocess_keywords(query_keywords)
         logger.info(f"전처리된 키워드: {query_keywords}")
         
         # 검색 쿼리 생성
@@ -403,7 +425,7 @@ class StoreSuggestService:
             query_embedding = query_embedding.cpu()
         
         # ChromaDB 검색 (비동기)
-        search_n_results = n_results * rerank_candidates_multiplier
+        search_n_results = min(n_results * rerank_candidates_multiplier, 30)
         
         try:
             results = await self.store_collection.query(
@@ -426,7 +448,7 @@ class StoreSuggestService:
             return []
         
         # 하이브리드 Re-ranking
-        reranked_results = self.hybrid_rerank(
+        reranked_results = await self.hybrid_rerank(
             search_query=search_query,
             query_keywords=query_keywords,
             ids=results['ids'][0],

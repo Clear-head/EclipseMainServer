@@ -1,557 +1,481 @@
-# EclipseMainServer
+# Project Documentation
 
+FastAPI 기반 장소 추천 및 일정 관리 시스템
 
+## 프로젝트 개요
 
-# API 명세서
+사용자의 선호도를 AI로 분석하여 맞춤형 장소(음식점, 카페, 콘텐츠)를 추천하고, 경로를 계산하여 일정표를 생성하는 서비스입니다.
 
-## 목차
-- [1. 인증 (Authentication)](#1-인증-authentication)
-- [2. 카테고리 (Categories)](#2-카테고리-categories)
-- [3. 사용자 정보 (User Info)](#3-사용자-정보-user-info)
-- [4. AI 서비스 (Service)](#4-ai-서비스-service)
-- [5. 사용자 관리 (User Management)](#5-사용자-관리-user-management)
+### 주요 기능
 
----
+1. AI 대화형 장소 추천
+2. 경로 계산 및 일정표 생성
+3. 리뷰 및 평점 시스템
+4. 찜 기능
+5. 네이버 지도 크롤링
+6. 벡터 DB 기반 검색
+7. 관리자 대시보드
 
-## 1. 인증 (Authentication)
+## 기술 스택
 
-### 1.1 로그인
-**POST** `/api/auth/session`
+### Backend
+- FastAPI (Python 3.10+)
+- SQLAlchemy (ORM)
+- MariaDB
+- Redis
+- ChromaDB (Vector DB)
 
+### AI/ML
+- OpenAI GPT-4
+- intfloat/multilingual-e5-large (임베딩)
 
-#### Request Body
+### Crawling
+- Playwright
+
+### External APIs
+- 카카오맵 API
+- T맵 API
+- 공공데이터포털 날씨 API
+
+## 프로젝트 구조
+
+```
+src/
+├── domain/              # 도메인 레이어
+│   ├── dto/            # Data Transfer Objects
+│   └── entities/       # Database Entities
+├── infra/              # 인프라 레이어
+│   ├── database/       # 데이터베이스
+│   ├── cache/          # Redis
+│   ├── external/       # 외부 API
+│   └── vector_database/ # ChromaDB
+├── service/            # 서비스 레이어
+│   ├── auth/          # 인증
+│   ├── user/          # 사용자 관련
+│   ├── category/      # 카테고리(매장)
+│   ├── application/   # AI 추천 시스템
+│   ├── crawl/         # 크롤링
+│   ├── chromadb/      # 벡터 DB
+│   ├── suggest/       # 추천 엔진
+│   └── dashboard/     # 대시보드
+├── router/             # 라우터 레이어
+│   ├── admin/         # 관리자 API
+│   └── users/         # 사용자 API
+├── logger/             # 로깅
+├── utils/              # 유틸리티
+└── resources/          # 설정 파일
+    ├── config/        # 설정 파일
+    ├── crawl/         # 크롤링 설정
+    └── html/          # 대시보드 HTML
+```
+
+## 아키텍처
+
+### 레이어 구조
+
+```
+┌─────────────┐
+│   Router    │ - HTTP 엔드포인트
+├─────────────┤
+│   Service   │ - 비즈니스 로직
+├─────────────┤
+│ Repository  │ - 데이터 액세스
+├─────────────┤
+│   Infra     │ - DB, Cache, API
+└─────────────┘
+```
+
+### 데이터 흐름
+
+```
+Client Request
+     ↓
+   Router (FastAPI)
+     ↓
+   Service Layer
+     ↓
+   Repository
+     ↓
+   Database/Cache/External API
+     ↓
+   Response
+```
+
+## 주요 모듈 문서
+
+### Core
+
+- [Domain (DTO/Entity)](outputs/domain.md)
+- [Service](outputs/ServiceReadMe.md)
+- [Repository](outputs/repository.md)
+- [Router](outputs/router_README.md)
+
+### Infrastructure
+
+- [Infra](outputs/infra_README.md)
+- [External APIs](outputs/external.md)
+
+### Utilities
+
+- [Utils](outputs/utils_README.md)
+- [Logger](outputs/logger_README.md)
+
+### API
+
+- [API 명세서](outputs/API_SPECIFICATION.md)
+- [RESTful 개선 제안](outputs/RESTFUL_API_IMPROVEMENTS.md)
+
+## 설치 및 실행
+
+### 1. 환경 설정
+
+```bash
+# Python 가상환경 생성
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+
+# 의존성 설치
+pip install -r requirements.txt
+```
+
+### 2. 설정 파일
+
+`src/resources/config/.env` 파일 생성:
+
+```env
+PUBLIC_KEY=your_jwt_secret_key
+ISSUE_NAME=your_service_name
+KAKAO_REST_API_KEY=your_kakao_key
+OPENAI_API_KEY=your_openai_key
+WEATHER_API_KEY=your_weather_key
+TMAP_API_KEY=your_tmap_key
+```
+
+`src/resources/config/database_config.json`:
+
 ```json
 {
-  "id": "user123",
-  "password": "password123"
+  "host": "localhost",
+  "port": 3306,
+  "user": "root",
+  "password": "password",
+  "database": "mydb"
 }
 ```
 
-#### Response (200 OK)
+`src/resources/config/redis_config.json`:
+
 ```json
 {
-  "message": "success",
-  "token1": "access_token_string",
-  "token2": "refresh_token_string",
-  "info": {
-    "username": "홍길동",
-    "nickname": "길동이",
-    "birth": "1990-01-01T00:00:00",
-    "phone": "010-1234-5678",
-    "email": "user@example.com",
-    "address": "서울시 강남구"
-  }
+  "host": "localhost",
+  "port": 6379,
+  "db": 0
 }
 ```
 
-#### Error Responses
-- **400**: 잘못된 자격 증명
-- **409**: 중복된 사용자 정보
+### 3. 데이터베이스 설정
 
----
+```bash
+# MariaDB 설치 및 실행
+# 데이터베이스 생성
+mysql -u root -p
+CREATE DATABASE mydb;
 
-### 1.2 로그아웃
-**DELETE** `/api/auth/session`
-
----
-
-### 1.3 회원가입
-**POST** `/api/auth/register`
-#### Request Body
-```json
-{
-  "id": "user123",
-  "username": "홍길동",
-  "password": "password123",
-  "nickname": "길동이",
-  "birth": "1990-01-01T00:00:00",
-  "phone": "010-1234-5678",
-  "email": "user@example.com",
-  "sex": 1,
-  "address": "서울시 강남구"
-}
+# 테이블 생성 (스키마는 별도 제공)
 ```
 
-#### Response (200 OK)
-```json
-{
-  "message": "success"
-}
+### 4. Redis 설치 및 실행
+
+```bash
+# Redis 설치
+# Ubuntu
+sudo apt-get install redis-server
+
+# macOS
+brew install redis
+
+# 실행
+redis-server
 ```
 
-#### Error Responses
-- **409**: 이미 존재하는 사용자
+### 5. ChromaDB 설정
 
----
-
-### 1.4 JWT 토큰 갱신
-**POST** `/api/auth/refresh`
-
-Refresh Token을 사용하여 새로운 Access Token을 발급
-
-#### Request Body
-```json
-{
-  "token": "refresh_token_string",
-  "id": "user123"
-}
+```bash
+# 자동으로 로컬에 생성됨
+# 또는 원격 서버 설정 (chroma_config.json)
 ```
 
-#### Response (200 OK)
-```json
-{
-  "token": "new_access_token_string"
-}
+### 6. 서버 실행
+
+```bash
+# 개발 모드
+uvicorn src.main:app --reload --host 0.0.0.0 --port 8080
+
+# 프로덕션 모드
+uvicorn src.main:app --host 0.0.0.0 --port 8080 --workers 4
 ```
 
-#### Error Responses
-- **400**: 토큰 누락
-- **401**: 만료된 Refresh Token
+서버 실행 후: http://localhost:8080
 
----
+## API 사용 예시
 
-### 1.5 아이디 찾기
-**POST** `/api/auth/id`
+### 1. 회원가입
 
-
----
-
-### 1.6 비밀번호 찾기
-**POST** `/api/auth/password`
-
-
----
-
-## 2. 카테고리 (Categories)
-
-### 2.1 메인 화면 카테고리 조회
-**GET** `/api/categories/`
-
-메인 화면에 표시할 카테고리 목록을 조회합니다.
-
-#### Headers
-- `Authorization`: Bearer {access_token}
-
-#### Response (200 OK)
-```json
-{
-  "categories": [
-    {
-      "id": "cat_001",
-      "title": "맛있는 카페",
-      "image_url": "https://example.com/image.jpg",
-      "detail_address": "서울특별시 강남구 역삼동 123",
-      "sub_category": "카페"
-    }
-  ]
-}
+```bash
+curl -X POST "http://localhost:8080/api/auth/register" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "user123",
+    "password": "password123",
+    "nickname": "닉네임",
+    "email": "user@example.com"
+  }'
 ```
 
----
+### 2. 로그인
 
-### 2.2 카테고리 상세 조회
-**GET** `/api/categories/{category_id}`
-
-특정 매장의 상세 정보 조회
-
-#### Headers
-- `Authorization`: Bearer {access_token}
-
-#### Path Parameters
-- `category_id`: 카테고리 ID
-
-#### Response (200 OK)
-```json
-{
-  "is_like": true,
-  "tags": ["조용한", "인테리어", "커피"],
-  "reviews": [
-    {
-      "nickname": "사용자1",
-      "star": 5,
-      "comment": "정말 좋아요!"
-    }
-  ]
-}
+```bash
+curl -X POST "http://localhost:8080/api/auth/session" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "user123",
+    "password": "password123"
+  }'
 ```
 
-#### Error Responses
-- **404**: 카테고리를 찾을 수 없음
+### 3. AI 채팅 시작
 
----
-
-## 3. 사용자 정보 (User Info)
-
-### 3.1 좋아요 목록 조회
-**GET** `/api/users/me/likes`
-
-사용자가 좋아요한 매장 목록 조회
-
-#### Headers
-- `Authorization`: Bearer {access_token}
-
-#### Response (200 OK)
-```json
-{
-  "like_list": [
-    {
-      "type": "카페",
-      "category_id": "cat_001",
-      "category_name": "맛있는 카페",
-      "category_image": "https://example.com/image.jpg",
-      "sub_category": "카페",
-      "do": "서울특별시",
-      "si": null,
-      "gu": "강남구",
-      "detail_address": "역삼동 123",
-      "category_address": "서울특별시강남구역삼동 123"
-    }
-  ]
-}
+```bash
+curl -X POST "http://localhost:8080/api/service/start" \
+  -H "Content-Type: application/json" \
+  -H "jwt: YOUR_TOKEN" \
+  -d '{
+    "play_address": "강남구",
+    "peopleCount": 2,
+    "selectedCategories": ["음식점", "카페"]
+  }'
 ```
 
----
+### 4. 메시지 전송
 
-### 3.2 좋아요 설정
-**POST** `/api/users/me/likes`
-
-사용자별 좋아요 목록에 추가
-
-#### Headers
-- `Authorization`: Bearer {access_token}
-
-#### Request Body
-```json
-{
-  "category_id": "cat_001"
-}
+```bash
+curl -X POST "http://localhost:8080/api/service/chat" \
+  -H "Content-Type: application/json" \
+  -H "jwt: YOUR_TOKEN" \
+  -d '{
+    "message": "분위기 좋은 곳"
+  }'
 ```
 
-#### Response (200 OK)
-```json
-"success"
-```
+## 개발 가이드
 
----
+### 코드 스타일
 
-### 3.3 좋아요 취소
-**DELETE** `/api/users/me/likes`
+- PEP 8 준수
+- Type Hints 사용
+- Docstring 작성
 
-사용자별 좋아요 취소
-
-#### Headers
-- `Authorization`: Bearer {access_token}
-
-#### Request Body
-```json
-{
-  "category_id": "cat_001"
-}
-```
-
-#### Response (200 OK)
-```json
-"success"
-```
-
----
-
-### 3.4 리뷰 목록 조회
-**GET** `/api/users/me/reviews`
-
-사용자(본인) 리뷰 조회
-
-#### Headers
-- `Authorization`: Bearer {access_token}
-
-#### Response (200 OK)
-```json
-{
-  "review_list": [
-    {
-      "review_id": "rev_001",
-      "category_id": "cat_001",
-      "category_name": "맛있는 카페",
-      "comment": "정말 좋아요!",
-      "stars": 5,
-      "created_at": "2024-01-01T12:00:00"
-    }
-  ]
-}
-```
-
----
-
-### 3.5 히스토리 목록 조회
-**GET** `/api/users/me/histories`
-
-사용자의 방문 히스토리 목록 조회
-
-#### Headers
-- `Authorization`: Bearer {access_token}
-
-#### Response (200 OK)
-```json
-{
-  "results": [
-    {
-      "id": "merge_001",
-      "visited_at": "2024-01-01T14:00:00",
-      "categories_name": "카페레스토랑"
-    }
-  ]
-}
-```
-
----
-
-### 3.6 히스토리 상세 조회
-**GET** `/api/users/me/histories/detail/{merge_history_id}`
-
-특정 히스토리의 상세 정보 조회(일정표 보기)
-
-#### Headers
-- `Authorization`: Bearer {access_token}
-
-#### Path Parameters
-- `merge_history_id`: 병합 히스토리 ID
-
-#### Response (200 OK)
-```json
-{
-  "categories": [
-    {
-      "duration": 60,
-      "transportation_type": "도보",
-      "category_id": 1,
-      "category_name": "맛있는 카페"
-    }
-  ]
-}
-```
-
----
-
-## 4. AI 서비스 (Service)
-
-### 4.1 대화 시작
-**POST** `/api/service/start`
-
-AI와의 대화를 시작
-
-#### Headers
-- `Authorization`: Bearer {access_token}
-
-#### Request Body
-```json
-{
-  "play_address": "서울시 강남구",
-  "peopleCount": 2,
-  "selectedCategories": ["카페", "음식점"]
-}
-```
-
-#### Response (200 OK)
-```json
-{
-  "status": "success",
-  "sessionId": "user_session_id",
-  "message": "2명이서 카페, 음식점을(를) 즐기시는군요! 먼저 카페에 대해 물어볼게요.",
-  "stage": "collecting_details",
-  "progress": {
-    "current": 0,
-    "total": 2
-  }
-}
-```
-
----
-
-### 4.2 채팅 메시지 전송
-**POST** `/api/service/chat`
-
-AI에게 메시지를 전송
-
-#### Headers
-- `Authorization`: Bearer {access_token}
-
-#### Request Body
-```json
-{
-  "message": "조용하고 커피가 맛있는 곳"
-}
-```
-
-#### Response (200 OK) - 태그 수집 단계
-```json
-{
-  "status": "success",
-  "message": "현재까지 수집된 키워드: 조용한, 커피",
-  "stage": "collecting_details",
-  "tags": ["조용한", "커피"],
-  "progress": {
-    "current": 0,
-    "total": 2
-  },
-  "showYesNoButtons": true,
-  "yesNoQuestion": "이 정보로 다음 질문으로 넘어가시겠습니까?",
-  "currentCategory": "카페"
-}
-```
-
-#### Response (200 OK) - 완료 단계
-```json
-{
-  "status": "success",
-  "message": "추천 결과를 생성했습니다!",
-  "stage": "completed",
-  "recommendations": {
-    "카페": [
-      {
-        "id": "cat_001",
-        "title": "조용한 카페",
-        "image_url": "https://example.com/image.jpg",
-        "detail_address": "서울특별시 강남구 역삼동 123",
-        "sub_category": "카페"
-      }
-    ]
-  },
-  "collectedData": [
-    {
-      "category": "카페",
-      "keywords": ["조용한", "커피"]
-    }
-  ]
-}
-```
-
-#### Error Responses
-- **404**: 세션을 찾을 수 없음
-
----
-
-### 4.3 히스토리 저장
-**POST** `/api/service/histories`
-
-하루와 대화 결과물 (일정표) 저장
-
-#### Headers
-- `Authorization`: Bearer {access_token}
-
-#### Request Body
-```json
-{
-  "template_type": "date",
-  "category": [
-    {
-      "category_id": "cat_001",
-      "category_name": "맛있는 카페",
-      "duration": 60,
-      "transportation": "도보"
-    }
-  ]
-}
-```
-
-#### Response (200 OK)
-```json
-"success"
-```
-
----
-
-## 5. 사용자 관리 (User Management)
-
-### 5.1 사용자 정보 수정
-**PUT** `/api/users/me/{field}`
-
-사용자 정보 수정 (닉네임, 비밀번호, 이메일, 주소, 전화번호)
-
-#### Headers
-- `Authorization`: Bearer {access_token}
-
-#### Path Parameters
-- `field`: 수정할 필드 (nickname, password, email, address, phone)
-
-#### Request Body
-```json
-{
-  "change_field": "새로운값",
-  "password": "현재비밀번호"
-}
-```
-
-#### Response (200 OK)
-```json
-{
-  "msg": "새로운값"
-}
-```
-
-#### Error Responses
-- **404**: 사용자를 찾을 수 없음
-- **409**: 중복된 사용자 정보
-
----
-
-### 5.2 회원 탈퇴
-**DELETE** `/api/users/me`
-
-#### Headers
-- `Authorization`: Bearer {access_token}
-
-#### Request Body
-```json
-{
-  "password": "current_password"
-}
-```
-
-#### Response (200 OK)
-```json
-{
-  "status": "success"
-}
-```
-
-#### Error Responses
-- **404**: 사용자를 찾을 수 없음
-- **409**: 중복된 사용자 정보
-
----
-
-## 공통 에러 응답
-
-### 401 Unauthorized
-```json
-{
-  "detail": "인증되지 않은 사용자"
-}
-```
-
-### 500 Internal Server Error
-```json
-{
-  "detail": "서버 내부 오류"
-}
-```
-
----
-
-## 인증
-
-로그인 이후 모든 요청에 jwt 포함, 헤더에 있음
+### 커밋 메시지
 
 ```
-Authorization: Bearer {access_token}
+feat: 새로운 기능 추가
+fix: 버그 수정
+docs: 문서 수정
+style: 코드 포맷팅
+refactor: 코드 리팩토링
+test: 테스트 코드
+chore: 기타 작업
 ```
 
-Access Token이 만료된 경우, `/api/auth/refresh` 에서 새로운 토큰 발급\
+### 브랜치 전략
 
----
+```
+main         - 프로덕션
+develop      - 개발
+feature/*    - 기능 개발
+hotfix/*     - 긴급 수정
+```
+
+## 테스트
+
+```bash
+# 단위 테스트
+pytest tests/unit
+
+# 통합 테스트
+pytest tests/integration
+
+# 전체 테스트
+pytest
+
+# 커버리지
+pytest --cov=src tests/
+```
+
+## 배포
+
+### Docker
+
+```dockerfile
+FROM python:3.10
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+COPY src/ ./src/
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8080"]
+```
+
+### Docker Compose
+
+```yaml
+version: '3.8'
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mariadb
+      - redis
+  mariadb:
+    image: mariadb:10.6
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: mydb
+  redis:
+    image: redis:7
+```
+
+## 모니터링
+
+### 로그
+
+```bash
+# 로그 확인
+tail -f logs/src/src-2024-11-18.txt
+
+# 에러 로그
+grep ERROR logs/src/src-2024-11-18.txt
+```
+
+### 대시보드
+
+관리자 대시보드: http://localhost:8080/dashboard.html
+
+## 성능 최적화
+
+### 1. 데이터베이스
+
+- 인덱스 활용
+- N+1 쿼리 방지
+- JOIN 최적화
+
+### 2. 캐싱
+
+- Redis 세션 캐싱
+- ChromaDB 검색 결과 캐싱
+
+### 3. 비동기 처리
+
+- async/await 활용
+- 병렬 처리
+
+## 보안
+
+### 1. 인증
+
+- JWT 토큰 (Access + Refresh)
+- Redis 세션 관리
+
+### 2. 비밀번호
+
+- bcrypt 해싱
+
+### 3. API 키
+
+- 환경 변수로 관리
+- .env 파일은 .gitignore에 추가
+
+## 트러블슈팅
+
+### 1. 데이터베이스 연결 실패
+
+```bash
+# MariaDB 상태 확인
+sudo systemctl status mariadb
+
+# 설정 파일 확인
+cat src/resources/config/database_config.json
+```
+
+### 2. Redis 연결 실패
+
+```bash
+# Redis 상태 확인
+redis-cli ping
+
+# 설정 확인
+cat src/resources/config/redis_config.json
+```
+
+### 3. ChromaDB 오류
+
+```bash
+# 디렉토리 권한 확인
+ls -la ./chroma_db
+
+# 재생성
+rm -rf ./chroma_db
+python -m src.service.chromadb.store_chromadb_loader
+```
+
+## FAQ
+
+### Q: API 키는 어디서 발급받나요?
+
+A: 
+- 카카오: https://developers.kakao.com/
+- OpenAI: https://platform.openai.com/
+- 공공데이터: https://www.data.go.kr/
+
+### Q: ChromaDB는 로컬과 원격 중 어느 것을 사용하나요?
+
+A: 개발 환경에서는 로컬, 프로덕션에서는 원격 서버 권장
+
+### Q: 크롤링 주기는 어떻게 설정하나요?
+
+A: `src/service/scheduler/crawling_scheduler.py`에서 설정
+
+## 기여 가이드
+
+1. Fork the repository
+2. Create feature branch
+3. Commit changes
+4. Push to branch
+5. Create Pull Request
+
+## 라이선스
+
+MIT License
+
+## 연락처
+
+- 이메일: support@example.com
+- 이슈: GitHub Issues
 
 ## 변경 이력
 
-### 버전 1.0
-- 초기 API 명세서 작성
-- 인증, 카테고리, 사용자 정보, AI 서비스, 사용자 관리 API 정의
+### v0.1.0 (2025-11-18)
+- 초기 릴리스
+- AI 추천 시스템
+- 경로 계산 기능
+- 관리자 대시보드
+
+## 참고 자료
+
+- [FastAPI 공식 문서](https://fastapi.tiangolo.com/)
+- [SQLAlchemy 문서](https://docs.sqlalchemy.org/)
+- [ChromaDB 문서](https://docs.trychroma.com/)
+- [OpenAI API 문서](https://platform.openai.com/docs/)
