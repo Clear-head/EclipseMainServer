@@ -318,7 +318,7 @@ class StoreSuggestService:
         
         return results
     
-    async def preprocess_keywords(self, keywords: List[str]) -> List[str]:
+    def preprocess_keywords(self, keywords: List[str]) -> List[str]:
         """
         키워드 전처리 (동의어 치환)
         
