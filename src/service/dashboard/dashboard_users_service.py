@@ -50,15 +50,15 @@ class DashboardUserService:
 
     async def get_account_and_report_status(self) -> list:
         """
-        계정 및 신고 현황을 조회합니다.
+        신고 현황을 조회합니다.
         
         Returns:
             list: [{'user_id': 'user001', 'account_status': '활성', 'recent_reports': '스팸/광고, 욕설/비방'}, ...]
         """
         try:
-            self.logger.info("계정 및 신고 현황을 조회")
+            self.logger.info("신고 현황을 조회")
             return await StatisticsRepository().get_account_and_report_status()
         except Exception as e:
-            self.logger.error(f"계정 및 신고 현황 조회 오류: {e}")
+            self.logger.error(f"신고 현황 조회 오류: {e}")
             raise e
 

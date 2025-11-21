@@ -549,7 +549,7 @@ class StatisticsRepository(BaseRepository):
 
     async def get_account_and_report_status(self) -> list:
         try:
-            self.logger.info("계정 및 신고 현황을 조회합니다.")
+            self.logger.info("신고 현황을 조회합니다.")
             engine = await get_engine()
             async with engine.begin() as conn:
                 query = text("""
@@ -563,7 +563,7 @@ class StatisticsRepository(BaseRepository):
                             FROM users u
                             LEFT JOIN black b
                                 ON u.id = b.user_id
-                            LEFT JOIN report r
+                            INNER JOIN report r
                                 ON u.id = r.user_id
                                 AND r.type <> 3    
                             GROUP BY u.id, account_status
@@ -584,7 +584,7 @@ class StatisticsRepository(BaseRepository):
                 ]
 
         except Exception as e:
-            self.logger.error(f"계정 및 신고 현황 조회 오류: {e}")
+            self.logger.error(f"신고 현황 조회 오류: {e}")
             raise e
 
     async def get_user_count(self) -> int:
