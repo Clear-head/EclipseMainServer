@@ -17,12 +17,14 @@ FastAPI 기반 장소 추천 및 일정 관리 시스템
 7. 관리자 대시보드
 
 ## 기술 스택
-
+### Frontend
 ### Backend
-- FastAPI (Python 3.10+)
-- SQLAlchemy (ORM)
-- MariaDB
-- Redis
+<img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white" />
+<img src="https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi"/>
+<img src="https://img.shields.io/badge/SQLAlchemy-306998?logo=python&logoColor=white"/>
+<img src="https://img.shields.io/badge/MariaDB-003545?style=for-the-badge&logo=mariadb&logoColor=white" />
+<img src="https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=Redis&logoColor=white">
+<img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" />
 - ChromaDB (Vector DB)
 
 ### AI/ML
@@ -31,6 +33,7 @@ FastAPI 기반 장소 추천 및 일정 관리 시스템
 
 ### Crawling
 - Playwright
+
 
 ### External APIs
 - 카카오맵 API
@@ -72,53 +75,27 @@ src/
 ## 아키텍처
 
 ### 레이어 구조
+![systemarch.png](docs/systemarch.png)
 
-```
-┌─────────────┐
-│   Router    │ - HTTP 엔드포인트
-├─────────────┤
-│   Service   │ - 비즈니스 로직
-├─────────────┤
-│ Repository  │ - 데이터 액세스
-├─────────────┤
-│   Infra     │ - DB, Cache, API
-└─────────────┘
-```
-
-### 데이터 흐름
-
-```
-Client Request
-     ↓
-   Router (FastAPI)
-     ↓
-   Service Layer
-     ↓
-   Repository
-     ↓
-   Database/Cache/External API
-     ↓
-   Response
-```
+### 크롤링 파이프 라인
+![EclipseCrawl.png](docs/EclipseCrawl.png)
 
 ## 주요 모듈 문서
 
 ### Core
 
-- [Domain (DTO/Entity)](outputs/domain.md)
-- [Service](outputs/ServiceReadMe.md)
-- [Repository](outputs/repository.md)
-- [Router](outputs/router_README.md)
+- [Domain (DTO/Entity)](src/domain/domain.md)
+- [Service](src/service/ServiceReadMe.md)
+- [Repository](src/infra/database/repository/repository.md)
+- [Router](src/router/router_README.md)
 
 ### Infrastructure
-
-- [Infra](outputs/infra_README.md)
-- [External APIs](outputs/external.md)
+- [External APIs](src/infra/external/external.md)
 
 ### Utilities
 
-- [Utils](outputs/utils_README.md)
-- [Logger](outputs/logger_README.md)
+- [Utils](src/utils/utils_README.md)
+- [Logger](src/logger/logger_README.md)
 
 ### API
 
@@ -147,7 +124,6 @@ PUBLIC_KEY=your_jwt_secret_key
 ISSUE_NAME=your_service_name
 KAKAO_REST_API_KEY=your_kakao_key
 OPENAI_API_KEY=your_openai_key
-WEATHER_API_KEY=your_weather_key
 TMAP_API_KEY=your_tmap_key
 ```
 
@@ -203,68 +179,6 @@ redis-server
 ```bash
 # 자동으로 로컬에 생성됨
 # 또는 원격 서버 설정 (chroma_config.json)
-```
-
-### 6. 서버 실행
-
-```bash
-# 개발 모드
-uvicorn src.main:app --reload --host 0.0.0.0 --port 8080
-
-# 프로덕션 모드
-uvicorn src.main:app --host 0.0.0.0 --port 8080 --workers 4
-```
-
-서버 실행 후: http://localhost:8080
-
-## API 사용 예시
-
-### 1. 회원가입
-
-```bash
-curl -X POST "http://localhost:8080/api/auth/register" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "id": "user123",
-    "password": "password123",
-    "nickname": "닉네임",
-    "email": "user@example.com"
-  }'
-```
-
-### 2. 로그인
-
-```bash
-curl -X POST "http://localhost:8080/api/auth/session" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "id": "user123",
-    "password": "password123"
-  }'
-```
-
-### 3. AI 채팅 시작
-
-```bash
-curl -X POST "http://localhost:8080/api/service/start" \
-  -H "Content-Type: application/json" \
-  -H "jwt: YOUR_TOKEN" \
-  -d '{
-    "play_address": "강남구",
-    "peopleCount": 2,
-    "selectedCategories": ["음식점", "카페"]
-  }'
-```
-
-### 4. 메시지 전송
-
-```bash
-curl -X POST "http://localhost:8080/api/service/chat" \
-  -H "Content-Type: application/json" \
-  -H "jwt: YOUR_TOKEN" \
-  -d '{
-    "message": "분위기 좋은 곳"
-  }'
 ```
 
 ## 개발 가이드
@@ -325,27 +239,6 @@ RUN pip install -r requirements.txt
 
 COPY src/ ./src/
 CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8080"]
-```
-
-### Docker Compose
-
-```yaml
-version: '3.8'
-services:
-  app:
-    build: .
-    ports:
-      - "8080:8080"
-    depends_on:
-      - mariadb
-      - redis
-  mariadb:
-    image: mariadb:10.6
-    environment:
-      MYSQL_ROOT_PASSWORD: password
-      MYSQL_DATABASE: mydb
-  redis:
-    image: redis:7
 ```
 
 ## 모니터링
@@ -448,30 +341,10 @@ A: 개발 환경에서는 로컬, 프로덕션에서는 원격 서버 권장
 
 A: `src/service/scheduler/crawling_scheduler.py`에서 설정
 
-## 기여 가이드
-
-1. Fork the repository
-2. Create feature branch
-3. Commit changes
-4. Push to branch
-5. Create Pull Request
-
-## 라이선스
-
-MIT License
-
 ## 연락처
 
-- 이메일: support@example.com
+- 이메일: huni032285@gmail.com
 - 이슈: GitHub Issues
-
-## 변경 이력
-
-### v0.1.0 (2025-11-18)
-- 초기 릴리스
-- AI 추천 시스템
-- 경로 계산 기능
-- 관리자 대시보드
 
 ## 참고 자료
 
